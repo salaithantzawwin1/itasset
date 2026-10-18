@@ -1,15 +1,158 @@
 {% extends "base.html" %}
 {% load t %}
 {% block title %}{% t "dash.title" %} — {% t "app.name" %}{% endblock %}
+{% block extra_css %}
+  /* ---------- dashboard (mockup: docs/itasset-docs/index.html) ---------- */
+  :root { --hero-1: #1e3a8a; --hero-2: #3b82f6; --dash-accent: #3b82f6; }
+  [data-accent="green"]  { --hero-1: #064e3b; --hero-2: #10b981; --dash-accent: #10b981; }
+  [data-accent="purple"] { --hero-1: #4c1d95; --hero-2: #8b5cf6; --dash-accent: #8b5cf6; }
+  [data-accent="orange"] { --hero-1: #78350f; --hero-2: #f59e0b; --dash-accent: #f59e0b; }
+  [data-accent="pink"]   { --hero-1: #831843; --hero-2: #ec4899; --dash-accent: #ec4899; }
+  [data-accent="teal"]   { --hero-1: #134e4a; --hero-2: #14b8a6; --dash-accent: #14b8a6; }
+
+  .dash-hero { display: flex; justify-content: space-between; align-items: center; gap: 14px;
+    background: linear-gradient(135deg, var(--hero-1), var(--hero-2)); color: #fff;
+    padding: 18px 24px; border-radius: 12px; margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.15); }
+  .dash-hero h1 { margin: 0; font-size: 20px; }
+  .dash-hero .sub { color: rgba(255,255,255,.82); font-size: 13px; margin-top: 4px; }
+  .accent-wrap { position: relative; }
+  .hero-btn { width: 42px; height: 42px; border-radius: 10px; border: 1px solid rgba(255,255,255,.25);
+    background: rgba(255,255,255,.12); color: #fff; font-size: 18px; cursor: pointer; }
+  .hero-btn:hover { background: rgba(255,255,255,.25); }
+  .accent-menu { position: absolute; right: 0; top: 50px; z-index: 30; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 10px; padding: 10px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+  .accent-menu[hidden] { display: none; }
+  .accent-swatch { width: 32px; height: 32px; border-radius: 8px; border: none; cursor: pointer; }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--dash-accent);
+    border-radius: 12px; padding: 16px 18px; box-shadow: var(--shadow); }
+  .kpi.critical { border-left-color: var(--danger); }
+  .kpi.warning  { border-left-color: #f59e0b; }
+  .kpi.success  { border-left-color: var(--accent); }
+  .kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); font-weight: 600; }
+  .kpi-value { font-size: 26px; font-weight: 800; margin-top: 6px; line-height: 1.1; }
+  .kpi-meta { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+  .dash-grid2 { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px; }
+
+  /* category chart — pure CSS bars (CSP allows no CDN chart lib) */
+  .cat-chart { display: flex; gap: 14px; height: 210px; }
+  .cat-col { flex: 1; min-width: 0; display: grid; grid-template-rows: auto 1fr auto; gap: 6px; }
+  .cat-col .cat-n { font-size: 12px; font-weight: 700; text-align: center; }
+  .cat-track { display: flex; align-items: flex-end; justify-content: center; min-height: 0; }
+  .cat-bar { width: 62%; border-radius: 8px 8px 0 0; min-height: 4px; }
+  .cat-lbl { font-size: 11px; color: var(--muted); text-align: center; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+
+  .alerts { list-style: none; margin: 0; padding: 0; }
+  .alerts li { padding: 11px 12px; border-radius: 8px; margin-bottom: 8px; font-size: 12.5px;
+    font-weight: 600; border-left: 3px solid; }
+  .alerts li small { display: block; font-weight: 400; font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .alerts li a { color: inherit; text-decoration: none; }
+  .alerts li a:hover { text-decoration: underline; }
+  .alerts .critical { background: color-mix(in srgb, var(--danger) 8%, transparent); border-color: var(--danger); }
+  .alerts .warn { background: rgba(245,158,11,.10); border-color: #f59e0b; }
+  .alerts .info { background: var(--primary-light); border-color: var(--primary); }
+
+  @media (max-width: 900px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .dash-grid2 { grid-template-columns: 1fr; }
+    .cat-chart { height: 180px; }
+  }
+{% endblock %}
 {% block content %}
-<div class="page-head">
-  <div><h1>{% t "dash.title" %}</h1><div class="sub">{% t "app.subtitle" %}</div></div>
+<div class="dash-hero">
+  <div>
+    <h1>🖥️ {% t "dash.title" %}</h1>
+    <div class="sub">{% t "app.subtitle" %}</div>
+  </div>
+  <div class="accent-wrap">
+    <button class="hero-btn" id="accent-btn" title="Accent color" aria-label="Accent color">🎨</button>
+    <div id="accent-menu" class="accent-menu" hidden>
+      <button class="accent-swatch" data-accent-set="blue"   aria-label="blue"   style="background:linear-gradient(135deg,#1e3a8a,#3b82f6)"></button>
+      <button class="accent-swatch" data-accent-set="green"  aria-label="green"  style="background:linear-gradient(135deg,#064e3b,#10b981)"></button>
+      <button class="accent-swatch" data-accent-set="purple" aria-label="purple" style="background:linear-gradient(135deg,#4c1d95,#8b5cf6)"></button>
+      <button class="accent-swatch" data-accent-set="orange" aria-label="orange" style="background:linear-gradient(135deg,#78350f,#f59e0b)"></button>
+      <button class="accent-swatch" data-accent-set="pink"   aria-label="pink"   style="background:linear-gradient(135deg,#831843,#ec4899)"></button>
+      <button class="accent-swatch" data-accent-set="teal"   aria-label="teal"   style="background:linear-gradient(135deg,#134e4a,#14b8a6)"></button>
+    </div>
+  </div>
 </div>
 
-<div class="grid-4">
-  <div class="stat"><div class="n">{{ total_assets }}</div><div class="lbl">{% t "dash.total_assets" %}</div></div>
-  <div class="stat"><div class="n">{{ total_people }}</div><div class="lbl">{% t "person.title" %}</div></div>
-  <div class="stat"><div class="n">{{ total_sites }}</div><div class="lbl">{% t "site.title" %}</div></div>
+<div class="kpi-row">
+  {% for k in kpis %}
+  <div class="kpi {{ k.tone }}">
+    <div class="kpi-label">{% t k.label_key %}</div>
+    <div class="kpi-value">{{ k.value }}</div>
+    <div class="kpi-meta">{% t k.meta_key n=k.meta_n %}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="dash-grid2">
+  <div class="card">
+    <h2>📊 {% t "dash.categories" %}</h2>
+    {% if by_category %}
+    <div class="cat-chart">
+      {% for c in by_category %}
+      <div class="cat-col">
+        <span class="cat-n">{{ c.n }}</span>
+        <span class="cat-track"><span class="cat-bar" style="height:{{ c.pct }}%;background:{{ c.color }};" title="{{ c.label }}: {{ c.n }}"></span></span>
+        <span class="cat-lbl">{% if c.others %}{% t "dash.others" %}{% else %}{{ c.label }}{% endif %}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}<p class="muted">{% t "common.empty" %}</p>{% endif %}
+  </div>
+  <div class="card">
+    <h2>🔔 {% t "dash.alerts" %}</h2>
+    {% if alerts %}
+    <ul class="alerts">
+      {% for a in alerts %}
+      <li class="{{ a.tone }}">
+        {% if a.href %}<a href="{{ a.href }}">{% t a.key n=a.n %}</a>{% else %}{% t a.key n=a.n %}{% endif %}
+        {% if a.href %}<small>{% t "dash.view_list" %}</small>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted">{% t "dash.no_alerts" %}</p>{% endif %}
+  </div>
+</div>
+
+<div class="dash-grid2">
+  <div class="card">
+    <h2>📋 {% t "dash.recent" %}</h2>
+    <table class="data">
+      <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "asset.category" %}</th><th>{% t "asset.site" %}</th><th>{% t "asset.status" %}</th></tr></thead>
+      <tbody>
+      {% for a in recent %}
+        <tr>
+          <td><a href="{% url 'asset-detail' a.pk %}">{{ a.asset_tag }}</a></td>
+          <td>{{ a.category.code }}</td>
+          <td>{{ a.site.code }}</td>
+          <td><span class="pill pill-{{ a.status }}">{{ a.get_status_display }}</span></td>
+        </tr>
+      {% empty %}
+        <tr class="empty-row"><td colspan="4">{% t "common.empty" %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h2>{% t "dash.by_site" %}</h2>
+    {% for s in by_site %}
+      <div class="bar-row">
+        <span class="bl"><a href="{% url 'site-detail' s.pk %}" style="color:var(--primary);font-weight:600;text-decoration:none;">{{ s.name }}</a></span>
+        <span class="bar"><span style="width: {% if total_assets %}{% widthratio s.n total_assets 100 %}{% else %}0{% endif %}%"></span></span>
+        <span class="bn">{{ s.n }}</span>
+      </div>
+    {% empty %}<p class="muted">{% t "common.empty" %}</p>
+    {% endfor %}
+  </div>
 </div>
 
 <div class="grid-2">
@@ -37,34 +180,20 @@
   </div>
 </div>
 
-<div class="grid-2">
-  <div class="card">
-    <h2>{% t "dash.by_site" %}</h2>
-    {% for s in by_site %}
-      <div class="bar-row">
-        <span class="bl"><a href="{% url 'site-detail' s.pk %}" style="color:var(--primary);font-weight:600;text-decoration:none;">{{ s.name }}</a></span>
-        <span class="bar"><span style="width: {% if total_assets %}{% widthratio s.n total_assets 100 %}{% else %}0{% endif %}%"></span></span>
-        <span class="bn">{{ s.n }}</span>
-      </div>
-    {% empty %}<p class="muted">{% t "common.empty" %}</p>
-    {% endfor %}
-  </div>
-  <div class="card">
-    <h2>{% t "dash.recent" %}</h2>
-    <table class="data">
-      <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "asset.site" %}</th><th>{% t "asset.status" %}</th></tr></thead>
-      <tbody>
-      {% for a in recent %}
-        <tr>
-          <td><a href="{% url 'asset-detail' a.pk %}">{{ a.asset_tag }}</a></td>
-          <td>{{ a.site.code }}</td>
-          <td><span class="pill pill-{{ a.status }}">{{ a.get_status_display }}</span></td>
-        </tr>
-      {% empty %}
-        <tr class="empty-row"><td colspan="3">{% t "common.empty" %}</td></tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
+<script>
+(function () {
+  var saved = localStorage.getItem('accent');
+  if (saved) document.documentElement.setAttribute('data-accent', saved);
+  var btn = document.getElementById('accent-btn'), menu = document.getElementById('accent-menu');
+  btn.addEventListener('click', function (e) { e.stopPropagation(); menu.hidden = !menu.hidden; });
+  menu.addEventListener('click', function (e) {
+    var sw = e.target.closest('[data-accent-set]');
+    if (!sw) return;
+    document.documentElement.setAttribute('data-accent', sw.getAttribute('data-accent-set'));
+    localStorage.setItem('accent', sw.getAttribute('data-accent-set'));
+    menu.hidden = true;
+  });
+  document.addEventListener('click', function () { if (!menu.hidden) menu.hidden = true; });
+})();
+</script>
 {% endblock %}

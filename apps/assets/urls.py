@@ -14,4 +14,6 @@ urlpatterns = [
     path("assets/<int:pk>/check-in/", views.check_in_view, name="asset-check-in"),
     # Employee self-view (design §4.4): own assignments + own requests only.
     path("me/", views.SelfView.as_view(), name="self-view"),
+    # employee self-service request (§6.5 stage ① — was admin-only)
+    path("requests/new/", views.RequestCreate.as_view(), name="request-create"),
 ]

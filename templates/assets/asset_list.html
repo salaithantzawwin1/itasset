@@ -6,15 +6,25 @@
   <div><h1>{% t "asset.title" %}</h1><div class="sub">{% t "asset.count" n=paginator.count %}</div></div>
   <a class="btn" href="{% url 'asset-create' %}">{% t "asset.new" %}</a>
 </div>
-<div class="filterbar">
+{# inputs live INSIDE the form so submitting actually sends q/status/… (was an empty form) #}
+<form id="filterform" class="filterbar" method="get">
   <input type="text" name="q" placeholder="{% t "asset.search_ph" %}" value="{{ request.GET.q }}">
   <select name="status">
     <option value="">{% t "asset.all_statuses" %}</option>
     {% for val, label in statuses %}<option value="{{ val }}" {% if request.GET.status == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
   </select>
-  <button class="btn secondary" type="submit" form="filterform">{% t "asset.search_btn" %}</button>
-  <form id="filterform" method="get" style="display:none;"></form>
-</div>
+  <select name="warranty_days">
+    <option value="">{% t "asset.all_warranties" %}</option>
+    <option value="7" {% if request.GET.warranty_days == "7" %}selected{% endif %}>{% t "asset.warranty_le" n=7 %}</option>
+    <option value="30" {% if request.GET.warranty_days == "30" %}selected{% endif %}>{% t "asset.warranty_le" n=30 %}</option>
+    <option value="90" {% if request.GET.warranty_days == "90" %}selected{% endif %}>{% t "asset.warranty_le" n=90 %}</option>
+  </select>
+  <label class="chk"><input type="checkbox" name="missing_serial" value="1" {% if request.GET.missing_serial %}checked{% endif %}> {% t "asset.missing_serial" %}</label>
+  <button class="btn secondary" type="submit">{% t "asset.search_btn" %}</button>
+  {% if request.GET.q or request.GET.status or request.GET.warranty_days or request.GET.missing_serial %}
+  <a class="muted clear-link" href="{% url 'asset-list' %}">{% t "asset.clear" %}</a>
+  {% endif %}
+</form>
 <table class="data">
   <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "asset.category" %}</th><th>{% t "asset.model" %}</th><th>{% t "asset.site" %}</th><th>{% t "asset.status" %}</th><th></th></tr></thead>
   <tbody>
@@ -32,5 +42,14 @@
   {% endfor %}
   </tbody>
 </table>
-{% if is_paginated %}<div class="pagination">{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">{% t "common.prev" %}</a>{% endif %}<span class="muted" style="padding:7px;">{% t "common.page" n=page_obj.number m=page_obj.paginator.num_pages %}</span>{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">{% t "common.next" %}</a>{% endif %}</div>{% endif %}
+{% if is_paginated %}
+{# keep every active filter when paging (was: ?page=N alone dropped q/status) #}
+{% with f_q=request.GET.q|urlencode f_status=request.GET.status|urlencode f_w=request.GET.warranty_days|urlencode f_ms=request.GET.missing_serial|urlencode %}
+<div class="pagination">
+  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&q={{ f_q }}&status={{ f_status }}&warranty_days={{ f_w }}&missing_serial={{ f_ms }}">{% t "common.prev" %}</a>{% endif %}
+  <span class="muted" style="padding:7px;">{% t "common.page" n=page_obj.number m=page_obj.paginator.num_pages %}</span>
+  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&q={{ f_q }}&status={{ f_status }}&warranty_days={{ f_w }}&missing_serial={{ f_ms }}">{% t "common.next" %}</a>{% endif %}
+</div>
+{% endwith %}
+{% endif %}
 {% endblock %}

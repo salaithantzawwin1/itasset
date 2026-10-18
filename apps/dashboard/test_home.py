@@ -1,10 +1,13 @@
 """Tests for the dashboard home page (root URL) and the staff-only Admin link."""
 
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
-from apps.assets.models import Asset, Category
+from apps.assets.models import Asset, AssetRequest, Category
 from apps.people.models import Site
 
 
@@ -39,6 +42,123 @@ class DashboardHomeTests(TestCase):
         resp = self.client.get("/healthz")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["status"], "ok")
+
+
+class DashboardKpiAlertTests(TestCase):
+    """Mockup layout: live KPIs, category chart and the alerts list (§ dashboard redesign)."""
+
+    def _make(self, tag, *, warranty=None, serial="SN-1"):
+        site = Site.objects.get(code="yangon")
+        cat = Category.objects.get(code="IT-HW-LAP")
+        return Asset.objects.create(
+            asset_tag=tag,
+            category=cat,
+            site=site,
+            serial_no=serial,
+            warranty_end=warranty,
+        )
+
+    @classmethod
+    def setUpTestData(cls):
+        Site.objects.create(name="Yangon HQ", code="yangon")
+        Category.objects.create(code="IT-HW-LAP", name="Laptop")
+
+    def test_kpis_and_alerts_from_real_queries(self):
+        today = timezone.localdate()
+        self._make("A-1", warranty=today + timedelta(days=3))  # → 7-day alert
+        self._make("A-2", warranty=today + timedelta(days=10))  # → 30-day KPI only
+        self._make("A-3", warranty=today + timedelta(days=200))  # → outside both
+        resp = self.client.get("/")
+        kpis = {k["label_key"]: k for k in resp.context["kpis"]}
+        self.assertEqual(kpis["dash.total_assets"]["value"], 3)
+        self.assertEqual(kpis["dash.kpi.active"]["value"], 3)  # none retired/disposed
+        self.assertEqual(kpis["dash.kpi.warranty"]["value"], 2)  # 3-day + 10-day
+        self.assertEqual(kpis["dash.kpi.alerts"]["value"], 1)  # only the 7-day alert
+        alerts = resp.context["alerts"]
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts[0]["key"], "alert.warranty_soon")
+        self.assertEqual(alerts[0]["n"], 1)
+        self.assertEqual(alerts[0]["tone"], "warn")
+        self.assertContains(resp, "Alerts")
+        self.assertContains(resp, "1 warranties expiring within 7 days")
+
+    def test_retired_assets_leave_the_active_kpi(self):
+        self._make("A-4")
+        a = self._make("A-5")
+        a.status = Asset.Status.RETIRED
+        a.save(update_fields=["status"])
+        resp = self.client.get("/")
+        kpis = {k["label_key"]: k for k in resp.context["kpis"]}
+        self.assertEqual(kpis["dash.kpi.active"]["value"], 1)
+        self.assertEqual(kpis["dash.total_assets"]["value"], 2)
+
+    def test_no_alerts_state_renders(self):
+        self._make("A-6")
+        resp = self.client.get("/")
+        self.assertEqual(resp.context["alerts"], [])
+        self.assertContains(resp, "All clear")
+        self.assertEqual(resp.context["kpis"][0]["value"], 0)  # critical-alerts KPI
+
+    def test_approver_gets_action_tiles_and_pending_alert_first(self):
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.models import Group
+
+        user = get_user_model().objects.create_user("appr", "a@x.dev", "pw12345!")
+        grp, _ = Group.objects.get_or_create(name="admin")
+        user.groups.add(grp)
+        user.is_staff = True  # app admins are staff — /admin/ links only resolve for them
+        user.save(update_fields=["is_staff"])
+        self.client.force_login(user)
+        AssetRequest.objects.create(
+            requester=user,
+            category=Category.objects.get(code="IT-HW-LAP"),
+            site=Site.objects.get(code="yangon"),
+        )
+
+        resp = self.client.get("/")
+        kpis = resp.context["kpis"]
+        self.assertEqual(kpis[0]["label_key"], "dash.kpi.pending")  # approver: action first
+        self.assertEqual(kpis[0]["value"], 1)
+        self.assertEqual(kpis[1]["label_key"], "dash.kpi.overdue")
+        # pending alert is first in the list too (sorted for approvers)
+        keys = [a["key"] for a in resp.context["alerts"]]
+        self.assertEqual(keys[0], "alert.pending_approvals")
+        # staff → deep link into the filtered admin changelist
+        self.assertIn("/admin/assets/assetrequest/", resp.context["alerts"][0]["href"])
+        self.assertIn("status__exact=PENDING", resp.context["alerts"][0]["href"])
+
+    def test_viewer_keeps_baseline_tiles_and_data_alerts_link_to_filters(self):
+        from datetime import timedelta
+
+        from django.contrib.auth import get_user_model
+        from django.utils import timezone
+
+        u = get_user_model().objects.create_user("viewr", "v@x.dev", "pw12345!")
+        self.client.force_login(u)
+        today = timezone.localdate()
+        self._make("DL-1", warranty=today + timedelta(days=2))  # 7-day alert
+
+        resp = self.client.get("/")
+        kpis = {k["label_key"] for k in resp.context["kpis"]}
+        self.assertIn("dash.kpi.alerts", kpis)  # no pending/overdue tiles for viewers
+        self.assertNotIn("dash.kpi.pending", kpis)
+        alert = resp.context["alerts"][0]
+        self.assertEqual(alert["key"], "alert.warranty_soon")
+        self.assertEqual(alert["href"], "/assets/?warranty_days=7")  # non-staff: list filter link
+
+    def test_category_chart_counts_and_others_bucket(self):
+        self._make("A-7")
+        self._make("A-8")
+        Site2 = Site.objects.create(name="Mandalay", code="mandalay")
+        cat2 = Category.objects.create(code="IT-HW-DSK", name="Desktop")
+        Asset.objects.create(asset_tag="A-9", category=cat2, site=Site2, serial_no="SN-2")
+        resp = self.client.get("/")
+        rows = resp.context["by_category"]
+        self.assertEqual([(r["label"], r["n"]) for r in rows], [("Laptop", 2), ("Desktop", 1)])
+        self.assertEqual(rows[0]["pct"], 100)
+        self.assertEqual(rows[1]["pct"], 50)
+        self.assertFalse(any(r["others"] for r in rows))  # 2 categories → no bucket
+        self.assertContains(resp, "Asset categories")
 
 
 class AdminLinkVisibilityTests(TestCase):

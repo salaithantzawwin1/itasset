@@ -28,6 +28,14 @@ STRINGS = {
     "me.created": {"en": "Created", "my": "ဖန်တီးသည့်ရက်"},
     "me.due": {"en": "Due", "my": "ပြန်ရမည့်ရက်"},
     "me.current": {"en": "Current", "my": "လက်ရှိ"},
+    "me.request_new": {"en": "+ Request asset", "my": "+ ပစ္စည်း တောင်းဆိုမည်"},
+    # employee request form (§6.5 stage ①)
+    "req.title": {"en": "Request an asset", "my": "ပစ္စည်း တောင်းဆိုရန်"},
+    "req.sub": {
+        "en": "Sent to the approval queue (stage ① — approve → procure → receive)",
+        "my": "အတည်ပြုစာရင်းသို့ ပို့မည် (အဆင့် ① — အတည်ပြု → ဝယ် → လက်ခံ)",
+    },
+    "req.submit": {"en": "Submit request", "my": "တောင်းဆိုမှု တင်မည်"},
     # dashboard
     "dash.title": {"en": "Dashboard", "my": "ဒသ််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််"},
     "dash.total_assets": {"en": "Total assets", "my": "ပိုင်ဆိုင်မှု စုစုပေါင်း"},
@@ -36,6 +44,46 @@ STRINGS = {
     "dash.by_site": {"en": "By site", "my": "စခန်းအလိုက်"},
     "dash.recent": {"en": "Recently added", "my": "လတ်တလော ထည့်သွင်းခြင်း"},
     "dash.view_all": {"en": "View all", "my": "အားလုံး ကြည့်မည်"},
+    # dashboard — mockup KPIs / chart / alerts (docs/itasset-docs/index.html)
+    "dash.kpi.alerts": {"en": "Critical alerts", "my": "အရေးကြီး နိုးဆွဲချက်များ"},
+    "dash.kpi.attention": {"en": "⚠ Needs attention", "my": "⚠ အာရုံစိုက်ရန် လိုအပ်သည်"},
+    "dash.kpi.warranty": {"en": "Warranty expiring", "my": "အာမခံ ကုန်တော့မည့်"},
+    "dash.kpi.within30": {"en": "Within 30 days", "my": "၃၀ ရက်အတွင်း"},
+    "dash.kpi.active": {"en": "Active assets", "my": "အသုံးပြုနေသော ပစ္စည်းများ"},
+    "dash.kpi.assigned": {"en": "{n} assigned", "my": "{n} ခု လက်ခံထားသည်"},
+    "dash.kpi.this_month": {"en": "▲ {n} new this month", "my": "▲ ဤလအတွင်း အသစ် {n} ခု"},
+    "dash.categories": {"en": "Asset categories", "my": "ပစ္စည်းအမျိုးအစားအလိုက်"},
+    "dash.alerts": {"en": "Alerts", "my": "နိုးဆွဲချက်များ"},
+    "dash.no_alerts": {
+        "en": "All clear — nothing needs attention.",
+        "my": "အားလုံး ကောင်းမွန်ပါသည် — ဂရုပြုစရာ မရှိပါ။",
+    },
+    "dash.others": {"en": "Others", "my": "အခြား"},
+    "dash.view_list": {"en": "View list →", "my": "စာရင်း ကြည့်မည် →"},
+    "dash.kpi.pending": {"en": "Pending approvals", "my": "အတည်ပြုရန် စောင့်ဆိုင်းနေသည်"},
+    "dash.kpi.pending_meta": {
+        "en": "Awaiting decision (stage ①)",
+        "my": "ဆုံးဖြတ်ရန် စောင့်ဆိုင်းနေသည် (အဆင့် ①)",
+    },
+    "dash.kpi.overdue": {"en": "Overdue loans", "my": "ပြန်ရန် ကျန်ချိန် ကျော်လွန်"},
+    "dash.kpi.overdue_meta": {"en": "Past the due date", "my": "သတ်မှတ်ရက် ကျော်လွန်ပြီ"},
+    "alert.overdue_loans": {"en": "{n} loans overdue", "my": "ပြန်ရန် ကျန်ချိန်ကျော်လွန်နေသော {n} ခု"},
+    "alert.transfer_exceptions": {
+        "en": "{n} transfers in exception",
+        "my": "Exception ဖြစ်နေသော ပြောင်းရွှေ့မှု {n} ခု",
+    },
+    "alert.warranty_soon": {
+        "en": "{n} warranties expiring within 7 days",
+        "my": "ရက် ၇ အတွင်း အာမခံကုန်မည့် {n} ခု",
+    },
+    "alert.missing_serial": {
+        "en": "{n} assets missing a serial number",
+        "my": "Serial နံပါတ် ကွက်နေသော ပစ္စည်း {n} ခု",
+    },
+    "alert.pending_approvals": {
+        "en": "{n} requests awaiting approval",
+        "my": "အတည်ပြုရန် စောင့်ဆိုင်းနေသော တောင်းဆိုမှု {n} ခု",
+    },
     # assets
     "asset.title": {"en": "Assets", "my": "ပိုင်ဆိုင်မှုများ"},
     "asset.count": {"en": "{n} total", "my": "စုစုပေါင်း {n}"},
@@ -48,6 +96,10 @@ STRINGS = {
     },
     "asset.search_btn": {"en": "Search", "my": "ရှာမည်"},
     "asset.all_statuses": {"en": "All statuses", "my": "အခြေအနေ အားလုံး"},
+    "asset.all_warranties": {"en": "Any warranty", "my": "အာမခံ မရွေး"},
+    "asset.warranty_le": {"en": "Warranty ≤ {n} days", "my": "အာမခံ {n} ရက်အတွင်း"},
+    "asset.missing_serial": {"en": "Missing serial", "my": "Serial ကွက်နေသည်"},
+    "asset.clear": {"en": "✕ Clear", "my": "✕ ရှင်းမည်"},
     "asset.tag": {"en": "Tag", "my": "Tag"},
     "asset.category": {"en": "Category", "my": "Category"},
     "asset.model": {"en": "Model", "my": "Model"},

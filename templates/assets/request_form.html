@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load t %}
+{% block title %}{% t "req.title" %} — {% t "app.name" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% t "req.title" %}</h1><div class="sub">{% t "req.sub" %}</div></div>
+</div>
+<div class="card">
+  <form method="post" class="frm">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn" type="submit">{% t "req.submit" %}</button>
+    <a class="btn secondary" href="{% url 'self-view' %}">{% t "asset.cancel" %}</a>
+  </form>
+</div>
+{% endblock %}

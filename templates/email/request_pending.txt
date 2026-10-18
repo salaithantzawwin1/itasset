@@ -1,0 +1,26 @@
+{% if lang == "my" %}
+အတည်ပြုရန် စောင့်ဆိုင်းနေသော တောင်းဆိုမှု {{ step }}/{{ steps_total }}
+{% else %}
+Request awaiting approval — step {{ step }}/{{ steps_total }}
+{% endif %}
+{% if lang == "my" %}
+တောင်းဆိုသူ: {{ requester }}
+ပစ္စည်းအမျိုးအစား: {{ category }} ({{ quantity }})
+စခန်း: {{ site_name }}
+တောင်းဆိုမှု: {{ request }}
+ကျင့်ထုံး လိုအပ်ချက်: {{ required_role }} အခန်းကဏ္ဍ
+
+{{ request.justification|default:"—" }}
+
+တောင်းဆိုမှုကို စိစစ် အတည်ပြုပေးပါ။
+{% else %}
+Requester: {{ requester }}
+Category: {{ category }} ({{ quantity }})
+Site: {{ site_name }}
+Request: {{ request }}
+Required role: {{ required_role }}
+
+{{ request.justification|default:"—" }}
+
+Please review and approve/reject in the app.
+{% endif %}

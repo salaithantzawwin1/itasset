@@ -1,0 +1,19 @@
+{% if lang == "my" %}စာချုပ် ပြန်လည်သက်တမ်းတိုးရန် သတိပေးချက်
+
+စာချုပ်: {{ contract.title }} ({{ contract.contract_no|default:"—" }})
+Vendor: {{ contract.vendor.name }}
+အမျိုးအစား: {{ contract.get_type_display }}
+ပြီးဆုံးရက်: {{ contract.end_date }} ({{ days_left }} ရက် ကျန်တော့သည်)
+အလိုအလျောက် သက်တမ်းတိုး: {{ contract.auto_renew|yesno:"ဟုတ်ကဲ့,မဟုတ်ပါ" }}
+
+renewal notice period: {{ contract.renewal_notice_days }} ရက်
+{% else %}Contract renewal reminder
+
+Contract: {{ contract.title }} ({{ contract.contract_no|default:"—" }})
+Vendor: {{ contract.vendor.name }}
+Type: {{ contract.get_type_display }}
+Ends: {{ contract.end_date }} ({{ days_left }} days left)
+Auto-renew: {{ contract.auto_renew|yesno:"yes,no" }}
+
+Renewal notice period: {{ contract.renewal_notice_days }} days
+{% endif %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}{% load t %}{% block title %}{% t "audit.sessions" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{% t "audit.sessions" %}</h1>
+    <div class="sub">{% t "audit.sessions_sub" %}</div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>{% t "audit.start" %}</h2>
+  <form class="inline-form" method="post" action="{% url 'audit-start' %}">
+    {% csrf_token %}
+    <select name="site" required>
+      <option value="">— {% t 'audit.pick_site' %} —</option>
+      {% for s in sites %}<option value="{{ s.pk }}">{{ s.name }}</option>{% endfor %}
+    </select>
+    <button class="btn" type="submit">{% t "audit.start" %}</button>
+  </form>
+</div>
+
+<table class="data">
+  <thead><tr><th>#</th><th>{% t "asset.site" %}</th><th>{% t "audit.status" %}</th><th>{% t "audit.started" %}</th><th>{% t "audit.by" %}</th><th></th></tr></thead>
+  <tbody>
+    {% for s in page_obj %}
+    <tr>
+      <td>{{ s.pk }}</td>
+      <td>{{ s.site.name }}</td>
+      <td><span class="pill {% if s.status == 'OPEN' %}pill-AVAILABLE{% else %}pill-RETIRED{% endif %}">{{ s.status }}</span></td>
+      <td class="muted">{{ s.started_at|date:"Y-m-d H:i" }}</td>
+      <td>{{ s.started_by.username|default:"—" }}</td>
+      <td><a href="{% url 'audit-session' s.pk %}">{% if s.status == 'OPEN' %}{% t "audit.scan" %}{% else %}{% t "audit.report_link" %}{% endif %}</a></td>
+    </tr>
+    {% empty %}<tr class="empty-row"><td colspan="6">{% t "asset.none_yet" %}</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

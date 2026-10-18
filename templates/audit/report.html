@@ -1,0 +1,36 @@
+{% extends "base.html" %}{% load t %}{% block title %}{% t "audit.report_link" %} #{{ object.pk }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{% t "audit.report_link" %} — {{ object.site.name }} <span class="muted">#{{ object.pk }}</span></h1>
+    <div class="sub">{{ object.started_at|date:"Y-m-d H:i" }} → {{ object.closed_at|date:"Y-m-d H:i" }}</div>
+  </div>
+</div>
+
+<div class="grid-4">
+  <div class="stat"><div class="n" style="color:#1e7d43">{{ found_n }}</div><div class="lbl">{% t "audit.found" %}</div></div>
+  <div class="stat"><div class="n" style="color:var(--danger)">{{ missing_n }}</div><div class="lbl">{% t "audit.missing" %}</div></div>
+  <div class="stat"><div class="n" style="color:#92702a">{{ unexpected_n }}</div><div class="lbl">{% t "audit.unexpected" %}</div></div>
+  <div class="stat"><div class="n">{{ object.items.count }}</div><div class="lbl">{% t "audit.scanned" %}</div></div>
+</div>
+
+{% if missing %}
+<div class="card">
+  <h2>{% t "audit.missing" %} ({{ missing_n }})</h2>
+  <table class="data"><thead><tr><th>{% t "asset.tag" %}</th><th>{% t "asset.model" %}</th><th>{% t "asset.status" %}</th><th>{% t "asset.holder" %}</th></tr></thead>
+  <tbody>{% for a in missing %}
+    <tr><td><a href="{% url 'asset-detail' a.pk %}">{{ a.asset_tag }}</a></td><td>{{ a.model_name }}</td><td><span class="pill pill-{{ a.status }}">{{ a.get_status_display }}</span></td><td>{{ a.assignments.first.to_person.name|default:"—" }}</td></tr>
+  {% endfor %}</tbody></table>
+</div>
+{% endif %}
+
+{% if unexpected %}
+<div class="card">
+  <h2>{% t "audit.unexpected" %} ({{ unexpected_n }})</h2>
+  <table class="data"><thead><tr><th>{% t "asset.tag" %}</th><th>{% t "audit.scanned_by" %}</th><th>{% t "audit.when" %}</th></tr></thead>
+  <tbody>{% for i in unexpected %}
+    <tr><td>{{ i.asset_tag }}</td><td>{{ i.scanned_by.username|default:"—" }}</td><td class="muted">{{ i.scanned_at|date:"Y-m-d H:i" }}</td></tr>
+  {% endfor %}</tbody></table>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}{% load t %}{% block title %}{% t "audit.scan" %} #{{ object.pk }}{% endblock %}
+{% block extra_css %}
+.scanbox input { font-size: 20px; padding: 14px 16px; width: 100%; }
+.scanbox input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{% t "audit.scan" %} — {{ object.site.name }} <span class="muted">#{{ object.pk }}</span></h1>
+    <div class="sub">{% t "audit.expected" %}: <b>{{ expected_count }}</b> · {% t "audit.scanned" %}: <b>{{ scanned_count }}</b></div>
+  </div>
+  <div class="actions">
+    {% if object.status == 'OPEN' %}
+    <form method="post" action="{% url 'audit-close' object.pk %}" onsubmit="return confirm('{% t "audit.close_q" %}')">
+      {% csrf_token %}<button class="btn secondary" type="submit">{% t "audit.close" %}</button>
+    </form>
+    {% else %}
+    <a class="btn" href="{% url 'audit-report' object.pk %}">{% t "audit.report_link" %}</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if object.status == 'OPEN' %}
+<div class="card scanbox">
+  <h2>{% t "audit.scan_hint" %}</h2>
+  <form method="post" action="{% url 'audit-scan' object.pk %}" id="scanform">
+    {% csrf_token %}
+    <input type="text" name="asset_tag" id="scaninput" autocomplete="off" autofocus placeholder="Scan or type asset_tag…" required>
+  </form>
+</div>
+{% endif %}
+
+<table class="data">
+  <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "asset.status" %}</th><th>{% t "audit.scanned_by" %}</th><th>{% t "audit.when" %}</th></tr></thead>
+  <tbody>
+    {% for i in items %}
+    <tr>
+      <td>{{ i.asset_tag }}{% if not i.asset %} <span class="pill pill-IN_REPAIR">{% t "audit.unknown" %}</span>{% endif %}</td>
+      <td>{% if i.asset %}<span class="pill pill-{{ i.asset.status }}">{{ i.asset.get_status_display }}</span>{% else %}—{% endif %}</td>
+      <td>{{ i.scanned_by.username|default:"—" }}</td>
+      <td class="muted">{{ i.scanned_at|date:"H:i:s" }}</td>
+    </tr>
+    {% empty %}<tr class="empty-row"><td colspan="4">{% t "audit.no_scans" %}</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% if missing_preview %}
+<p class="muted" style="margin-top:12px">{% t "audit.missing_preview" %}: {{ missing_preview|join:", " }}</p>
+{% endif %}
+
+<script>
+  // keyboard-wedge scanner: keep focus, submit on Enter, refocus (§16 Mode 1)
+  (function() {
+    var input = document.getElementById('scaninput');
+    var form = document.getElementById('scanform');
+    if (!input) return;
+    form.addEventListener('submit', function() { setTimeout(function(){ input.focus(); }, 60); });
+    input.focus();
+  })();
+</script>
+{% endblock %}

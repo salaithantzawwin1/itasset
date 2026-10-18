@@ -1,0 +1,22 @@
+{% if lang == "my" %}
+每日摘要 — {{ day }}
+{% else %}
+Daily activity digest — {{ day }}
+{% endif %}
+{% if lang == "my" %}
+မနေ့က လှုပ်ရှားမှုများ ({{ day }}):
+- ထုတ်ပေးမှု (check-out): {{ outs }}
+- ပြန်သိမ်းမှု (check-in): {{ ins }}
+
+{% for line in lines %}- {{ line }}
+{% empty %}- (မှတ်တမ်း မရှိပါ)
+{% endfor %}
+{% else %}
+Yesterday's movements ({{ day }}):
+- check-outs: {{ outs }}
+- check-ins: {{ ins }}
+
+{% for line in lines %}- {{ line }}
+{% empty %}- (no activity recorded)
+{% endfor %}
+{% endif %}

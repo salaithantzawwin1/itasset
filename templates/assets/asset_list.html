@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load t %}
+{% block title %}{% t "asset.title" %} — {% t "app.name" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% t "asset.title" %}</h1><div class="sub">{% t "asset.count" n=paginator.count %}</div></div>
+  <a class="btn" href="{% url 'asset-create' %}">{% t "asset.new" %}</a>
+</div>
+<div class="filterbar">
+  <input type="text" name="q" placeholder="{% t "asset.search_ph" %}" value="{{ request.GET.q }}">
+  <select name="status">
+    <option value="">{% t "asset.all_statuses" %}</option>
+    {% for val, label in statuses %}<option value="{{ val }}" {% if request.GET.status == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <button class="btn secondary" type="submit" form="filterform">{% t "asset.search_btn" %}</button>
+  <form id="filterform" method="get" style="display:none;"></form>
+</div>
+<table class="data">
+  <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "asset.category" %}</th><th>{% t "asset.model" %}</th><th>{% t "asset.site" %}</th><th>{% t "asset.status" %}</th><th></th></tr></thead>
+  <tbody>
+  {% for a in object_list %}
+    <tr>
+      <td><a href="{% url 'asset-detail' a.pk %}">{{ a.asset_tag }}</a></td>
+      <td>{{ a.category.code }}</td>
+      <td>{{ a.model_name|default:"—" }}</td>
+      <td>{{ a.site.code }}</td>
+      <td><span class="pill pill-{{ a.status }}">{{ a.get_status_display }}</span></td>
+      <td><a class="btn secondary sm" href="{% url 'asset-update' a.pk %}">{% t "asset.edit" %}</a></td>
+    </tr>
+  {% empty %}
+    <tr class="empty-row"><td colspan="6">{% t "common.empty" %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if is_paginated %}<div class="pagination">{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">{% t "common.prev" %}</a>{% endif %}<span class="muted" style="padding:7px;">{% t "common.page" n=page_obj.number m=page_obj.paginator.num_pages %}</span>{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">{% t "common.next" %}</a>{% endif %}</div>{% endif %}
+{% endblock %}

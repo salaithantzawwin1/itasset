@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load t %}
+{% block title %}{{ object.asset_tag }} — {% t "app.name" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ object.asset_tag }} &nbsp;<span class="pill pill-{{ object.status }}">{{ object.get_status_display }}</span></h1>
+    <div class="sub">{{ object.category }}</div>
+  </div>
+  <div class="actions">
+    <a class="btn secondary" href="{% url 'asset-update' object.pk %}">{% t "asset.edit" %}</a>
+    <a class="btn danger" href="{% url 'asset-delete' object.pk %}">{% t "asset.delete" %}</a>
+  </div>
+</div>
+
+<div class="card">
+  <h2>{% t "asset.details" %}</h2>
+  <table class="data">
+    <tbody>
+      <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.model" %}</th><td>{{ object.manufacturer|default:"—" }} {{ object.model_name|default:"" }}</td></tr>
+      <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.serial" %}</th><td>{{ object.serial_no|default:"—" }}</td></tr>
+      <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.hostname" %}</th><td>{{ object.hostname|default:"—" }}</td></tr>
+      <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.site" %}</th><td>{{ object.site }}</td></tr>
+      <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.purchase" %}</th><td>{{ object.purchase_date|default:"—" }} · {% t "asset.cost" %} {{ object.cost|default:"—" }}</td></tr>
+      <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.warranty" %}</th><td>{{ object.warranty_end|default:"—" }}</td></tr>
+      <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.condition" %}</th><td>{{ object.get_condition_display }}</td></tr>
+    </tbody>
+  </table>
+</div>
+
+{% if user.is_authenticated and can_lifecycle %}
+<div class="card">
+  <h2>{% t "asset.actions" %}</h2>
+  {% if object.status == 'AVAILABLE' %}
+    <form method="post" action="{% url 'asset-check-out' object.pk %}" class="inline-form">
+      {% csrf_token %}
+      <select name="to_person" required>
+        <option value="">{% t "asset.pick_holder" %}</option>
+        {% for p in people %}<option value="{{ p.pk }}">{{ p.name }} ({{ p.employee_no }})</option>{% endfor %}
+      </select>
+      <button class="btn" type="submit">{% t "asset.checkout" %}</button>
+    </form>
+  {% elif object.status == 'ASSIGNED' %}
+    <form method="post" action="{% url 'asset-check-in' object.pk %}" class="inline-form">
+      {% csrf_token %}
+      <select name="condition_in">
+        {% for val, label in conditions %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+      </select>
+      <button class="btn" type="submit">{% t "asset.checkin" %}</button>
+    </form>
+  {% else %}
+    <p class="muted">{% t "asset.not_suitable" %}</p>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>{% t "asset.history" %}</h2>
+  <table class="data">
+    <thead><tr><th>{% t "asset.holder" %}</th><th>{% t "asset.out_at" %}</th><th>{% t "asset.in_at" %}</th><th>{% t "asset.cond_out_in" %}</th><th>{% t "asset.remarks" %}</th></tr></thead>
+    <tbody>
+    {% for h in history %}
+      <tr>
+        <td>{% if h.to_person %}<a href="{% url 'person-detail' h.to_person_id %}">{{ h.to_person.name }}</a>{% else %}—{% endif %}</td>
+        <td>{{ h.out_at|date:"Y-m-d H:i" }}</td>
+        <td>{{ h.in_at|date:"Y-m-d H:i"|default:"—" }}</td>
+        <td>{{ h.get_condition_out_display }} / {{ h.get_condition_in_display }}</td>
+        <td>{{ h.remarks|default:"" }}</td>
+      </tr>
+    {% empty %}
+      <tr class="empty-row"><td colspan="5">{% t "asset.none_yet" %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

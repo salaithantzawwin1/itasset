@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load t %}
+{% block title %}{% t "site.title" %} — {% t "app.name" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% t "site.title" %}</h1><div class="sub">{% t "site.count" n=object_list|length %}</div></div>
+</div>
+<table class="data">
+  <thead><tr><th>{% t "site.code" %}</th><th>{% t "person.name" %}</th><th>{% t "site.people_n" %}</th><th></th></tr></thead>
+  <tbody>
+  {% for s in object_list %}
+    <tr>
+      <td>{{ s.code }}</td>
+      <td><a href="{% url 'site-detail' s.pk %}">{{ s.name }}</a></td>
+      <td>{{ s.people.count }}</td>
+      <td><a class="btn secondary sm" href="{% url 'site-update' s.pk %}">{% t "asset.edit" %}</a></td>
+    </tr>
+  {% empty %}
+    <tr class="empty-row"><td colspan="4">{% t "common.empty" %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

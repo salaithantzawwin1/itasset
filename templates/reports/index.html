@@ -1,0 +1,28 @@
+{% extends "base.html" %}{% load t %}
+{% block title %}{% t "nav.reports" %} — {% t "app.name" %}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{% t "nav.reports" %}</h1>
+    <p class="sub">{% t "reports.sub" %}</p>
+  </div>
+</div>
+
+{% if not reports %}
+  <div class="card"><p class="muted">{% t "reports.empty" %}</p></div>
+{% endif %}
+
+{% for r in reports %}
+<div class="card">
+  <h2>{{ r.title }}</h2>
+  {% if r.description %}<p class="muted">{{ r.description }}</p>{% endif %}
+  <div class="actions">
+    {% for f in r.formats %}
+      <a class="btn {% if not forloop.first %}secondary{% endif %} sm"
+         href="{% url 'report-run' r.slug f %}">{{ f|upper }} {% t "reports.run" %}</a>
+    {% endfor %}
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

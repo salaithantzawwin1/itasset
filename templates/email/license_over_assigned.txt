@@ -1,0 +1,17 @@
+{% if lang == "my" %}License seat ကျော်လွန်နေသည်
+
+License: {{ license.name }}
+Vendor: {{ license.vendor.name|default:"—" }}
+အခွင့်ရှိ seats: {{ license.seats }}
+သုံးစွဲနေသည်: {{ license.seats_assigned }}
+
+ကျေးဇူးပြု၍ seats ထပ်မံဝယ်ယူရန် သို့မဟုတ် သက်ဆိုင်သူများ လျှော့ချရန် စီစဉ်ပါ။
+{% else %}License seats over-assigned
+
+License: {{ license.name }}
+Vendor: {{ license.vendor.name|default:"—" }}
+Entitled seats: {{ license.seats }}
+In use: {{ license.seats_assigned }}
+
+Please buy more seats or release unused ones.
+{% endif %}

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% load t %}
+{% block title %}{% t "dash.title" %} — {% t "app.name" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% t "dash.title" %}</h1><div class="sub">{% t "app.subtitle" %}</div></div>
+</div>
+
+<div class="grid-4">
+  <div class="stat"><div class="n">{{ total_assets }}</div><div class="lbl">{% t "dash.total_assets" %}</div></div>
+  <div class="stat"><div class="n">{{ total_people }}</div><div class="lbl">{% t "person.title" %}</div></div>
+  <div class="stat"><div class="n">{{ total_sites }}</div><div class="lbl">{% t "site.title" %}</div></div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h2>{% t "dash.by_status" %}</h2>
+    {% for row in by_status %}
+      <div class="bar-row">
+        <span class="bl"><span class="pill pill-{{ row.status }}">{{ row.label }}</span></span>
+        <span class="bar"><span style="width: {% widthratio row.n total_assets 100 %}%"></span></span>
+        <span class="bn">{{ row.n }}</span>
+      </div>
+    {% empty %}<p class="muted">{% t "common.empty" %}</p>
+    {% endfor %}
+  </div>
+  <div class="card">
+    <h2>{% t "dash.by_condition" %}</h2>
+    {% for row in by_condition %}
+      <div class="bar-row">
+        <span class="bl">{{ row.label }}</span>
+        <span class="bar"><span style="width: {% widthratio row.n total_assets 100 %}%"></span></span>
+        <span class="bn">{{ row.n }}</span>
+      </div>
+    {% empty %}<p class="muted">{% t "common.empty" %}</p>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h2>{% t "dash.by_site" %}</h2>
+    {% for s in by_site %}
+      <div class="bar-row">
+        <span class="bl"><a href="{% url 'site-detail' s.pk %}" style="color:var(--primary);font-weight:600;text-decoration:none;">{{ s.name }}</a></span>
+        <span class="bar"><span style="width: {% if total_assets %}{% widthratio s.n total_assets 100 %}{% else %}0{% endif %}%"></span></span>
+        <span class="bn">{{ s.n }}</span>
+      </div>
+    {% empty %}<p class="muted">{% t "common.empty" %}</p>
+    {% endfor %}
+  </div>
+  <div class="card">
+    <h2>{% t "dash.recent" %}</h2>
+    <table class="data">
+      <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "asset.site" %}</th><th>{% t "asset.status" %}</th></tr></thead>
+      <tbody>
+      {% for a in recent %}
+        <tr>
+          <td><a href="{% url 'asset-detail' a.pk %}">{{ a.asset_tag }}</a></td>
+          <td>{{ a.site.code }}</td>
+          <td><span class="pill pill-{{ a.status }}">{{ a.get_status_display }}</span></td>
+        </tr>
+      {% empty %}
+        <tr class="empty-row"><td colspan="3">{% t "common.empty" %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

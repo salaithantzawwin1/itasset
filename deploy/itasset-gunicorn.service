@@ -1,0 +1,14 @@
+[Unit]
+Description=IT Asset Manager - gunicorn (WSGI, §24)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/itasset
+Environment=DJANGO_SETTINGS_MODULE=config.settings.prod
+ExecStart=%h/itasset/.venv/bin/gunicorn config.wsgi:application -c %h/itasset/deploy/gunicorn.conf.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

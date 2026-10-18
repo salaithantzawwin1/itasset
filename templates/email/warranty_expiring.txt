@@ -1,0 +1,17 @@
+{% if lang == "my" %}သတိပေးချက် — အာမခံ ကုန်တော့မည်
+
+ပိုင်ဆိုင်မှု: {{ asset.asset_tag }} ({{ asset.model_name }} · SN: {{ asset.serial_no|default:"—" }})
+စခန်း: {{ asset.site.name }}
+အာမခံ ကုန်ရက်: {{ asset.warranty_end }} ({{ days_left }} ရက် ကျန်တော့သည်)
+လက်ရှိ သိမ်းဆည်းသူ: {{ holder_name|default:"—" }}
+
+ကျေးဇူးပြု၍ ရှည်လျားရန် သို့မဟုတ် အစားထိုးရန် စီစဉ်ပါ။
+{% else %}Reminder — warranty expiring
+
+Asset: {{ asset.asset_tag }} ({{ asset.model_name }} · SN: {{ asset.serial_no|default:"—" }})
+Site: {{ asset.site.name }}
+Warranty ends: {{ asset.warranty_end }} ({{ days_left }} days left)
+Current holder: {{ holder_name|default:"—" }}
+
+Please plan renewal or replacement.
+{% endif %}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}{% load t %}{% block title %}{% t "audit.title" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{% t "audit.title" %}</h1>
+    <div class="sub">{% t "audit.sub" %} — {{ page_obj.paginator.count }}</div>
+  </div>
+</div>
+
+<form class="filterbar" method="get">
+  <select name="action">
+    <option value="">{% t "audit.all_actions" %}</option>
+    {% for a in actions %}<option value="{{ a }}" {% if a == cur_action %}selected{% endif %}>{{ a }}</option>{% endfor %}
+  </select>
+  <input type="text" name="actor" placeholder="{% t 'audit.actor' %}" value="{{ cur_actor }}">
+  <input type="text" name="q" placeholder="{% t 'audit.search_ph' %}" value="{{ cur_q }}">
+  <button class="btn" type="submit">{% t "asset.search_btn" %}</button>
+</form>
+
+<table class="data">
+  <thead><tr>
+    <th>{% t "audit.when" %}</th><th>{% t "audit.action" %}</th><th>{% t "audit.actor" %}</th><th>{% t "audit.object" %}</th><th>{% t "audit.details" %}</th>
+  </tr></thead>
+  <tbody>
+    {% for e in page_obj %}
+    <tr>
+      <td class="muted">{{ e.created_at|date:"Y-m-d H:i" }}</td>
+      <td><span class="pill" style="background:var(--primary-light);color:var(--primary)">{{ e.action }}</span></td>
+      <td>{{ e.actor.username|default:"—" }}</td>
+      <td>{{ e.object_repr|default:"—" }}</td>
+      <td class="muted" style="max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ e.details }}</td>
+    </tr>
+    {% empty %}<tr class="empty-row"><td colspan="5">{% t "asset.none_yet" %}</td></tr>{% endfor %}
+  </tbody>
+</table>
+
+{% if page_obj.has_other_pages %}
+<div class="pagination">
+  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&action={{ cur_action }}&actor={{ cur_actor }}&q={{ cur_q }}">&laquo;</a>{% endif %}
+  <span class="muted">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&action={{ cur_action }}&actor={{ cur_actor }}&q={{ cur_q }}">&raquo;</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

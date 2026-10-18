@@ -1,0 +1,90 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static log %}
+
+{% block title %}{{ block.super }}{% endblock %}
+
+{% block bodyclass %}{{ block.super }} dashboard{% endblock %}
+
+{# hero replaces the breadcrumb bar on the dashboard (per-app pages re-add it) #}
+{% block nav-breadcrumbs %}{% endblock %}
+
+{% block content_title %}
+{% translate 'Control panel' as default_title %}
+<h1 class="dash-title">{{ title|default:default_title }}</h1>
+<p class="dash-sub">{% translate 'Sites, assets, people, vendors and lifecycle records — everything in one place.' %}</p>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  {% if app_list %}
+  <div class="dash-grid">
+    {% for app in app_list %}
+    <section class="dash-card app-{{ app.app_label }}">
+      <header class="dash-card-head">
+        <span class="dash-chip" aria-hidden="true">{{ app.name|slice:":2"|upper }}</span>
+        <h2><a href="{{ app.app_url }}">{{ app.name }}</a></h2>
+        <span class="dash-count">{{ app.models|length }}</span>
+      </header>
+      <ul class="dash-models">
+        {% for model in app.models %}
+        <li class="model-{{ model.object_name|lower }}">
+          {% if model.admin_url %}
+            <a class="dash-model-link" href="{{ model.admin_url }}">{{ model.name }}</a>
+          {% else %}
+            <span class="dash-model-link">{{ model.name }}</span>
+          {% endif %}
+          <span class="dash-actions">
+            {% if model.add_url %}
+              <a class="dash-act is-add" href="{{ model.add_url }}">{% translate 'Add' %}</a>
+            {% endif %}
+            {% if model.admin_url %}
+              {% if model.view_only %}
+                <a class="dash-act is-view" href="{{ model.admin_url }}">{% translate 'View' %}</a>
+              {% else %}
+                <a class="dash-act is-change" href="{{ model.admin_url }}">{% translate 'Change' %}</a>
+              {% endif %}
+            {% endif %}
+          </span>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="dash-empty">{% translate 'You don’t have permission to view or edit anything.' %}</p>
+  {% endif %}
+
+  <section class="dash-card dash-recent">
+    <header class="dash-card-head">
+      <span class="dash-chip" aria-hidden="true">RA</span>
+      <h2>{% translate 'Recent actions' %}</h2>
+    </header>
+    <div>
+      {% get_admin_log 10 as admin_log for_user user %}
+      {% if not admin_log %}
+      <p class="dash-empty">{% translate 'None available' %}</p>
+      {% else %}
+      <ul class="actionlist">
+        {% for entry in admin_log %}
+        <li class="{% if entry.is_addition %}addlink{% elif entry.is_change %}changelink{% elif entry.is_deletion %}deletelink{% endif %}">
+          <span class="act-dot" aria-hidden="true"></span>
+          {% if entry.is_deletion or not entry.get_admin_url %}
+            {{ entry.object_repr }}
+          {% else %}
+            <a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>
+          {% endif %}
+          <span class="act-meta">
+            {% if entry.content_type %}{{ entry.content_type.name|capfirst }}{% else %}{% translate 'Unknown content' %}{% endif %}
+            &middot; {{ entry.action_time|date:"Y-m-d H:i" }}
+          </span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block sidebar %}{% endblock %}

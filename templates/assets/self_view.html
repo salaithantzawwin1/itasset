@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load t %}
+{% block title %}{% t "me.title" %} — {% t "app.name" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{% t "me.title" %}</h1>
+    <div class="sub">{% if person %}{{ person.name }} · {{ person.employee_no }}{% else %}{% t "me.no_person" %}{% endif %}</div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h2>{% t "asset.history" %}</h2>
+    <table class="data">
+      <thead><tr>
+        <th>{% t "asset.tag" %}</th><th>{% t "asset.out_at" %}</th>
+        <th>{% t "me.due" %}</th><th>{% t "asset.in_at" %}</th>
+      </tr></thead>
+      <tbody>
+      {% for asg in assignments %}
+        <tr>
+          <td><a href="{% url 'asset-detail' asg.asset_id %}">{{ asg.asset.asset_tag }}</a></td>
+          <td>{{ asg.out_at|date:"Y-m-d H:i" }}</td>
+          <td>{{ asg.due_at|date:"Y-m-d"|default:"—" }}</td>
+          <td>{% if asg.in_at %}{{ asg.in_at|date:"Y-m-d H:i" }}{% else %}<span class="pill pill-ASSIGNED">{% t "me.current" %}</span>{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr class="empty-row"><td colspan="4">{% t "common.empty" %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>{% t "me.requests" %}</h2>
+    <table class="data">
+      <thead><tr>
+        <th>{% t "me.req_id" %}</th><th>{% t "asset.category" %}</th>
+        <th>{% t "asset.status" %}</th><th>{% t "me.created" %}</th>
+      </tr></thead>
+      <tbody>
+      {% for req in requests %}
+        <tr>
+          <td>REQ#{{ req.pk }}</td>
+          <td>{{ req.category.code }}</td>
+          <td>{{ req.get_status_display }}</td>
+          <td>{{ req.created_at|date:"Y-m-d" }}</td>
+        </tr>
+      {% empty %}
+        <tr class="empty-row"><td colspan="4">{% t "common.empty" %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if is_paginated %}<div class="pagination">{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">{% t "common.prev" %}</a>{% endif %}<span class="muted" style="padding:7px;">{% t "common.page" n=page_obj.number m=page_obj.paginator.num_pages %}</span>{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">{% t "common.next" %}</a>{% endif %}</div>{% endif %}
+{% endblock %}

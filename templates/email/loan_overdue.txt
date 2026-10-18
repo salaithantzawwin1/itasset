@@ -1,0 +1,24 @@
+{% if lang == "my" %}
+ပြန်အမ်းရန် ရက်လွန်နေသည် ({{ days_overdue }} ရက်)
+{% else %}
+Loan overdue by {{ days_overdue }} day(s)
+{% endif %}
+{% if lang == "my" %}
+ပစ္စည်း: {{ asset_tag }}
+သိမ်းဆည်းသူ: {{ holder_name }}
+ပြန်အမ်းရမည့်ရက်: {{ due }}
+စခန်း: {{ site_name }}
+ထုတ်ပေးသူ: {{ by }}
+Assignment: #{{ assignment.pk }}
+
+ကျေးဇူးပြု၍ ပစ္စည်းကို ပြန်အပ်ပါ သို့မဟုတ် ရက်သတ်မှတ်ချက် တိုးရှည်ခွင့် တောင်းဆိုပါ။
+{% else %}
+Asset: {{ asset_tag }}
+Holder: {{ holder_name }}
+Was due: {{ due }}
+Site: {{ site_name }}
+Checked out by: {{ by }}
+Assignment: #{{ assignment.pk }}
+
+Please return the asset or request an extension.
+{% endif %}

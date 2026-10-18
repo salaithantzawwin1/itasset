@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load t %}
+{% block title %}{% t "person.title" %} — {% t "app.name" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% t "person.title" %}</h1><div class="sub">{% t "person.count" n=paginator.count %}</div></div>
+</div>
+<table class="data">
+  <thead><tr><th>{% t "person.staff_no" %}</th><th>{% t "person.name" %}</th><th>{% t "asset.site" %}</th><th>{% t "person.dept" %}</th><th></th></tr></thead>
+  <tbody>
+  {% for p in object_list %}
+    <tr>
+      <td>{{ p.employee_no }}</td>
+      <td><a href="{% url 'person-detail' p.pk %}">{{ p.name }}</a></td>
+      <td>{{ p.site.code }}</td>
+      <td>{{ p.department|default:"—" }}</td>
+      <td><a class="btn secondary sm" href="{% url 'person-update' p.pk %}">{% t "asset.edit" %}</a></td>
+    </tr>
+  {% empty %}
+    <tr class="empty-row"><td colspan="5">{% t "common.empty" %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if is_paginated %}<div class="pagination">{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">{% t "common.prev" %}</a>{% endif %}<span class="muted" style="padding:7px;">{% t "common.page" n=page_obj.number m=page_obj.paginator.num_pages %}</span>{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">{% t "common.next" %}</a>{% endif %}</div>{% endif %}
+{% endblock %}

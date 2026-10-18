@@ -1,0 +1,21 @@
+{% if lang == "my" %}
+ဒေတာအရည်အသွေး အစီရင်ခံစာ — {{ period }}
+
+အားနည်းချက်များ:
+- အာမခံ မရှိသော ပစ္စည်း: {{ missing_warranty }}
+- လိပ်စာ မပြည့်စုံသော site မှ ပစ္စည်း: {{ missing_location }}
+- holder မရှိ (သို့) ဝန်ထမ်း ထွက်ပြီး ကျန်ရစ်သော ပစ္စည်း: {{ assigned_no_holder }}{% if holder_examples %} — {% for t in holder_examples %}{{ t }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}
+- serial ထပ်နေသော အုပ်စု: {{ duplicate_serials }}{% if serial_examples %} — {% for s in serial_examples %}{{ s }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}
+
+စာရင်းပြည့်စုုံပါက ပြင်ဆင်ပေးပါ။
+{% else %}
+Data-quality report — {{ period }}
+
+Issues:
+- assets missing warranty: {{ missing_warranty }}
+- assets at sites with no address: {{ missing_location }}
+- assigned assets with no (active) holder: {{ assigned_no_holder }}{% if holder_examples %} — {% for t in holder_examples %}{{ t }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}
+- duplicate serial groups: {{ duplicate_serials }}{% if serial_examples %} — {% for s in serial_examples %}{{ s }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}
+
+Please clean these up when you can.
+{% endif %}

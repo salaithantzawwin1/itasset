@@ -1,0 +1,46 @@
+# secrets & env
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# django
+staticfiles/
+media/
+*.sqlite3
+*.sqlite
+*.db
+
+# private uploads (server-side only — never commit)
+private_attachments/
+
+# local test / debug artifacts
+dev_local.sqlite3
+local_pytest.db
+test.db
+test_local.db
+test_local.sqlite
+_dbg_att/
+
+# freebuff workspace metadata
+.freebuff/
+
+# tooling
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# editors / os
+.vscode/
+.idea/
+.DS_Store

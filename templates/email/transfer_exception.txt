@@ -1,0 +1,22 @@
+{% if lang == "my" %}
+လွှဲပြောင်းမှု ချောင်းဆိုးမှု — Transfer #{{ transfer.pk }}
+{% else %}
+Transfer exception — Transfer #{{ transfer.pk }}
+{% endif %}
+{% if lang == "my" %}
+လမ်းကြောင်း: {{ transfer.from_site.code }} → {{ transfer.to_site.code }}
+ရောက်ရှိမည့်စခန်း: {{ site_name }}
+ပျက်စီး/ချွတ်ယွင်း ပစ္စည်းများ: {{ tags }}
+လက်ခံသူ: {{ receiver }}
+Transfer: #{{ transfer.pk }}
+
+ပျက်စီး ပစ္စည်းများကို IN_REPAIR သို့ ပြောင်းပြီး RepairTicket ဖွင့်ပြီးဖြစ်သည်။ စစ်ဆေးပါ။
+{% else %}
+Route: {{ transfer.from_site.code }} → {{ transfer.to_site.code }}
+Destination: {{ site_name }}
+Damaged/mismatched tags: {{ tags }}
+Received by: {{ receiver }}
+Transfer: #{{ transfer.pk }}
+
+Damaged tags were moved to IN_REPAIR with a RepairTicket opened — please inspect.
+{% endif %}

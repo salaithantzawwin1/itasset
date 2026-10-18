@@ -1,0 +1,7 @@
+{% extends "admin/index.html" %}
+
+{% block bodyclass %}{{ block.super }} app-{{ app_label }}{% endblock %}
+
+{# keep the main-app look: no breadcrumbs, no model rail #}
+{% block nav-breadcrumbs %}{% endblock %}
+{% block nav-sidebar %}{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load t %}
+{% block title %}{% t "asset.delete" %} — {% t "app.name" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% t "asset.delete_q" %}</h1></div></div>
+<div class="card">
+  <p><strong>{{ object }}</strong></p>
+  <p class="muted">{% t "asset.delete_warn" %}</p>
+  <form method="post">
+    {% csrf_token %}
+    <button class="btn danger" type="submit">{% t "asset.confirm_delete" %}</button>
+    <a class="btn secondary" href="{% url view.cancel_url %}">{% t "asset.no_delete" %}</a>
+  </form>
+</div>
+{% endblock %}

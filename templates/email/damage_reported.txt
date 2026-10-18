@@ -1,0 +1,26 @@
+{% if lang == "my" %}
+ပျက်စီးမှု အစီရင်ခံစာ — {{ asset.asset_tag }}
+{% else %}
+Damage reported — {{ asset.asset_tag }}
+{% endif %}
+{% if lang == "my" %}
+ပစ္စည်း: {{ asset.asset_tag }}
+စခန်း: {{ site_name }}
+ပျက်စီးအမျိုးအစား: {{ ticket.fault_category }} / ပြင်းထန်မှု: {{ ticket.severity }}
+အစီရင်ခံသူ: {{ reporter }}
+Ticket: #{{ ticket.pk }}
+
+{{ ticket.description|default:"—" }}
+
+ပျက်စီးမှုကို စစ်ဆေးပြီး ပြင်ဆင်မှု အခြေအနေ စီမံပါ။
+{% else %}
+Asset: {{ asset.asset_tag }}
+Site: {{ site_name }}
+Fault: {{ ticket.fault_category }} / severity: {{ ticket.severity }}
+Reported by: {{ reporter }}
+Ticket: #{{ ticket.pk }}
+
+{{ ticket.description|default:"—" }}
+
+The asset is now IN_REPAIR — please inspect and schedule the fix.
+{% endif %}

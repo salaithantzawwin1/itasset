@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load t %}
+{% block title %}{% if object %}{% t "asset.edit_title" %}{% else %}{% t "asset.new_title" %}{% endif %} — {% t "app.name" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% if object %}{% t "asset.edit_title" %}{% else %}{% t "asset.new_title" %}{% endif %}</h1><div class="sub">{% if not object %}{% t "asset.new_sub" %}{% else %}{{ object.asset_tag }}{% endif %}</div></div>
+</div>
+<div class="card">
+  <form method="post" class="frm">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn" type="submit">{% t "asset.save" %}</button>
+    <a class="btn secondary" href="{% url 'asset-list' %}">{% t "asset.cancel" %}</a>
+  </form>
+</div>
+{% endblock %}

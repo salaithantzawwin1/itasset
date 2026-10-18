@@ -1,0 +1,17 @@
+{% if lang == "my" %}အရေးပေါ် အကောင့် ဝင်ခြင်း (break-glass)
+
+အသုံးပြုသူ: {{ username }}
+IP: {{ ip }}
+အချိန်: {{ when }}
+နောက်ခံ: ဒေသသို့ တိုက်ရိုက် အကောင့်ဝင်ခြင်း (ModelBackend — LDAP မဟုတ်ပါ)
+
+ဤ အကောင့်ဝင်မှု မှန်ကန်ပါက အတည်ပြုပါ။ မသက်ဆိုင်ပါက ချက်ချင်း စစ်ဆေးပါ။
+{% else %}Break-glass login (local backend)
+
+User: {{ username }}
+IP: {{ ip }}
+Time: {{ when }}
+Backend: direct local sign-in (ModelBackend — not LDAP)
+
+If this login was not expected, investigate immediately.
+{% endif %}

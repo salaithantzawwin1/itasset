@@ -1,0 +1,18 @@
+{% if lang == "my" %}
+အစီရင်ခံစာ ပို့ပြီးပါပြီ ({{ period }})
+{% else %}
+Scheduled report attached ({{ period }})
+{% endif %}
+{% if lang == "my" %}
+ကာလ: {{ period }}
+အမျိုးအစား: {{ cadence }}{% if site %} — စခန်း: {{ site }}{% endif %}
+ပါဝင်သော report{% if reports %}: {{ reports }}{% endif %}
+
+CSV ဖိုင် ပါဝင်ပါသည်။ မေးခွန်းရှိလျှင် IT ဌာနထံ ဆက်သွယ်ပါ။
+{% else %}
+Period: {{ period }}
+Type: {{ cadence }}{% if site %} — site: {{ site }}{% endif %}
+Reports{% if reports %}: {{ reports }}{% endif %}
+
+The CSV export is attached. Reply to IT if anything looks off.
+{% endif %}

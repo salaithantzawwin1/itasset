@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "itasset"
+version = "0.1.0"
+description = "Multi-site IT asset management — see DEVELOPMENT.md"
+requires-python = ">=3.10"
+dependencies = [
+    "Django>=5.1,<6.0",
+    "djangorestframework>=3.15",
+    "drf-spectacular>=0.28",
+    "django-environ>=0.12",
+    "dj-database-url>=2.2",
+    "psycopg[binary]>=3.2",
+    "celery>=5.4",
+    "redis>=5.0",
+    "gunicorn>=23.0",
+    # M3 labels & reports (§5)
+    "qrcode[pil]>=8.0",
+    "reportlab>=4.0",
+    "openpyxl>=3.1",
+    # M5 LDAP/AD login (§11) — only imported when LDAP_ENABLED=1
+    "django-auth-ldap>=4.8",
+    # M8 error tracking (§18) — GlitchTip, Sentry-compatible
+    "sentry-sdk>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.8",
+    "pytest>=8.0",
+    "pytest-django>=4.8",
+    "factory-boy>=3.3",
+    "pip-audit>=2.7",  # `make audit-deps` — gap §4 workstream 11
+]
+
+[tool.setuptools.packages.find]
+include = ["config*", "apps*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# Django migrations are machine-generated; don't fight the formatter.
+"*/migrations/*" = ["E501"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.dev"
+python_files = ["test_*.py", "tests.py", "tests_*.py"]
+testpaths = ["tests", "apps"]

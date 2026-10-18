@@ -1,0 +1,87 @@
+{% load t %}<!doctype html>
+<html lang="my" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% t "login.signin" %} — {% t "app.name" %}</title>
+  <style>
+    :root { --primary:#0a355c; --primary2:#0f4c81; --accent:#2a9d8f; --danger:#c0392b; --text:#1f2d3d; --muted:#6b7a8d; }
+    [data-theme="dark"] { --text:#e2e8f0; --muted:#8fa0b3; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+           font-family: system-ui,"Myanmar Text","Padauk",sans-serif; color:var(--text);
+           background: linear-gradient(135deg,#0a355c 0%,#155488 55%,#1a6aa5 100%); padding:24px; }
+    body.theme-dark { background: linear-gradient(135deg,#0b141c 0%,#12283c 55%,#173a58 100%); }
+    .wrap { width:100%; max-width:400px; }
+    .toprow { display:flex; justify-content:flex-end; gap:8px; margin-bottom:10px; }
+    .lang-switch { display:inline-flex; border:1px solid rgba(255,255,255,.4); border-radius:8px; overflow:hidden; }
+    .lang-switch button { background:transparent; color:rgba(255,255,255,.85); border:none; padding:6px 10px; cursor:pointer; font-size:12px; font-weight:700; }
+    .lang-switch button.on { background:rgba(255,255,255,.28); color:#fff; }
+    .toggle-theme { background:transparent; border:1px solid rgba(255,255,255,.4); color:#fff; padding:6px 10px; border-radius:8px; cursor:pointer; }
+    .brandrow { text-align:center; margin-bottom:26px; color:#fff; }
+    .logo { width:54px; height:54px; border-radius:14px; background:var(--accent); color:#fff; display:inline-flex;
+            align-items:center; justify-content:center; font-weight:800; font-size:22px; box-shadow:0 6px 18px rgba(0,0,0,.25); }
+    .brandrow h1 { margin:12px 0 4px; font-size:21px; letter-spacing:.3px; }
+    .brandrow p { margin:0; color:#bcd4e8; font-size:13.5px; }
+    .card { background:#fff; border-radius:14px; box-shadow:0 14px 40px rgba(4,24,44,.35); padding:30px 30px 26px; color:var(--text); }
+    body.theme-dark .card { background:#1a222b; box-shadow:0 14px 40px rgba(0,0,0,.55); }
+    .card h2 { margin:0 0 18px; font-size:17px; }
+    label { display:block; font-size:12.5px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin:14px 0 6px; }
+    input { width:100%; padding:11px 13px; border:1px solid #dde4ec; border-radius:9px; font-size:14.5px; background:#fff; color:var(--text); }
+    body.theme-dark input { background:#10161d; border-color:#2a3441; }
+    input:focus { outline:none; border-color:var(--primary2); box-shadow:0 0 0 3px rgba(15,76,129,.14); }
+    .error { background:#fdeeee; color:#b03434; border:1px solid #f2c8c8; border-radius:8px; padding:10px 14px; font-size:13.5px; margin-bottom:4px; }
+    body.theme-dark .error { background:#3a2323; border-color:#5c3232; color:#ef9a9a; }
+    button.btn-submit { width:100%; margin-top:22px; background:var(--primary2); color:#fff; border:none; border-radius:9px;
+             padding:12px; font-size:15px; font-weight:600; cursor:pointer; transition:filter .15s; }
+    button.btn-submit:hover { filter:brightness(1.15); }
+    .foot { text-align:center; margin-top:20px; color:#9fb9d1; font-size:12.5px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="toprow">
+      <form method="post" action="{% url 'set-lang' %}" style="margin:0;">
+        {% csrf_token %}
+        <input type="hidden" name="lang" value="">
+        <div class="lang-switch">
+          <button type="submit" name="lang" value="en" class="{% if request.session.lang != 'my' %}on{% endif %}">ENG</button>
+          <button type="submit" name="lang" value="my" class="{% if request.session.lang == 'my' %}on{% endif %}">MM</button>
+        </div>
+      </form>
+      <button class="toggle-theme" title="Light / Dark">◐</button>
+    </div>
+    <div class="brandrow">
+      <span class="logo">IT</span>
+      <h1>IT Asset Manager</h1>
+      <p>{% t "app.subtitle" %}</p>
+    </div>
+    <div class="card">
+      <h2>{% t "login.signin" %}</h2>
+      {% if form.errors %}<div class="error">{% t "login.fail" %}</div>{% endif %}
+      <form method="post">
+        {% csrf_token %}
+        <label for="id_username">{% t "login.username" %}</label>
+        <input type="text" name="username" id="id_username" autofocus required>
+        <label for="id_password">{% t "login.password" %}</label>
+        <input type="password" name="password" id="id_password" required>
+        <button type="submit" class="btn-submit">{% t "login.submit" %}</button>
+      </form>
+    </div>
+    <div class="foot">{% t "login.foot" %}</div>
+  </div>
+  <script>
+    (function() {
+      var saved = localStorage.getItem('theme');
+      if (saved === 'dark') { document.documentElement.setAttribute('data-theme','dark'); document.body.classList.add('theme-dark'); }
+      document.querySelector('.toggle-theme').addEventListener('click', function() {
+        var el = document.documentElement;
+        var next = (el.getAttribute('data-theme') === 'dark') ? 'light' : 'dark';
+        el.setAttribute('data-theme', next);
+        document.body.classList.toggle('theme-dark', next === 'dark');
+        localStorage.setItem('theme', next);
+      });
+    })();
+  </script>
+</body>
+</html>

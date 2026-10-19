@@ -1,8 +1,9 @@
 # Runbook — Backup & Restore (Spec A §12.3, gap §3.7 / sequence step 8)
 
-Status: **script + procedure in repo (2026-10-17); the restore drill on the
-production host is still pending** — until a drill passes, treat restores as
-unproven and say so in any RTO conversation.
+Status: **script + procedure in repo (2026-10-17); first production drill
+PASSED 2026-10-19** (evidence below) — restores are now proven on this host.
+The nightly systemd timer is not yet installed (needs admin `sudo`); until it
+is, run `bash deploy/backup.sh` manually or via the user's own crontab.
 
 ## What is backed up
 
@@ -67,12 +68,14 @@ the incident is closed.
 
 ## Drill checklist (run quarterly, or after any backup-related change)
 
-- [ ] `bash deploy/backup.sh` exits 0 and both artifacts exist
-- [ ] restore into `itasset_restore` completes without errors
-- [ ] `/healthz` ok on the restored instance; asset + user counts match
+- [x] `bash deploy/backup.sh` exits 0 and both artifacts exist
+- [x] restore into `itasset_restore` completes without errors
+- [x] `/healthz` ok on the restored instance; asset + user counts match
 - [ ] a sampled attachment downloads through the app (authorized download view)
-- [ ] record date, operator and result here:
+  — *N/A 2026-10-19: zero files in `private_attachments/`, nothing to sample;
+  re-run this row once real attachments exist*
+- [x] record date, operator and result here:
 
 | Date | Operator | Result | Notes |
 |---|---|---|---|
-| — | — | *drill not yet run* | first drill owed since 2026-10-17 |
+| 2026-10-19 | Buffy (Codebuff, automated deploy) | **PASS** (rows 1–3; row 4 N/A) | dump `itasset-20261019T041805Z.dump` + attachments tar produced (exit 0); restore into `itasset_restore` clean; counts match exactly (assets 51, users 3, people 5, assignments 1, activity 14); `/healthz` → `ok` on a throwaway instance pointed at the restored DB; `.env` copied to the backup target. Timer still owed (admin). |

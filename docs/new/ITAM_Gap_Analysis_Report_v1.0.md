@@ -2,7 +2,7 @@
 # Gap Analysis — Specification vs Current Django Codebase
 
 **Version:** 1.0
-**Date:** 2026-10-15 · **last updated 2026-10-16** (progress re-baseline)
+**Date:** 2026-10-15 · **last updated 2026-10-19** (§7 deploy executed)
 **Status:** For review
 **Sources compared:**
 - Spec A — `IT_Asset_Management_Technical_Specification_v1.0.md` (rewrite proposal: React/NestJS/Prisma)
@@ -326,8 +326,11 @@ for one week. Calendar assumes 2–3 people working in parallel on separable wor
 
 ## 7. Production Deploy Checklist — 192.168.100.142:80 (planned Monday 2026-10-19)
 
-Recorded 2026-10-17: everything below is **local-only** until Monday — sessions 9–14
-have not been copied to the server, and three migrations are pending. Tick in order; the
+Recorded 2026-10-17. **Executed 2026-10-19 (deploy day):** tree synced to the server, 5
+migrations applied (the three owed + `people.0004_site_lead_email`, `reports.0001_initial`),
+server suite green (299 + 69 subtests, `SCOPE_ENFORCEMENT_ENABLED=1`), probe gate passed
+(45 ok / 0 failed across two runs) — ticked below. Still open: the nightly backup timer
+(needs admin `sudo`) and the two optional ops rows. Tick in order; the
 probes at the end are the acceptance gate (each row says what a pass looks like).
 **One-shot:** `bash deploy/probe-production.sh http://192.168.100.142` asserts §7.3
 phase 1 end-to-end; add `PROBE_USER=… PROBE_PASS=…` for the authenticated phase (me,
@@ -336,10 +339,12 @@ validated locally (28 ok / 0 failed against a dev server on 2026-10-17).
 
 ### 7.1 Pre-flight (laptop, before touching the server)
 
-- [ ] `ruff check . && ruff format --check .` clean (was clean at 2026-10-17, 167 files)
-- [ ] `pytest -q` green — was **244 passed + 1 skipped + 65 subtests** (sqlite)
-- [ ] `manage.py makemigrations --check` exit 0 (also pinned by `tests/test_migrations_guard.py`)
-- [ ] Diff review: sessions 9–14 touch `apps/core/{middleware,models,admin}.py`,
+- [x] `ruff check . && ruff format --check .` clean (was clean at 2026-10-17, 167 files;
+  re-verified 2026-10-19 — 175 files)
+- [x] `pytest -q` green — was **244 passed + 1 skipped + 65 subtests** (sqlite);
+  2026-10-19: **299 passed + 69 subtests**, also green with `SCOPE_ENFORCEMENT_ENABLED=1`
+- [x] `manage.py makemigrations --check` exit 0 (also pinned by `tests/test_migrations_guard.py`)
+- [x] Diff review: sessions 9–14 touch `apps/core/{middleware,models,admin}.py`,
   `apps/accounts/{loginaudit,apps}.py`, `apps/api/{views,urls,serializers,exceptions}.py`,
   `apps/assets/{models,services,admin}.py`, `config/settings/{base,prod}.py`,
   `templates/email/breakglass_login.txt`, `Makefile`, `pyproject.toml`, `deploy/backup.sh`,
@@ -347,17 +352,20 @@ validated locally (28 ok / 0 failed against a dev server on 2026-10-17).
 
 ### 7.2 Sync + migrate (server `ssh itasset-dev`, same flow as sessions 6–7)
 
-- [ ] Sync the tree to `~/itasset` (source + `docs/` + `deploy/`; never `.env`, never
-  `private_attachments/`, never `.venv/`)
-- [ ] `manage.py makemigrations --check` on the server (catches sync gaps)
-- [ ] Server test suite: `pytest -q` with `SCOPE_ENFORCEMENT_ENABLED=1` (was 190 at
-  session 7 — expect 252+ now)
-- [ ] `manage.py migrate` — **three pending migrations**: `assets.0006_asset_version`
+- [x] Sync the tree to `~/itasset` (source + `docs/` + `deploy/`; never `.env`, never
+  `private_attachments/`, never `.venv/`) — 2026-10-19 via `git -c core.autocrlf=false
+  archive` LF export (a plain worktree tar copied CRLF scripts over and broke bash; now
+  pinned by `.gitattributes`)
+- [x] `manage.py makemigrations --check` on the server (catches sync gaps)
+- [x] Server test suite: `pytest -q` with `SCOPE_ENFORCEMENT_ENABLED=1` (was 190 at
+  session 7 — expect 252+ now; 2026-10-19: **299 passed + 69 subtests**)
+- [x] `manage.py migrate` — **three pending migrations**: `assets.0006_asset_version`
   (adds `asset.version`, default 1), `core.0002_idempotencyrecord` (new table) and
-  `assets.0007_…` (`ApprovalDecision.delegated_from` + `ApprovalDelegation`)
-- [ ] `manage.py collectstatic --noinput` (no new static assets expected; run anyway)
-- [ ] `systemctl --user restart itasset-gunicorn` **after** the last source write
-- [ ] Env review in `~/itasset/.env`: no new keys are *required*. Optional:
+  `assets.0007_…` (`ApprovalDecision.delegated_from` + `ApprovalDelegation`) — all applied
+  2026-10-19, plus `people.0004_site_lead_email` and `reports.0001_initial`; 0 pending
+- [x] `manage.py collectstatic --noinput` (no new static assets expected; run anyway)
+- [x] `systemctl --user restart itasset-gunicorn` **after** the last source write
+- [x] Env review in `~/itasset/.env`: no new keys are *required*. Optional:
   `LOGIN_THROTTLE_ATTEMPTS`/`LOGIN_THROTTLE_WINDOW` (defaults 10/300), `CACHE_URL`
   (prod defaults to `redis://127.0.0.1:6379/1` — Redis already listens on :6379;
   verify `…/.venv/bin/python -c "import redis; print(redis.Redis().ping())"`).
@@ -365,36 +373,40 @@ validated locally (28 ok / 0 failed against a dev server on 2026-10-17).
 
 ### 7.3 Probes (acceptance gate — through nginx on :80)
 
-- [ ] `/healthz` → `{"status":"ok","db":"ok"}`; `/` and `/admin/login/` → 200; a static
+- [x] `/healthz` → `{"status":"ok","db":"ok"}`; `/` and `/admin/login/` → 200; a static
   asset → 200; unknown path → generic 404 (DEBUG off)
-- [ ] `/api/v1/assets/`, `/api/v1/requests/`, `/api/v1/transfers/`, `/api/v1/me/` → **401** anonymous
-- [ ] `/api/v1/schema/` and `/api/v1/docs/` → **401/403 anonymous** (was 200 before session 9)
-- [ ] HTML login page carries `Content-Security-Policy` + `X-Content-Type-Options: nosniff`;
+- [x] `/api/v1/assets/`, `/api/v1/requests/`, `/api/v1/transfers/`, `/api/v1/me/` → **401** anonymous
+- [x] `/api/v1/schema/` and `/api/v1/docs/` → **401/403 anonymous** (was 200 before session 9)
+- [x] HTML login page carries `Content-Security-Policy` + `X-Content-Type-Options: nosniff`;
   every response carries `X-Correlation-ID`; a 404 body has `code` + `correlationId`
-- [ ] Throttle: 11 bad POSTs to `/accounts/login/` (same IP) → **429** + `Retry-After: 300`;
+- [x] Throttle: 11 bad POSTs to `/accounts/login/` (same IP) → **429** + `Retry-After: 300`;
   then wait/`redis-cli`-flush DB 1 or restart gunicorn to clear the test counter
-- [ ] `POST /api/v1/assets/` with token + `category_id`/`site_id` → **201** (was a live 500);
+  (passed 2026-10-19; redis DB 1 flushed afterwards)
+- [x] `POST /api/v1/assets/` with token + `category_id`/`site_id` → **201** (was a live 500);
   `GET /api/v1/me/` → identity + roles + scopes
-- [ ] Stale-version `PATCH /api/v1/assets/{tag}/` → **409**; replay with the same
+- [x] Stale-version `PATCH /api/v1/assets/{tag}/` → **409**; replay with the same
   `Idempotency-Key` → identical body + `Idempotency-Replayed: true`, one row created
-- [ ] `POST /api/v1/auth/token/` for a deactivated user → **401** (and their session dies
-  on the next request)
-- [ ] `nginx -T | grep client_max_body_size` → `30m` (applied session 7; re-verify)
+- [x] `POST /api/v1/auth/token/` for a deactivated user → **401** (and their session dies
+  on the next request — `ActiveUserMiddleware`, pinned by the suite)
+- [x] `nginx -T | grep client_max_body_size` → `30m` (applied session 7; re-verified
+  2026-10-19 in `/etc/nginx/sites-available/itasset` — `nginx -T` itself needs root)
 
 ### 7.4 Ops extras (same day, closes more of step 8 on the host)
 
-- [ ] First real backup: `bash ~/itasset/deploy/backup.sh` → dump + attachments archive in
-  `~/itasset-backups`, then install the systemd timer from
-  `docs/runbooks/backup-restore.md`
-- [ ] Run the **restore drill** from that runbook against the fresh dump and tick its
-  checklist (the evidence row is still empty)
+- [x] First real backup: `bash ~/itasset/deploy/backup.sh` → dump + attachments archive in
+  `~/itasset-backups` (2026-10-19 — needed a Docker-container `pg_dump` fallback first:
+  the host has no client tools) + `.env` copied to the target per the runbook
+- [ ] Install the nightly systemd timer from `docs/runbooks/backup-restore.md`
+  (needs admin `sudo` on the host — handed to the operator)
+- [x] Run the **restore drill** from that runbook against the fresh dump and tick its
+  checklist (passed 2026-10-19 — evidence recorded in the runbook)
 - [ ] Optional: `make audit-deps` on the server (pip-audit — laptop run was clean)
 - [ ] Optional monitoring: point Uptime Kuma (or cron+curl) at `/healthz`
 
 ### 7.5 Rollback
 
-- [ ] Pre-deploy: `cp .env .env.bak-$(date +%F)` and keep the last known-good tree copy
-  (pattern: `~/itasset.bak-20261014`)
+- [x] Pre-deploy: `cp .env .env.bak-$(date +%F)` and keep the last known-good tree copy
+  (pattern: `~/itasset.bak-20261014`) — 2026-10-19: `.env.bak-20261019` + `~/itasset.bak-20261019.tgz`
 - [ ] Bad deploy → restore tree, `migrate assets 0005 && migrate core 0001` (drops the new
   column/table — additive-only migrations, so reverse is safe), restart gunicorn
 - [ ] Data doubt → restore per `docs/runbooks/backup-restore.md` (fresh DB, never in place)

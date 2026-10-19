@@ -32,7 +32,9 @@ if ! command -v pg_dump >/dev/null; then
   # No client tools on the host: dump through the Docker db container
   # (BACKUP_PG_CONTAINER overrides auto-detection).
   if command -v docker >/dev/null; then
-    PG_CONTAINER="${BACKUP_PG_CONTAINER:-$(docker ps --filter 'ancestor=postgres' --format '{{.Names}}' | head -1)}"
+    # match the image NAME (postgres:16 etc.) — `ancestor=postgres` misses tags
+    PG_CONTAINER="${BACKUP_PG_CONTAINER:-$(docker ps --format '{{.Names}} {{.Image}}' \
+      | awk '$2 ~ /^postgres([:@]|$)/ {print $1; exit}')}"
   fi
 fi
 if ! command -v pg_dump >/dev/null && [[ -z "$PG_CONTAINER" ]]; then

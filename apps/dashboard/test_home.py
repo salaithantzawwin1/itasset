@@ -11,6 +11,31 @@ from apps.assets.models import Asset, AssetRequest, Category
 from apps.people.models import Site
 
 
+def _login_global(client):
+    """Act as an authorized GLOBAL-scope user.
+
+    Baseline tests here assert real counts (KPIs, chart, alerts); with
+    enforcement on — the server runs `SCOPE_ENFORCEMENT_ENABLED=1` — an
+    anonymous or zero-scope caller correctly sees zeros instead. The deny-
+    by-default behaviour itself is pinned by
+    `test_dashboard_zero_scope_user_sees_zeros_when_enforcing`, so these
+    tests authenticate instead of weakening their assertions. Same pattern
+    as `_any_user()` in apps/audit/tests.py.
+    """
+    from apps.core.models import UserAccessScope
+
+    user, _ = get_user_model().objects.get_or_create(username="dash_global")
+    user.set_password("pw12345!")
+    user.save()
+    UserAccessScope.objects.get_or_create(
+        user=user,
+        scope_type=UserAccessScope.ScopeType.GLOBAL,
+        defaults={"reason": "baseline dashboard test", "created_by": user},
+    )
+    client.force_login(user)
+    return user
+
+
 class DashboardHomeTests(TestCase):
     def _seed(self):
         site = Site.objects.create(name="Yangon HQ", code="yangon")
@@ -21,6 +46,7 @@ class DashboardHomeTests(TestCase):
 
     def test_root_is_dashboard_home(self):
         self._seed()
+        _login_global(self.client)
         resp = self.client.get("/")
         self.assertEqual(resp.status_code, 200)
         self.assertTemplateUsed(resp, "dashboard/home.html")
@@ -30,6 +56,7 @@ class DashboardHomeTests(TestCase):
 
     def test_status_summary_widgets_present(self):
         self._seed()
+        _login_global(self.client)
         resp = self.client.get("/")
         # widgets render status/condition/site breakdowns + recent rows
         self.assertEqual(len(resp.context["by_status"]), 1)  # all 3 assets IN_STOCK
@@ -68,6 +95,7 @@ class DashboardKpiAlertTests(TestCase):
         self._make("A-1", warranty=today + timedelta(days=3))  # → 7-day alert
         self._make("A-2", warranty=today + timedelta(days=10))  # → 30-day KPI only
         self._make("A-3", warranty=today + timedelta(days=200))  # → outside both
+        _login_global(self.client)
         resp = self.client.get("/")
         kpis = {k["label_key"]: k for k in resp.context["kpis"]}
         self.assertEqual(kpis["dash.total_assets"]["value"], 3)
@@ -87,6 +115,7 @@ class DashboardKpiAlertTests(TestCase):
         a = self._make("A-5")
         a.status = Asset.Status.RETIRED
         a.save(update_fields=["status"])
+        _login_global(self.client)
         resp = self.client.get("/")
         kpis = {k["label_key"]: k for k in resp.context["kpis"]}
         self.assertEqual(kpis["dash.kpi.active"]["value"], 1)
@@ -103,11 +132,19 @@ class DashboardKpiAlertTests(TestCase):
         from django.contrib.auth import get_user_model
         from django.contrib.auth.models import Group
 
+        from apps.core.models import UserAccessScope
+
         user = get_user_model().objects.create_user("appr", "a@x.dev", "pw12345!")
         grp, _ = Group.objects.get_or_create(name="admin")
         user.groups.add(grp)
         user.is_staff = True  # app admins are staff — /admin/ links only resolve for them
         user.save(update_fields=["is_staff"])
+        UserAccessScope.objects.create(
+            user=user,
+            scope_type=UserAccessScope.ScopeType.GLOBAL,
+            reason="approver dashboard test",
+            created_by=user,
+        )
         self.client.force_login(user)
         AssetRequest.objects.create(
             requester=user,
@@ -133,7 +170,15 @@ class DashboardKpiAlertTests(TestCase):
         from django.contrib.auth import get_user_model
         from django.utils import timezone
 
+        from apps.core.models import UserAccessScope
+
         u = get_user_model().objects.create_user("viewr", "v@x.dev", "pw12345!")
+        UserAccessScope.objects.create(
+            user=u,
+            scope_type=UserAccessScope.ScopeType.GLOBAL,
+            reason="viewer dashboard test",
+            created_by=u,
+        )
         self.client.force_login(u)
         today = timezone.localdate()
         self._make("DL-1", warranty=today + timedelta(days=2))  # 7-day alert
@@ -210,11 +255,19 @@ class DashboardKpiAlertTests(TestCase):
         self.assertEqual(kpis["dash.total_assets"], 0)  # deny by default
         self.assertEqual(resp.context["alerts"], [])
 
+        # anonymous callers get the same zeros under enforcement
+        self.client.logout()
+        with self.settings(SCOPE_ENFORCEMENT_ENABLED=True):
+            anon = self.client.get("/")
+        self.assertEqual(anon.context["total_assets"], 0)
+        self.assertEqual(anon.context["alerts"], [])
+
     def test_overdue_alert_links_to_loans_page(self):
         from apps.assets.models import Assignment
 
         asset = self._make("OV-1", serial="SOV")
         Assignment.objects.create(asset=asset, due_at=timezone.now() - timedelta(days=2))
+        _login_global(self.client)
         resp = self.client.get("/")
         overdue = [a for a in resp.context["alerts"] if a["key"] == "alert.overdue_loans"]
         self.assertEqual(len(overdue), 1)
@@ -226,6 +279,7 @@ class DashboardKpiAlertTests(TestCase):
         Site2 = Site.objects.create(name="Mandalay", code="mandalay")
         cat2 = Category.objects.create(code="IT-HW-DSK", name="Desktop")
         Asset.objects.create(asset_tag="A-9", category=cat2, site=Site2, serial_no="SN-2")
+        _login_global(self.client)
         resp = self.client.get("/")
         rows = resp.context["by_category"]
         self.assertEqual([(r["label"], r["n"]) for r in rows], [("Laptop", 2), ("Desktop", 1)])

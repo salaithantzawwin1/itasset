@@ -16,4 +16,6 @@ urlpatterns = [
     path("me/", views.SelfView.as_view(), name="self-view"),
     # employee self-service request (§6.5 stage ① — was admin-only)
     path("requests/new/", views.RequestCreate.as_view(), name="request-create"),
+    # overdue loans (§14 scan_loans) — the dashboard alert's landing page
+    path("loans/overdue/", views.OverdueLoans.as_view(), name="loan-overdue"),
 ]

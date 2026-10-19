@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.http import Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
+from django.utils import timezone
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
 from apps.core.roles import RoleRequiredMixin, is_technician_or_admin, user_has_role
@@ -22,7 +23,7 @@ from apps.people.models import Person, Site
 
 from . import services
 from .forms import AssetForm, AssetRequestForm
-from .models import Asset, AssetRequest, Assignment
+from .models import ApprovalDecision, Asset, AssetRequest, Assignment
 
 
 class AssetList(RoleRequiredMixin, ListView):
@@ -101,6 +102,59 @@ class AssetDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
         return ctx
 
 
+# status → (stages already done, current stage index) for the self-view
+# stepper: requested(0) → approval(1) → procure(2) → receive(3)
+_PROGRESS_BY_STATUS = {
+    AssetRequest.Status.PENDING: (1, 1),
+    AssetRequest.Status.APPROVED: (2, 2),
+    AssetRequest.Status.PROCURED: (3, 3),
+    AssetRequest.Status.FULFILLED: (4, None),
+}
+_PROGRESS_LABELS = {
+    AssetRequest.Status.PENDING: ("prog.approval_wait", "prog.approval_wait_n"),
+    AssetRequest.Status.APPROVED: ("prog.await_procure", "prog.await_procure"),
+    AssetRequest.Status.PROCURED: ("prog.await_receive", "prog.await_receive"),
+    AssetRequest.Status.FULFILLED: ("prog.fulfilled", "prog.fulfilled"),
+    AssetRequest.Status.REJECTED: ("prog.rejected", "prog.rejected"),
+    AssetRequest.Status.CANCELLED: ("prog.cancelled", "prog.cancelled"),
+}
+
+
+def _request_progress(req: AssetRequest) -> dict:
+    """4-stage pipeline view of one request for the self-view stepper.
+
+    The approval stage may itself be a multi-step chain (§6.6): `cur`/`total`
+    come from `resolve_approval_steps` plus the immutable decisions already
+    recorded, so an employee can see *which* approval step is holding their
+    request instead of a flat "Pending".
+    """
+    chain = services.resolve_approval_steps(req)
+    total = len(chain)
+    approved = req.approval_decisions.filter(action=ApprovalDecision.Action.APPROVE).count()
+    cur = min(approved, total - 1) + 1  # 1-based current approval step
+
+    stages = [
+        {"key": key, "n": i + 1, "state": "todo"}
+        for i, key in enumerate(("requested", "approval", "procure", "receive"))
+    ]
+    single, multi = _PROGRESS_LABELS.get(req.status, ("prog.cancelled", "prog.cancelled"))
+    if req.status == AssetRequest.Status.REJECTED:
+        stages[0]["state"] = "done"
+        stages[1]["state"] = "failed"
+        label_key = single
+    elif req.status == AssetRequest.Status.CANCELLED:
+        label_key = single
+    else:
+        done_upto, current = _PROGRESS_BY_STATUS.get(req.status, (1, 1))
+        for i in range(done_upto):
+            stages[i]["state"] = "done"
+        if current is not None:
+            stages[current]["state"] = "current"
+        label_key = multi if (req.status == AssetRequest.Status.PENDING and total > 1) else single
+
+    return {"stages": stages, "label_key": label_key, "cur": cur, "total": total}
+
+
 class SelfView(RoleRequiredMixin, ListView):
     """Employee self-view (design §4.4; §6 row 15).
 
@@ -134,8 +188,12 @@ class SelfView(RoleRequiredMixin, ListView):
         ctx["requests"] = (
             AssetRequest.objects.filter(requester=self.request.user)
             .select_related("category", "site")
+            .prefetch_related("approval_decisions")
             .order_by("-created_at")
         )
+        ctx["request_rows"] = [
+            {"req": req, "progress": _request_progress(req)} for req in ctx["requests"]
+        ]
         return ctx
 
 
@@ -213,6 +271,43 @@ class RequestCreate(RoleRequiredMixin, CreateView):
             f"Request REQ#{form.instance.pk} submitted — awaiting approval.",
         )
         return response
+
+
+class OverdueLoans(RoleRequiredMixin, ListView):
+    """Loans past their due date (§14 `scan_loans` made visible).
+
+    Was email-only: the dashboard alert fired but had no page to open. Now
+    the alert deep-links here. Read-only, scope-narrowed on the asset's site
+    (deny-by-default: no scope rows → empty list, like every other list).
+    """
+
+    roles_required = ()
+    model = Assignment
+    context_object_name = "loans"
+    template_name = "assets/loan_overdue.html"
+    paginate_by = 50
+
+    def get_queryset(self):
+        qs = (
+            Assignment.objects.filter(in_at__isnull=True, due_at__lt=timezone.now())
+            .select_related("asset", "asset__site", "to_person")
+            .order_by("due_at")
+        )
+        return scope_list(
+            self.request.user,
+            qs,
+            site_field="asset__site",
+            action="loan_overdue",
+            path=self.request.path,
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        now = timezone.localtime()
+        for loan in ctx.get("loans") or []:
+            # whole days late (floor), minimum 1 — "just late" reads as 1d
+            loan.days_late = max(1, (now - loan.due_at).days)
+        return ctx
 
 
 class AssetUpdate(ScopeGuardMixin, RoleRequiredMixin, UpdateView):

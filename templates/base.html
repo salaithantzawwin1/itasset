@@ -124,6 +124,16 @@
     .pagination a { padding: 6px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--primary); text-decoration: none; font-size: 13px; }
     .pagination a:hover { background: var(--primary-light); }
 
+    /* ---------- pipeline stepper (self-view request progress) ---------- */
+    .steps { display: inline-flex; gap: 4px; align-items: center; }
+    .steps .step { width: 19px; height: 19px; border-radius: 50%; font-size: 10px; font-weight: 700;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--primary-light); color: var(--muted); border: 1px solid var(--border); }
+    .steps .step.done { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .steps .step.current { background: #f59e0b; color: #fff; border-color: #f59e0b;
+      box-shadow: 0 0 0 3px rgba(245,158,11,.25); }
+    .steps .step.failed { background: var(--danger); color: #fff; border-color: var(--danger); }
+
     /* ---------- responsive (there were no @media rules at all) ---------- */
     .brand .bname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     @media (max-width: 1024px) {

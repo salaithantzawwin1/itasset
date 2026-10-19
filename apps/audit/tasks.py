@@ -181,7 +181,11 @@ def scan_loans(today=None):
         tech_email = tech.email if tech is not None and tech.email else None
         holder_email = getattr(asg.to_person, "email", "") or None
         recipients = [e for e in (holder_email, tech_email) if e]
-        days_overdue = (today - asg.due_at.date()).days
+        # due dates are local calendar days (the `__date` filter above runs in
+        # TIME_ZONE) — `.date()` on the raw UTC value would count an extra day
+        # between midnight and UTC+6:30, so convert first.
+        due_local = timezone.localtime(asg.due_at)
+        days_overdue = (today - due_local.date()).days
         if send_alert(
             "loan_overdue",
             f"loan_overdue:{asg.pk}:d3",
@@ -191,7 +195,7 @@ def scan_loans(today=None):
                 "asset_tag": asg.asset.asset_tag,
                 "holder_name": getattr(asg.to_person, "name", ""),
                 "site_name": getattr(asg.asset.site, "name", ""),
-                "due": asg.due_at.date().isoformat(),
+                "due": due_local.date().isoformat(),
                 "days_overdue": days_overdue,
                 "by": getattr(tech, "username", "") or "—",
             },

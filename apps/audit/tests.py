@@ -566,6 +566,31 @@ def test_loan_overdue_scan(category, site, person_factory, asset_factory):
     assert EmailAlert.objects.filter(kind="loan_overdue").count() == 1
 
 
+def test_loan_overdue_counts_local_not_utc_days(category, site, person_factory, asset_factory):
+    """days_overdue must use the local (Asia/Yangon) due date.
+
+    A due time of 01:00 local sits on the *previous* UTC day, so a naive
+    `.date()` on the raw UTC value reports 5d instead of 4d. Deterministic
+    regardless of when the suite runs: the due timestamp is pinned to early
+    local morning where UTC and local dates always disagree.
+    """
+    from datetime import datetime, time
+
+    from apps.assets import services
+    from apps.audit.tasks import scan_loans
+
+    holder = person_factory(employee_no="LZ", name="TZ Holder", email="tz-holder@x.com")
+    due = timezone.make_aware(
+        datetime.combine(timezone.localdate() - timedelta(days=4), time(1, 0))
+    )
+    services.check_out(asset_factory(), holder, actor=None, due_at=due)
+
+    assert scan_loans() == {"alerts": 1}
+    msg = mail.outbox[0]
+    assert "4d" in msg.subject, "overdue days must be counted on the local calendar"
+    assert due.date().isoformat() in msg.body  # "Was due" shows the local date
+
+
 def test_damage_report_notifies_scoped_techs_and_site_lead(
     category, site, asset_factory, monkeypatch
 ):

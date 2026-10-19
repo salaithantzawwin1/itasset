@@ -36,6 +36,33 @@ STRINGS = {
         "my": "အတည်ပြုစာရင်းသို့ ပို့မည် (အဆင့် ① — အတည်ပြု → ဝယ် → လက်ခံ)",
     },
     "req.submit": {"en": "Submit request", "my": "တောင်းဆိုမှု တင်မည်"},
+    # overdue loans page (§14 scan_loans made visible)
+    "loans.title": {"en": "Overdue loans", "my": "ပြန်ရန် ကျန်ချိန်ကျော်လွန်သော ပေးအပ်မှုများ"},
+    "loans.sub": {
+        "en": "Assets checked out past their due date — return or extend",
+        "my": "သတ်မှတ်ရက်ကျော်လွန်နေသော ပေးအပ်မှုများ — ပြန်အပ် သို့ ရုံးချိန် တိုးပါ",
+    },
+    "loans.overdue_by": {"en": "Overdue", "my": "ကျော်လွန်ချိန်"},
+    "loans.days_late": {"en": "{n}d late", "my": "{n} ရက် ကျော်"},
+    "loans.empty": {
+        "en": "No overdue loans — everything is back on time.",
+        "my": "ကျော်လွန်နေသော ပေးအပ်မှု မရှိပါ။",
+    },
+    # request progress stepper (self-view)
+    "prog.header": {"en": "Progress", "my": "အဆင့်မြောက်မှု"},
+    "prog.approval_wait": {"en": "Awaiting approval", "my": "အတည်ပြုရန် စောင့်ဆိုင်းနေသည်"},
+    "prog.approval_wait_n": {
+        "en": "Awaiting approval ({cur}/{total})",
+        "my": "အတည်ပြုရန် စောင့်ဆိုင်းနေသည် ({cur}/{total})",
+    },
+    "prog.await_procure": {
+        "en": "Approved — awaiting procurement",
+        "my": "အတည်ပြုပြီး — ဝယ်ယူရန် စောင့်ဆိုင်း",
+    },
+    "prog.await_receive": {"en": "Procured — awaiting receipt", "my": "ဝယ်ပြီး — လက်ခူရန် စောင့်ဆိုင်း"},
+    "prog.fulfilled": {"en": "Fulfilled", "my": "ပြီးဆုံးပြီ"},
+    "prog.rejected": {"en": "Rejected at approval", "my": "အတည်ပြုပွင့်တွင် ငြင်းပယ်ခဲ့သည်"},
+    "prog.cancelled": {"en": "Cancelled", "my": "ပယ်ဖျက်ခဲ့သည်"},
     # dashboard
     "dash.title": {"en": "Dashboard", "my": "ဒသ််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််"},
     "dash.total_assets": {"en": "Total assets", "my": "ပိုင်ဆိုင်မှု စုစုပေါင်း"},

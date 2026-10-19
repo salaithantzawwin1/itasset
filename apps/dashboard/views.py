@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.views.generic import TemplateView
 
 from apps.core.roles import user_has_role
+from apps.core.scopes import effective_scopes, enforcement_enabled, scope_list
 
 
 def healthz(request):
@@ -48,77 +49,103 @@ class DashboardView(TemplateView):
     def get_context_data(self, **kwargs):
         from datetime import timedelta
 
+        from django.db.models import Q
         from django.utils import timezone
 
         from apps.assets.models import (
             Asset,
             AssetRequest,
             Assignment,
-            Category,
             Transfer,
         )
         from apps.people.models import Person, Site
 
         ctx = super().get_context_data(**kwargs)
+        user = self.request.user
 
-        ctx["total_assets"] = Asset.objects.count()
-        ctx["total_people"] = Person.objects.filter(is_active=True).count()
-        ctx["total_sites"] = Site.objects.filter(is_active=True).count()
+        # ---- scope-aware: every number below is the caller's own scope ----
+        # `scope_list` is flag-aware: shadow mode (flag off) keeps today's
+        # global behaviour; enforcement on → deny-by-default, so a
+        # site-scoped user counts only their site and a zero-scope or
+        # anonymous caller sees zeros instead of the whole register.
+        act = dict(action="dashboard", path=self.request.path)
+        assets = scope_list(user, Asset.objects.all(), **act)
+        sites = scope_list(user, Site.objects.filter(is_active=True), site_field="id", **act)
+        people = scope_list(user, Person.objects.filter(is_active=True), **act)
 
-        ctx["by_status"] = (
-            Asset.objects.values("status", "status_label")
-            if False  # placeholder to keep code short
-            else [
-                {"status": s, "label": label, "n": n}
-                for s, label in Asset.Status.choices
-                for n in [Asset.objects.filter(status=s).count()]
-                if n
-            ]
-        )
+        ctx["total_assets"] = assets.count()
+        ctx["total_people"] = people.count()
+        ctx["total_sites"] = sites.count()
+
+        ctx["by_status"] = [
+            {"status": s, "label": label, "n": n}
+            for s, label in Asset.Status.choices
+            for n in [assets.filter(status=s).count()]
+            if n
+        ]
         ctx["by_condition"] = [
             {"condition": c, "label": label, "n": n}
             for c, label in Asset.Condition.choices
-            for n in [Asset.objects.filter(condition=c).count()]
+            for n in [assets.filter(condition=c).count()]
             if n
         ]
-        ctx["by_site"] = (
-            Site.objects.annotate(n=Count("assets", distinct=True))
-            .filter(is_active=True)
-            .order_by("-n")
-        )
-        ctx["recent"] = Asset.objects.select_related("category", "site").order_by("-created_at")[:6]
+        ctx["by_site"] = sites.annotate(n=Count("assets", distinct=True)).order_by("-n")
+        ctx["recent"] = assets.select_related("category", "site").order_by("-created_at")[:6]
 
-        # ---- mockup KPIs + alerts (all live queries) ---------------------
+        # ---- mockup KPIs + alerts (live queries, caller-scoped) ----------
         today = timezone.localdate()
         in_30 = today + timedelta(days=30)
         in_7 = today + timedelta(days=7)
         month_start = today.replace(day=1)
 
         excluded = (Asset.Status.RETIRED, Asset.Status.DISPOSED)
-        warranty_30 = Asset.objects.filter(
+        warranty_30 = assets.filter(
             warranty_end__isnull=False,
             warranty_end__gte=today,
             warranty_end__lte=in_30,
         ).count()
-        warranty_7 = Asset.objects.filter(
+        warranty_7 = assets.filter(
             warranty_end__isnull=False,
             warranty_end__gte=today,
             warranty_end__lte=in_7,
         ).count()
-        active = Asset.objects.exclude(status__in=excluded).count()
-        assigned = Asset.objects.filter(status=Asset.Status.ASSIGNED).count()
-        new_this_month = Asset.objects.filter(created_at__date__gte=month_start).count()
-        overdue = Assignment.objects.filter(in_at__isnull=True, due_at__lt=timezone.now()).count()
-        pending = AssetRequest.objects.filter(status=AssetRequest.Status.PENDING).count()
-        exceptions = Transfer.objects.filter(status=Transfer.Status.EXCEPTION).count()
-        missing_serial = Asset.objects.filter(serial_no="").count()
+        active = assets.exclude(status__in=excluded).count()
+        assigned = assets.filter(status=Asset.Status.ASSIGNED).count()
+        new_this_month = assets.filter(created_at__date__gte=month_start).count()
+        overdue = (
+            scope_list(user, Assignment.objects.all(), site_field="asset__site", **act)
+            .filter(in_at__isnull=True, due_at__lt=timezone.now())
+            .count()
+        )
+        pending = (
+            scope_list(user, AssetRequest.objects.all(), **act)
+            .filter(status=AssetRequest.Status.PENDING)
+            .count()
+        )
+        missing_serial = assets.filter(serial_no="").count()
+
+        # transfer exceptions: a site cares if it is the source *or* the
+        # destination — one `site_field` can't express that union, so filter
+        # by hand with the same flag-aware semantics as `scope_list`.
+        exceptions_qs = Transfer.objects.filter(status=Transfer.Status.EXCEPTION)
+        if enforcement_enabled():
+            scopes = effective_scopes(user)
+            if scopes.global_access:
+                pass
+            elif scopes.is_empty:
+                exceptions_qs = exceptions_qs.none()
+            else:
+                exceptions_qs = exceptions_qs.filter(
+                    Q(from_site_id__in=scopes.sites) | Q(to_site_id__in=scopes.sites)
+                )
+        exceptions = exceptions_qs.count()
 
         # severity order: critical first; zero counts never render.
         # Approvers (admin/technician) act first → pending approvals up front.
         staff = bool(getattr(self.request.user, "is_staff", False))
         asset_list = reverse("asset-list")
         links = {
-            "alert.overdue_loans": f"{asset_list}?overdue=1",
+            "alert.overdue_loans": reverse("loan-overdue"),
             "alert.warranty_soon": f"{asset_list}?warranty_days=7",
             "alert.missing_serial": f"{asset_list}?missing_serial=1",
             "alert.pending_approvals": (
@@ -199,10 +226,13 @@ class DashboardView(TemplateView):
 
         # ---- category chart (top 5 + Others, like the mockup) ------------
         top5 = [
-            c for c in Category.objects.annotate(n=Count("assets")).order_by("-n", "code") if c.n
-        ][:5]
-        others_n = ctx["total_assets"] - sum(c.n for c in top5)
-        rows = [(c.name, c.n, False) for c in top5]
+            {"name": row["category__name"], "n": row["n"]}
+            for row in assets.values("category__name")
+            .annotate(n=Count("pk"))
+            .order_by("-n", "category__name")[:5]
+        ]
+        others_n = ctx["total_assets"] - sum(c["n"] for c in top5)
+        rows = [(c["name"], c["n"], False) for c in top5]
         if others_n > 0:
             rows.append(("Others", others_n, True))  # label localized in the template
         top = max((n for _lbl, n, _o in rows), default=0)

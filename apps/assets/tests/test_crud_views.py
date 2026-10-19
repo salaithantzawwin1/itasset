@@ -284,3 +284,87 @@ def test_request_carve_out_own_site_only(client, django_user_model, db, settings
     assert r.status_code == 200
     assert "site" in r.context["form"].errors
     assert not AssetRequest.objects.exists()
+
+
+# ------------------------------------------------- overdue loans page (§14)
+def test_overdue_loans_requires_login(client):
+    r = client.get("/loans/overdue/")
+    assert r.status_code == 302 and "login" in r.url
+
+
+def test_overdue_loans_lists_only_past_due(
+    client, django_user_model, group_setup, asset_factory, person_factory, settings
+):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.assets.models import Assignment
+
+    settings.SCOPE_ENFORCEMENT_ENABLED = True
+    _login(client, _user(django_user_model, group_setup, "viewer"))  # GLOBAL scope
+    person = person_factory()
+    late = Assignment.objects.create(
+        asset=asset_factory(),
+        to_person=person,
+        due_at=timezone.now() - timedelta(days=3),
+    )
+    Assignment.objects.create(
+        asset=asset_factory(),
+        to_person=person,
+        due_at=timezone.now() + timedelta(days=5),  # not due yet → hidden
+    )
+    r = client.get("/loans/overdue/")
+    assert r.status_code == 200
+    loans = list(r.context["loans"])
+    assert [loan.pk for loan in loans] == [late.pk]
+    assert loans[0].days_late == 3
+    assert "3d late" in r.content.decode()
+
+
+def test_overdue_loans_empty_without_scope(client, django_user_model, asset_factory, settings):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.assets.models import Assignment
+
+    settings.SCOPE_ENFORCEMENT_ENABLED = True
+    emp = django_user_model.objects.create_user("noloan", "nl@x.dev", "pass12345!")
+    _login(client, emp)  # no scope rows → deny by default
+    Assignment.objects.create(asset=asset_factory(), due_at=timezone.now() - timedelta(days=1))
+    r = client.get("/loans/overdue/")
+    assert r.status_code == 200
+    assert list(r.context["loans"]) == []
+
+
+# --------------------------------- my requests: approval progress (self-view)
+def test_my_requests_show_progress_stages(client, django_user_model, group_setup, site, category):
+    from apps.assets import services
+
+    user = _user(django_user_model, group_setup, "viewer")
+    _login(client, user)
+    services.create_request(requester=user, category=category, site=site)
+
+    def progress():
+        return client.get("/me/").context["request_rows"][0]["progress"]
+
+    p = progress()
+    assert p["label_key"] == "prog.approval_wait"
+    assert [s["state"] for s in p["stages"]] == ["done", "current", "todo", "todo"]
+    assert (p["cur"], p["total"]) == (1, 1)
+    assert "Awaiting approval" in client.get("/me/").content.decode()
+
+    req = AssetRequest.objects.get()
+    req.status = AssetRequest.Status.APPROVED
+    req.save(update_fields=["status"])
+    p = progress()
+    assert p["label_key"] == "prog.await_procure"
+    assert [s["state"] for s in p["stages"]] == ["done", "done", "current", "todo"]
+
+    req.status = AssetRequest.Status.REJECTED
+    req.save(update_fields=["status"])
+    p = progress()
+    assert p["label_key"] == "prog.rejected"
+    assert [s["state"] for s in p["stages"]] == ["done", "failed", "todo", "todo"]
+    assert "Rejected at approval" in client.get("/me/").content.decode()

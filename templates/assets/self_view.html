@@ -38,18 +38,24 @@
     <table class="data">
       <thead><tr>
         <th>{% t "me.req_id" %}</th><th>{% t "asset.category" %}</th>
-        <th>{% t "asset.status" %}</th><th>{% t "me.created" %}</th>
+        <th>{% t "asset.status" %}</th><th>{% t "me.created" %}</th><th>{% t "prog.header" %}</th>
       </tr></thead>
       <tbody>
-      {% for req in requests %}
+      {% for row in request_rows %}
         <tr>
-          <td>REQ#{{ req.pk }}</td>
-          <td>{{ req.category.code }}</td>
-          <td>{{ req.get_status_display }}</td>
-          <td>{{ req.created_at|date:"Y-m-d" }}</td>
+          <td>REQ#{{ row.req.pk }}</td>
+          <td>{{ row.req.category.code }}</td>
+          <td>{{ row.req.get_status_display }}</td>
+          <td>{{ row.req.created_at|date:"Y-m-d" }}</td>
+          <td>
+            <span class="steps">
+              {% for s in row.progress.stages %}<span class="step {{ s.state }}" title="{{ s.key }}">{{ s.n }}</span>{% endfor %}
+            </span>
+            <div class="muted">{% t row.progress.label_key cur=row.progress.cur total=row.progress.total %}</div>
+          </td>
         </tr>
       {% empty %}
-        <tr class="empty-row"><td colspan="4">{% t "common.empty" %}</td></tr>
+        <tr class="empty-row"><td colspan="5">{% t "common.empty" %}</td></tr>
       {% endfor %}
       </tbody>
     </table>

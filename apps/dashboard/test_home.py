@@ -146,6 +146,80 @@ class DashboardKpiAlertTests(TestCase):
         self.assertEqual(alert["key"], "alert.warranty_soon")
         self.assertEqual(alert["href"], "/assets/?warranty_days=7")  # non-staff: list filter link
 
+    def test_dashboard_kpis_respect_site_scope(self):
+        """Enforcement on: a site-scoped user counts only their own site —
+        KPIs, warranty window, chart and the alerts all narrow."""
+        from django.contrib.auth import get_user_model
+
+        from apps.core.models import UserAccessScope
+
+        yangon = Site.objects.get(code="yangon")
+        mandalay = Site.objects.create(name="Mandalay", code="mandalay")
+        cat = Category.objects.get(code="IT-HW-LAP")
+        today = timezone.localdate()
+        Asset.objects.create(
+            asset_tag="Y-1",
+            category=cat,
+            site=yangon,
+            serial_no="Y1",
+            warranty_end=today + timedelta(days=5),
+        )
+        Asset.objects.create(asset_tag="Y-2", category=cat, site=yangon, serial_no="Y2")
+        Asset.objects.create(
+            asset_tag="M-1",
+            category=cat,
+            site=mandalay,
+            serial_no="M1",
+            warranty_end=today + timedelta(days=5),
+        )
+        user = get_user_model().objects.create_user("scoped", "s@x.dev", "pw12345!")
+        AssetRequest.objects.create(requester=user, category=cat, site=yangon)
+        AssetRequest.objects.create(requester=user, category=cat, site=mandalay)
+        UserAccessScope.objects.create(
+            user=user,
+            scope_type=UserAccessScope.ScopeType.SITE,
+            site=yangon,
+            reason="dashboard scope test",
+            created_by=user,
+        )
+        self.client.force_login(user)
+
+        with self.settings(SCOPE_ENFORCEMENT_ENABLED=True):
+            resp = self.client.get("/")
+        kpis = {k["label_key"]: k["value"] for k in resp.context["kpis"]}
+        self.assertEqual(kpis["dash.total_assets"], 2)  # yangon only, M-1 hidden
+        self.assertEqual(kpis["dash.kpi.warranty"], 1)  # mandalay's warranty hidden
+        self.assertEqual(kpis["dash.kpi.active"], 2)
+        # pending approvals: only yangon's request counts
+        pending = [a for a in resp.context["alerts"] if a["key"] == "alert.pending_approvals"]
+        self.assertEqual(pending[0]["n"], 1)
+        # recent + chart narrow too
+        self.assertEqual({a.asset_tag for a in resp.context["recent"]}, {"Y-1", "Y-2"})
+        chart = {r["label"]: r["n"] for r in resp.context["by_category"]}
+        self.assertEqual(chart, {"Laptop": 2})
+
+    def test_dashboard_zero_scope_user_sees_zeros_when_enforcing(self):
+        from django.contrib.auth import get_user_model
+
+        self._make("Z-1", serial="SZ")  # data exists — just not visible to this user
+        user = get_user_model().objects.create_user("noscope", "n@x.dev", "pw12345!")
+        self.client.force_login(user)
+        with self.settings(SCOPE_ENFORCEMENT_ENABLED=True):
+            resp = self.client.get("/")
+        kpis = {k["label_key"]: k["value"] for k in resp.context["kpis"]}
+        self.assertEqual(kpis["dash.total_assets"], 0)  # deny by default
+        self.assertEqual(resp.context["alerts"], [])
+
+    def test_overdue_alert_links_to_loans_page(self):
+        from apps.assets.models import Assignment
+
+        asset = self._make("OV-1", serial="SOV")
+        Assignment.objects.create(asset=asset, due_at=timezone.now() - timedelta(days=2))
+        resp = self.client.get("/")
+        overdue = [a for a in resp.context["alerts"] if a["key"] == "alert.overdue_loans"]
+        self.assertEqual(len(overdue), 1)
+        self.assertEqual(overdue[0]["href"], "/loans/overdue/")
+
     def test_category_chart_counts_and_others_bucket(self):
         self._make("A-7")
         self._make("A-8")

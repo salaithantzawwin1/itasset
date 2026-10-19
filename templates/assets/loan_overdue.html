@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load t %}
+{% block title %}{% t "loans.title" %} — {% t "app.name" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{% t "loans.title" %}</h1>
+    <div class="sub">{% t "loans.sub" %}</div>
+  </div>
+</div>
+<table class="data">
+  <thead><tr>
+    <th>{% t "asset.tag" %}</th><th>{% t "asset.holder" %}</th><th>{% t "asset.site" %}</th>
+    <th>{% t "asset.out_at" %}</th><th>{% t "me.due" %}</th><th>{% t "loans.overdue_by" %}</th>
+  </tr></thead>
+  <tbody>
+  {% for loan in loans %}
+    <tr>
+      <td><a href="{% url 'asset-detail' loan.asset_id %}">{{ loan.asset.asset_tag }}</a></td>
+      <td>{{ loan.to_person|default:"—" }}</td>
+      <td>{{ loan.asset.site.code }}</td>
+      <td>{{ loan.out_at|date:"Y-m-d" }}</td>
+      <td>{{ loan.due_at|date:"Y-m-d" }}</td>
+      <td><span class="pill pill-IN_REPAIR">{% t "loans.days_late" n=loan.days_late %}</span></td>
+    </tr>
+  {% empty %}
+    <tr class="empty-row"><td colspan="6">{% t "loans.empty" %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if is_paginated %}<div class="pagination">
+  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">{% t "common.prev" %}</a>{% endif %}
+  <span class="muted" style="padding:7px;">{% t "common.page" n=page_obj.number m=page_obj.paginator.num_pages %}</span>
+  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">{% t "common.next" %}</a>{% endif %}
+</div>{% endif %}
+{% endblock %}

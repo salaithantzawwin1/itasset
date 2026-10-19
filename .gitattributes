@@ -1,0 +1,4 @@
+# Executed by bash/make on the Linux server — CRLF breaks them there,
+# and core.autocrlf=true on Windows would otherwise re-introduce CRs.
+*.sh text eol=lf
+Makefile text eol=lf

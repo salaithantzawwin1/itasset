@@ -1,0 +1,17 @@
+{% load i18n %}
+{# Overridden from django's date_hierarchy.html: identical except a "By date" caption and a span around the current choice for chip styling (template comments must stay single-line). #}
+{% if show %}
+<nav class="toplinks" aria-label="{% translate 'Date hierarchy' %}">
+{% block date-hierarchy-toplinks %}
+<span class="toplinks-label">{% translate 'By date' %}</span>
+{% block date-hierarchy-back %}
+{% if back %}<a href="{{ back.link }}" class="date-back">&lsaquo; {{ back.title }}</a>{% endif %}
+{% endblock %}
+{% block date-hierarchy-choices %}
+{% for choice in choices %}
+{% if choice.link %}<a href="{{ choice.link }}">{{ choice.title }}</a>{% else %}<span class="toplinks-current">{{ choice.title }}</span>{% endif %}
+{% endfor %}
+{% endblock %}
+{% endblock %}
+</nav>
+{% endif %}

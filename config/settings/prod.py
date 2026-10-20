@@ -21,7 +21,10 @@ SECURE_HSTS_SECONDS = env.int("SECURE_HSTS_SECONDS", default=0)  # 0 until TLS
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = "DENY"
+# SAMEORIGIN (not DENY): the create-in-modal dialog frames our own add forms
+# in a same-origin <iframe> (templates/partials/modal.html). CSP
+# frame-ancestors 'self' already matches; cross-site framing stays blocked.
+X_FRAME_OPTIONS = "SAMEORIGIN"
 
 # Shared cache (gap §3.6): gunicorn runs 2×CPU+1 workers — LocMem would
 # multiply the login-throttle budget by the worker count. Redis is already

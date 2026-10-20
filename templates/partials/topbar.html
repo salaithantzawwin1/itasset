@@ -1,0 +1,33 @@
+{% load t %}
+{# Shared topbar — ONE definition for every surface (app pages, the admin, admin login): same brand target, same items, same active rules, same controls. That is what stops the nav from "changing style" when you cross into the admin. Active state: inside the admin namespace only Admin highlights; elsewhere the section matching the resolved url_name does. Django hash-comments must stay on a single line — never nest one inside another. #}
+{% with rm=request.resolver_match %}
+<header class="topbar">
+  <a class="brand" href="{% url 'home' %}"><span class="logo">IT</span> <span class="bname">{% t "app.name" %}</span></a>
+  <nav class="topnav">
+    <a href="{% url 'home' %}" {% if rm.namespace != 'admin' and rm.url_name == 'home' %}class="active"{% endif %}>{% t "nav.dashboard" %}</a>
+    <a href="{% url 'asset-list' %}" {% if rm.namespace != 'admin' and 'asset' in rm.url_name %}class="active"{% endif %}>{% t "nav.assets" %}</a>
+    <a href="{% url 'person-list' %}" {% if rm.namespace != 'admin' and 'person' in rm.url_name %}class="active"{% endif %}>{% t "nav.people" %}</a>
+    <a href="{% url 'site-list' %}" {% if rm.namespace != 'admin' and 'site' in rm.url_name %}class="active"{% endif %}>{% t "nav.sites" %}</a>
+    {% if user.is_authenticated %}<a href="{% url 'self-view' %}" {% if rm.url_name == 'self-view' %}class="active"{% endif %}>{% t "nav.me" %}</a>{% endif %}
+    {% if user.is_staff %}<a href="/admin/" {% if rm.namespace == 'admin' %}class="active"{% endif %}>{% t "nav.admin" %}</a>{% endif %}
+  </nav>
+  <span class="spacer"></span>
+  <div class="userbox">
+    <form method="post" action="{% url 'set-lang' %}">
+      {% csrf_token %}
+      <input type="hidden" name="lang" id="langval" value="">
+      <div class="lang-switch">
+        <button type="button" onclick="setLang('en')" id="btn-en">ENG</button>
+        <button type="button" onclick="setLang('my')" id="btn-my">MM</button>
+      </div>
+    </form>
+    <button class="toggle-theme" id="btn-theme" title="Light / Dark / System">◐</button>
+    {% if user.is_authenticated %}
+      <span class="uname">{{ user.username }}</span>
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn-ghost" type="submit">{% t "nav.logout" %}</button></form>
+    {% else %}
+      <a class="btn-ghost" style="text-decoration:none;display:inline-block;" href="{% url 'login' %}">{% t "nav.login" %}</a>
+    {% endif %}
+  </div>
+</header>
+{% endwith %}

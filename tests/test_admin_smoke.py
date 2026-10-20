@@ -85,3 +85,35 @@ class AdminSmokeTests(TestCase):
         resp = self.client.get(reverse("admin:app_list", args=["assets"]))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "dash-grid")
+
+    def test_sidebar_tree_renders_on_changelists(self):
+        """Every admin page carries the model tree, with the current row marked."""
+        self.client.force_login(self.superuser)
+        resp = self.client.get(reverse("admin:assets_asset_changelist"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'class="anav"')
+        self.assertContains(resp, "anav-group")
+        self.assertContains(resp, "Back to site")
+        self.assertContains(resp, 'aria-current="page"')
+
+    def test_dashboard_kpi_strip_renders(self):
+        self.client.force_login(self.superuser)
+        resp = self.client.get(reverse("admin:index"))
+        self.assertContains(resp, "kpi-grid")
+        self.assertContains(resp, "kpi-card")
+        self.assertContains(resp, "kpi-value")
+
+    def test_admin_language_follows_session_switch(self):
+        """Admin chrome speaks the same language as the app's ENG/MM switch."""
+        resp = self.client.get(reverse("admin:login"))
+        self.assertContains(resp, 'lang="en"')  # default matches {% t %}
+        session = self.client.session
+        session["lang"] = "my"
+        session.save()
+        resp = self.client.get(reverse("admin:login"))
+        self.assertContains(resp, 'lang="my"')
+
+    def test_category_plural_label(self):
+        from apps.assets.models import Category
+
+        self.assertEqual(Category._meta.verbose_name_plural, "categories")

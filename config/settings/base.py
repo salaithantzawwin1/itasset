@@ -49,6 +49,9 @@ MIDDLEWARE = [
     "apps.core.middleware.LoginThrottleMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    # Django's own translations (admin chrome, form errors) follow the same
+    # ENG/MM session switch as the app's {% t %} strings — one language per page.
+    "apps.core.middleware.SessionLocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",

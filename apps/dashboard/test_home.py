@@ -39,7 +39,7 @@ def _login_global(client):
 class DashboardHomeTests(TestCase):
     def _seed(self):
         site = Site.objects.create(name="Yangon HQ", code="yangon")
-        cat = Category.objects.create(code="IT-HW-LAP", name="Laptop")
+        cat = Category.objects.get_or_create(code="IT-HW-LAP", defaults={"name": "Laptop"})[0]
         for i in range(3):
             Asset.objects.create(asset_tag=f"TAG-{i}", category=cat, site=site)
         return site, cat
@@ -88,7 +88,7 @@ class DashboardKpiAlertTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         Site.objects.create(name="Yangon HQ", code="yangon")
-        Category.objects.create(code="IT-HW-LAP", name="Laptop")
+        Category.objects.get_or_create(code="IT-HW-LAP", defaults={"name": "Laptop"})
 
     def test_kpis_and_alerts_from_real_queries(self):
         today = timezone.localdate()
@@ -277,12 +277,14 @@ class DashboardKpiAlertTests(TestCase):
         self._make("A-7")
         self._make("A-8")
         Site2 = Site.objects.create(name="Mandalay", code="mandalay")
-        cat2 = Category.objects.create(code="IT-HW-DSK", name="Desktop")
+        cat2 = Category.objects.get_or_create(code="IT-HW-DSK", defaults={"name": "Desktop"})[0]
         Asset.objects.create(asset_tag="A-9", category=cat2, site=Site2, serial_no="SN-2")
         _login_global(self.client)
         resp = self.client.get("/")
         rows = resp.context["by_category"]
-        self.assertEqual([(r["label"], r["n"]) for r in rows], [("Laptop", 2), ("Desktop", 1)])
+        self.assertEqual(
+            [(r["label"], r["n"]) for r in rows], [("Laptop", 2), ("Desktop / Workstation", 1)]
+        )
         self.assertEqual(rows[0]["pct"], 100)
         self.assertEqual(rows[1]["pct"], 50)
         self.assertFalse(any(r["others"] for r in rows))  # 2 categories → no bucket

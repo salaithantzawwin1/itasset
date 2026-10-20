@@ -1,655 +1,57 @@
 {% extends "admin/base_site.html" %}
-{% load t %}
+{% load i18n t admin_nav %}
 
-{# Same topbar as the main app (templates/base.html) so admin + View Site feel like one app. #}
-{% block header %}
-<header class="topbar">
-  <a class="brand" href="{% url 'admin:index' %}"><span class="logo">IT</span> {% t "app.name" %}</a>
-  <nav class="topnav">
-    <a href="{% url 'home' %}">{% t "nav.dashboard" %}</a>
-    <a href="{% url 'asset-list' %}">{% t "nav.assets" %}</a>
-    <a href="{% url 'person-list' %}">{% t "nav.people" %}</a>
-    <a href="{% url 'site-list' %}">{% t "nav.sites" %}</a>
-    <a href="{% url 'admin:index' %}" class="active">{% t "nav.admin" %}</a>
-  </nav>
-  <span class="spacer"></span>
-  <div class="userbox">
-    <form method="post" action="{% url 'set-lang' %}">
-      {% csrf_token %}
-      <input type="hidden" name="lang" id="langval" value="">
-      <div class="lang-switch">
-        <button type="button" onclick="setLang('en')" id="btn-en">ENG</button>
-        <button type="button" onclick="setLang('my')" id="btn-my">MM</button>
-      </div>
-    </form>
-    <button class="toggle-theme" id="btn-theme" title="Light / Dark">◐</button>
-    <span class="uname">{{ user.username }}</span>
-    <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn-ghost" type="submit">{% t "nav.logout" %}</button></form>
-  </div>
-</header>
-{% endblock %}
+{# One topbar for every surface: the shared partial (templates/partials/topbar.html) is the exact markup base.html renders — brand target, nav items (including "My assets"), active states and controls all come from one place, so the nav no longer changes style when you cross into the admin. #}
+{% block header %}{% include "partials/topbar.html" %}{% endblock %}
 
-{# Django chrome replaced: topnav + card dashboard take over navigation #}
+{# Same theme contract as the main app AND Django's own admin theme.js: localStorage "theme" = light|dark|auto, missing → auto(system); resolved before first paint so a fresh visit never flips between app and admin. #}
+
+{# Django chrome replaced: the shared topbar is the global nav; the aside below is the model tree #}
 {% block nav-breadcrumbs %}{% endblock %}
-{% block nav-sidebar %}{% endblock %}
 
-{% block extrastyle %}{{ block.super }}
-<style>
-/* =========================================================================
-   IT Asset Manager — modern admin theme
-   Design tokens mirror Django's own CSS variables, so every stock admin
-   component (buttons, tables, forms, messages) follows the palette below.
-   Light is :root; dark mirrors both of Django's dark triggers:
-   html[data-theme="dark"] (explicit) and system-dark while theme=auto.
-   ========================================================================= */
-
-:root {
-  /* brand — main app palette (#0f4c81 primary, #2a9d8f accent) */
-  --primary: #0f4c81;
-  --primary-dark: #0a355c;
-  --secondary: #0f4c81;
-  --accent: #2a9d8f;
-  --primary-fg: #fff;
-
-  /* surfaces */
-  --body-fg: #1f2d3d;
-  --body-bg: #ffffff;
-  --page-bg: #f4f6f9;
-  --body-quiet-color: #6b7a8d;
-  --body-medium-color: #44566b;
-  --body-loud-color: #14212f;
-  --surface-2: #f0f4f8;
-
-  /* header / breadcrumbs */
-  --header-color: #dfe8f2;
-  --header-bg: linear-gradient(90deg, #0a355c, #0f4c81);
-  --header-link-color: #ffffff;
-  --header-branding-color: transparent;
-  --breadcrumbs-fg: #cfe0f0;
-  --breadcrumbs-link-fg: #ffffff;
-  --breadcrumbs-bg: #0a355c;
-
-  /* links */
-  --link-fg: #0f4c81;
-  --link-hover-color: #2a9d8f;
-  --link-selected-fg: #0f4c81;
-
-  /* lines */
-  --hairline-color: #e3e8ee;
-  --border-color: #d7dee8;
-  --input-border: #ccd7e3;
-
-  /* feedback */
-  --error-fg: #c0392b;
-  --message-success-bg: #e6f6f3;
-  --message-warning-bg: #fdf4e7;
-  --message-error-bg: #fdf0ee;
-
-  /* states */
-  --darkened-bg: #f4f6f9;
-  --selected-bg: #e8f1fa;
-  --selected-row: #dfeefa;
-
-  /* buttons */
-  --button-fg: #ffffff;
-  --button-bg: #0f4c81;
-  --button-hover-bg: #0a355c;
-  --default-button-bg: #0f4c81;
-  --default-button-hover-bg: #0a355c;
-  --delete-button-bg: #c0392b;
-  --delete-button-hover-bg: #a53124;
-  --object-tools-fg: #ffffff;
-  --object-tools-bg: #2a9d8f;
-  --object-tools-hover-bg: #21887c;
-
-  --radius: 10px;
-  --radius-lg: 14px;
-  --shadow: 0 1px 3px rgba(16, 42, 67, .07);
-  --shadow-lift: 0 8px 24px rgba(16, 42, 67, .12);
-  --ring: 0 0 0 3px rgba(42, 157, 143, .25);
-
-  color-scheme: light;
-}
-
-html[data-theme="dark"] {
-  --primary: #4a90c8;
-  --secondary: #16324a;
-  --accent: #35b8a8;
-  --primary-fg: #ffffff;
-
-  --body-fg: #e2e8f0;
-  --body-bg: #1a222b;
-  --page-bg: #10161d;
-  --body-quiet-color: #8fa0b3;
-  --body-medium-color: #b9c6d6;
-  --body-loud-color: #f2f6fa;
-  --surface-2: #202b36;
-
-  --header-bg: linear-gradient(90deg, #081a2b, #0d2f4f);
-  --header-color: #cfe0f2;
-  --breadcrumbs-bg: #0d2437;
-  --breadcrumbs-fg: #9fb6cb;
-  --breadcrumbs-link-fg: #e8f1fa;
-
-  --link-fg: #7dbcea;
-  --link-hover-color: #a9d4f2;
-  --link-selected-fg: #9ccdf3;
-
-  --hairline-color: #2a3441;
-  --border-color: #33414f;
-  --input-border: #3b4a5a;
-
-  --error-fg: #e07060;
-  --message-success-bg: #12352a;
-  --message-warning-bg: #3a2f1a;
-  --message-error-bg: #3a2422;
-
-  --darkened-bg: #161d26;
-  --selected-bg: #16324a;
-  --selected-row: #1d3c58;
-
-  --button-bg: #1f5f96;
-  --button-hover-bg: #2b74b3;
-  --default-button-bg: #1f5f96;
-  --default-button-hover-bg: #2b74b3;
-  --delete-button-bg: #b04a3c;
-  --delete-button-hover-bg: #c05a4c;
-  --object-tools-bg: #2a9d8f;
-  --object-tools-hover-bg: #35b8a8;
-
-  --shadow: 0 1px 3px rgba(0, 0, 0, .35);
-  --shadow-lift: 0 8px 24px rgba(0, 0, 0, .45);
-
-  color-scheme: dark;
-}
-/* theme=auto follows the OS, exactly like Django's dark_mode.css */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --primary: #4a90c8;
-    --secondary: #16324a;
-    --accent: #35b8a8;
-    --primary-fg: #ffffff;
-    --body-fg: #e2e8f0;
-    --body-bg: #1a222b;
-    --page-bg: #10161d;
-    --body-quiet-color: #8fa0b3;
-    --body-medium-color: #b9c6d6;
-    --body-loud-color: #f2f6fa;
-    --surface-2: #202b36;
-    --header-bg: linear-gradient(90deg, #081a2b, #0d2f4f);
-    --header-color: #cfe0f2;
-    --breadcrumbs-bg: #0d2437;
-    --breadcrumbs-fg: #9fb6cb;
-    --breadcrumbs-link-fg: #e8f1fa;
-    --link-fg: #7dbcea;
-    --link-hover-color: #a9d4f2;
-    --link-selected-fg: #9ccdf3;
-    --hairline-color: #2a3441;
-    --border-color: #33414f;
-    --input-border: #3b4a5a;
-    --error-fg: #e07060;
-    --message-success-bg: #12352a;
-    --message-warning-bg: #3a2f1a;
-    --message-error-bg: #3a2422;
-    --darkened-bg: #161d26;
-    --selected-bg: #16324a;
-    --selected-row: #1d3c58;
-    --button-bg: #1f5f96;
-    --button-hover-bg: #2b74b3;
-    --default-button-bg: #1f5f96;
-    --default-button-hover-bg: #2b74b3;
-    --delete-button-bg: #b04a3c;
-    --delete-button-hover-bg: #c05a4c;
-    --object-tools-bg: #2a9d8f;
-    --object-tools-hover-bg: #35b8a8;
-    --shadow: 0 1px 3px rgba(0, 0, 0, .35);
-    --shadow-lift: 0 8px 24px rgba(0, 0, 0, .45);
-    color-scheme: dark;
-  }
-}
-/* explicit "light" wins even when the OS is dark */
-html[data-theme="light"] {
-  color-scheme: light;
-}
-
-/* ---------- base ------------------------------------------------------- */
-body {
-  font-family: system-ui, "Myanmar Text", "Padauk", sans-serif;
-  background: var(--page-bg);
-  font-size: 14.5px;
-}
-a { transition: color .15s ease; }
-a:focus-visible, button:focus-visible, input:focus-visible,
-select:focus-visible, textarea:focus-visible, summary:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-#content h1 { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
-.help, .form-row .help { color: var(--body-quiet-color); font-size: 12.5px; }
-#footer { color: var(--body-quiet-color); font-size: 12px; padding: 18px 24px 28px; }
-
-/* ---------- topbar (identical to the main app) ------------------------- */
-.topbar {
-  background: linear-gradient(90deg, var(--primary-dark), var(--primary));
-  color: #fff; padding: 0 28px; height: 58px;
-  display: flex; align-items: center; gap: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
-  position: sticky; top: 0; z-index: 50;
-}
-.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; letter-spacing: .3px; color: #fff; text-decoration: none; }
-.brand .logo { width: 30px; height: 30px; border-radius: 8px; background: var(--accent); display: inline-flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; color: #fff; }
-.topnav { display: flex; gap: 4px; }
-.topnav a { color: rgba(255, 255, 255, .78); text-decoration: none; padding: 8px 14px; border-radius: 8px; font-size: 14px; transition: all .15s; }
-.topnav a:hover { background: rgba(255, 255, 255, .12); color: #fff; }
-.topnav a.active { background: rgba(255, 255, 255, .18); color: #fff; font-weight: 600; }
-.topbar .spacer { flex: 1; }
-.userbox { display: flex; align-items: center; gap: 10px; }
-.userbox .uname { color: rgba(255, 255, 255, .85); font-size: 13px; }
-.userbox form { margin: 0; display: inline; }
-.btn-ghost { background: transparent; border: 1px solid rgba(255, 255, 255, .35); color: #fff; padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; }
-.btn-ghost:hover { background: rgba(255, 255, 255, .14); }
-.toggle-theme { background: transparent; border: 1px solid rgba(255, 255, 255, .35); color: #fff; padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 14px; line-height: 1; }
-.toggle-theme:hover { background: rgba(255, 255, 255, .14); }
-.lang-switch { display: inline-flex; border: 1px solid rgba(255, 255, 255, .35); border-radius: 8px; overflow: hidden; }
-.lang-switch button { background: transparent; color: rgba(255, 255, 255, .8); border: none; padding: 6px 10px; cursor: pointer; font-size: 12px; font-weight: 700; }
-.lang-switch button.on { background: rgba(255, 255, 255, .22); color: #fff; }
-@media (max-width: 900px) {
-  .topbar { height: auto; flex-wrap: wrap; padding: 8px 16px; gap: 10px; }
-  .topnav { flex-wrap: wrap; }
-  .userbox { flex-wrap: wrap; }
-}
-
-/* ---------- content shell (mirrors .page of the main app) -------------- */
-.main, .content { background: transparent; }
-#content { max-width: 1180px; margin: 0 auto; }
-.dashboard #content { width: auto; }  /* stock base.css pins the dashboard to 600px */
-.messagelist { list-style: none; padding: 0; margin: 0 0 18px; display: grid; gap: 8px; }
-.messagelist li {
-  padding: 11px 16px;
-  border-radius: var(--radius);
-  border-left: 4px solid var(--primary);
-  background: var(--selected-bg);
-  font-size: 13.5px;
-  font-weight: 500;
-  box-shadow: var(--shadow);
-}
-.messagelist li.success { border-left-color: var(--accent); background: var(--message-success-bg); }
-.messagelist li.warning { border-left-color: #d9822b; background: var(--message-warning-bg); }
-.messagelist li.error   { border-left-color: var(--delete-button-bg); background: var(--message-error-bg); }
-.errornote {
-  background: var(--message-error-bg);
-  border-left: 4px solid var(--delete-button-bg);
-  border-radius: var(--radius);
-  padding: 10px 14px;
-  color: var(--error-fg);
-  font-size: 13.5px;
-}
-
-/* ---------- buttons & form controls ----------------------------------- */
-.button, input[type="submit"], input[type="button"], .submit-row input,
-.submit-row a, button:where(.button) {
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 13px;
-  padding: 8px 16px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: background .15s ease, box-shadow .15s ease, transform .05s ease;
-}
-.button:hover, input[type="submit"]:hover, .submit-row input:hover {
-  box-shadow: var(--shadow);
-}
-.button:active, input[type="submit"]:active { transform: translateY(1px); }
-input[type="text"], input[type="email"], input[type="url"], input[type="password"],
-input[type="number"], input[type="search"], input[type="tel"], textarea, select,
-input[type="date"], input[type="datetime"], input[type="datetime-local"], input[type="time"] {
-  border: 1px solid var(--input-border);
-  border-radius: 8px;
-  background: var(--body-bg);
-  color: var(--body-fg);
-  padding: 8px 11px;
-  font-size: 14px;
-  transition: border-color .15s ease, box-shadow .15s ease;
-}
-select { height: auto; }  /* Django pins selects to 1.875rem, which clips the padding above */
-input:hover, textarea:hover, select:hover { border-color: var(--primary); }
-input:focus, textarea:focus, select:focus {
-  border-color: var(--accent);
-  box-shadow: var(--ring);
-  outline: none;
-}
-textarea { line-height: 1.5; }
-label { font-weight: 600; font-size: 13px; color: var(--body-medium-color); }
-
-/* ---------- change form ------------------------------------------------ */
-fieldset.module {
-  border: 1px solid var(--hairline-color);
-  border-radius: var(--radius-lg);
-  background: var(--body-bg);
-  box-shadow: var(--shadow);
-  padding: 0 0 8px;
-  margin-bottom: 20px;
-}
-fieldset.module > h2, fieldset.module .fieldset-heading {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--primary);
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--hairline-color);
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  padding: 12px 18px;
-  margin: 0;
-}
-fieldset.module.aligned { padding-top: 0; }
-fieldset.module .form-row { padding: 12px 18px 4px; }
-fieldset.module .form-row label { display: block; margin-bottom: 5px; }
-.fieldBox label { display: block; margin-bottom: 5px; }
-.readonly {
-  background: var(--darkened-bg);
-  border: 1px dashed var(--border-color);
-  border-radius: 8px;
-  padding: 8px 11px;
-  color: var(--body-medium-color);
-}
-.submit-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  justify-content: flex-end;
-  background: var(--body-bg);
-  border: 1px solid var(--hairline-color);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
-  padding: 14px 16px;
-}
-.submit-row input.default { background: var(--accent); border-color: #21887c; }
-.submit-row input.default:hover { background: #21887c; }
-.submit-row .deletelink, a.deletelink {
-  background: var(--delete-button-bg); color: #fff !important;
-  border-radius: 8px; padding: 8px 16px; text-decoration: none; font-weight: 600; font-size: 13px;
-}
-.submit-row .deletelink:hover, a.deletelink:hover { background: var(--delete-button-hover-bg); }
-ul.object-tools { margin: 0 0 14px; }
-ul.object-tools li, .object-tools a {
-  border-radius: 8px; text-decoration: none;
-}
-.object-tools a { background: var(--object-tools-bg); color: #fff !important; padding: 8px 15px; font-weight: 600; font-size: 13px; }
-.object-tools a:hover { background: var(--object-tools-hover-bg); }
-
-/* ---------- changelist ------------------------------------------------- */
-.module#changelist {
-  border: 1px solid var(--hairline-color);
-  border-radius: var(--radius-lg);
-  background: var(--body-bg);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
-#changelist-filter {
-  background: var(--darkened-bg);
-  border-left: 1px solid var(--hairline-color);
-  padding: 16px 14px;
-}
-#changelist-filter h2, #changelist-filter #changelist-filter-header {
-  font-size: 11px; text-transform: uppercase; letter-spacing: .1em;
-  color: var(--body-quiet-color); font-weight: 700; margin-bottom: 10px;
-}
-#changelist-filter details { border-bottom: 0; margin-bottom: 8px; }
-#changelist-filter details > summary {
-  font-size: 13px; font-weight: 700; color: var(--body-medium-color);
-  padding: 7px 10px; border-radius: 8px; cursor: pointer;
-  background: var(--body-bg); border: 1px solid var(--hairline-color);
-}
-#changelist-filter details[open] > summary { color: var(--primary); border-color: var(--primary); }
-#changelist-filter details ul { margin: 6px 0 0; padding: 0 4px; list-style: none; }
-#changelist-filter details ul li a {
-  display: block; font-size: 13px; text-decoration: none;
-  color: var(--body-fg); padding: 6px 10px; border-radius: 8px;
-}
-#changelist-filter details ul li a:hover { background: var(--selected-bg); color: var(--link-fg); }
-#changelist-filter details ul li.selected a {
-  background: var(--primary); color: #fff; font-weight: 600;
-}
-#changelist-filter-extra-actions { font-size: 12.5px; display: grid; gap: 4px; margin-bottom: 8px; }
-#changelist-filter-extra-actions a { color: var(--link-fg); }
-
-#toolbar { padding: 14px 16px 0; }
-#changelist-search { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-#changelist-search > div:first-child { display: flex; gap: 8px; align-items: center; flex: 1; min-width: 240px; }
-#searchbar { flex: 1; min-width: 180px; }
-#changelist-search input[type="submit"] { background: var(--primary); color: #fff; }
-#changelist-search input[type="submit"]:hover { background: var(--button-hover-bg); }
-#changelist-search label img { display: none; }
-#changelist-search .small.quiet { font-size: 12.5px; color: var(--body-quiet-color); }
-
-.results { padding: 12px 16px; }
-.results table { border-collapse: separate; border-spacing: 0; width: 100%; }
-.results thead th {
-  background: var(--surface-2);
-  color: var(--body-medium-color);
-  font-size: 11.5px;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  font-weight: 700;
-  padding: 10px 14px;
-  border-bottom: 2px solid var(--hairline-color);
-  white-space: nowrap;
-}
-.results thead th a { color: var(--body-medium-color); text-decoration: none; }
-.results thead th a:hover { color: var(--primary); }
-.results tbody td {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--hairline-color);
-  font-size: 13.5px;
-  vertical-align: middle;
-}
-.results tbody tr:nth-child(even) { background: var(--darkened-bg); }
-.results tbody tr:hover { background: var(--selected-bg); }
-.results tbody tr.selected-row { background: var(--selected-row) !important; }
-.results tbody td:first-child a { font-weight: 600; }
-.results .action-checkbox-column { width: 34px; }
-
-.paginator {
-  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
-  padding: 12px 16px 16px; margin: 0;
-  font-size: 13px; color: var(--body-quiet-color);
-}
-.paginator a, .paginator .this-page {
-  display: inline-block; min-width: 30px; text-align: center;
-  padding: 5px 9px; border-radius: 8px; text-decoration: none;
-  border: 1px solid var(--hairline-color); background: var(--body-bg);
-  color: var(--link-fg); font-size: 13px;
-}
-.paginator a:hover { border-color: var(--primary); background: var(--selected-bg); }
-.paginator .this-page { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 700; }
-.paginator .showall { margin-left: auto; }
-.paginator input[type="submit"] { margin-left: auto; }
-
-.actions {
-  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
-  margin: 12px 16px 0;
-  padding: 10px 14px;
-  background: var(--darkened-bg);
-  border: 1px solid var(--hairline-color);
-  border-radius: var(--radius);
-  font-size: 13px;
-}
-.actions label { font-weight: 500; color: var(--body-medium-color); display: flex; gap: 8px; align-items: center; }
-.actions .button { background: var(--primary); color: #fff; }
-.actions .button:hover { background: var(--button-hover-bg); }
-.action-counter, .action-counter * { color: var(--body-quiet-color); font-size: 12.5px; }
-
-/* ---------- status badges (filled by the script in extrabody) ---------- */
-.badge {
-  display: inline-block;
-  padding: 3px 11px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.7;
-  white-space: nowrap;
-}
-.badge-green { background: #e3f6f1; color: #17786b; }
-.badge-blue  { background: #e8f1fa; color: #0f4c81; }
-.badge-amber { background: #fdf0dd; color: #94570f; }
-.badge-red   { background: #fdeae7; color: #b03a2b; }
-.badge-gray  { background: #eceff3; color: #5b6b7d; }
-html[data-theme="dark"] .badge-green { background: #143b34; color: #6fe0cd; }
-html[data-theme="dark"] .badge-blue  { background: #16324a; color: #9ccdf3; }
-html[data-theme="dark"] .badge-amber { background: #3a2f18; color: #f0b968; }
-html[data-theme="dark"] .badge-red   { background: #3a2422; color: #f1a294; }
-html[data-theme="dark"] .badge-gray  { background: #242d38; color: #a8b6c6; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .badge-green { background: #143b34; color: #6fe0cd; }
-  :root:not([data-theme="light"]) .badge-blue  { background: #16324a; color: #9ccdf3; }
-  :root:not([data-theme="light"]) .badge-amber { background: #3a2f18; color: #f0b968; }
-  :root:not([data-theme="light"]) .badge-red   { background: #3a2422; color: #f1a294; }
-  :root:not([data-theme="light"]) .badge-gray  { background: #242d38; color: #a8b6c6; }
-}
-
-/* ---------- dashboard: app cards --------------------------------------- */
-.dash-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-  gap: 18px;
-}
-.dash-card {
-  background: var(--body-bg);
-  border: 1px solid var(--hairline-color);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-  transition: transform .15s ease, box-shadow .15s ease;
-}
-.dash-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
-.dash-card-head {
-  display: flex; align-items: center; gap: 11px;
-  padding: 14px 16px;
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--hairline-color);
-}
-.dash-chip {
-  width: 34px; height: 34px; flex: 0 0 34px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--primary), var(--accent));
-  color: #fff; font-size: 13px; font-weight: 800;
-  display: inline-flex; align-items: center; justify-content: center;
-  letter-spacing: .02em;
-}
-.dash-card-head h2 { margin: 0; font-size: 15px; font-weight: 700; flex: 1; min-width: 0; }
-.dash-card-head h2 a { color: var(--body-fg); text-decoration: none; }
-.dash-card-head h2 a:hover { color: var(--primary); }
-.dash-count {
-  background: var(--selected-bg); color: var(--primary);
-  border-radius: 999px; padding: 2px 10px;
-  font-size: 12px; font-weight: 700;
-}
-.dash-models { list-style: none; margin: 0; padding: 7px; }
-.dash-models li {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 9px;
-  border-radius: 9px;
-  transition: background .12s ease;
-}
-.dash-models li:hover { background: var(--selected-bg); }
-.dash-model-link { flex: 1; min-width: 0; color: var(--body-fg); font-size: 13.5px; text-decoration: none; }
-.dash-model-link:hover { color: var(--link-fg); }
-.dash-actions { display: flex; gap: 5px; }
-.dash-act {
-  font-size: 11px; font-weight: 700;
-  padding: 3px 10px; border-radius: 999px;
-  border: 1px solid var(--hairline-color);
-  color: var(--body-quiet-color);
-  text-decoration: none;
-  background: var(--body-bg);
-  transition: all .12s ease;
-}
-.dash-act:hover { border-color: currentColor; }
-.dash-act.is-add { color: var(--accent); }
-.dash-act.is-add:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
-.dash-act.is-change { color: var(--primary); }
-.dash-act.is-change:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
-.dash-act.is-view { color: var(--body-quiet-color); }
-.dash-act.is-view:hover { background: var(--surface-2); color: var(--primary); }
-
-.dash-title { margin: 4px 0 2px; }
-.dash-sub { margin: 0 0 20px; color: var(--body-quiet-color); font-size: 13.5px; }
-
-.dash-recent { margin-top: 20px; }
-.dash-recent .actionlist { list-style: none; margin: 0; padding: 8px; }
-.dash-recent .actionlist li {
-  display: flex; align-items: baseline; gap: 10px;
-  padding: 9px 11px; border-radius: 9px; font-size: 13.5px;
-  flex-wrap: wrap;
-}
-.dash-recent .actionlist li:hover { background: var(--selected-bg); }
-.dash-recent .act-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--body-quiet-color); flex: 0 0 8px; align-self: center;
-}
-.dash-recent .actionlist li.addlink .act-dot { background: var(--accent); }
-.dash-recent .actionlist li.changelink .act-dot { background: var(--primary); }
-.dash-recent .actionlist li.deletelink .act-dot { background: var(--delete-button-bg); }
-.dash-recent .act-meta { color: var(--body-quiet-color); font-size: 12.5px; margin-left: auto; }
-.dash-empty { color: var(--body-quiet-color); font-size: 13.5px; padding: 8px 12px; margin: 0; }
-
-/* ---------- login ------------------------------------------------------ */
-.login {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  background:
-    radial-gradient(1000px 500px at 15% -10%, rgba(42, 157, 143, .16), transparent 60%),
-    radial-gradient(800px 500px at 110% 20%, rgba(15, 76, 129, .18), transparent 55%),
-    var(--page-bg);
-}
-.login .main, .login #content-start { width: 100%; }
-.login #content { max-width: 420px; margin: 0 auto; }
-.login-card {
-  background: var(--body-bg);
-  border: 1px solid var(--hairline-color);
-  border-radius: 18px;
-  box-shadow: 0 18px 50px rgba(16, 42, 67, .18);
-  padding: 34px 32px 30px;
-  margin: 40px 0;
-}
-.login-card-head { display: flex; align-items: center; gap: 13px; margin-bottom: 22px; }
-.login-card-head .brand-chip-lg {
-  width: 46px; height: 46px; border-radius: 13px;
-  background: linear-gradient(135deg, var(--primary), var(--accent));
-  color: #fff; font-weight: 800; font-size: 17px;
-  display: inline-flex; align-items: center; justify-content: center;
-}
-.login-card-head h1 { margin: 0; font-size: 19px; font-weight: 800; color: var(--body-fg); }
-.login-card-head p { margin: 2px 0 0; font-size: 12.5px; color: var(--body-quiet-color); }
-.login .form-row { padding: 10px 0; }
-.login .form-row label { display: block; margin-bottom: 6px; }
-.login .form-row input[type="text"], .login .form-row input[type="password"] { width: 100%; }
-.login .submit-row { border: 0; box-shadow: none; background: transparent; padding: 16px 0 0; }
-.login .submit-row input[type="submit"] {
-  width: 100%; background: var(--accent); border-color: #21887c; font-size: 14.5px; padding: 11px;
-}
-.login .submit-row input[type="submit"]:hover { background: #21887c; }
-.login .password-reset-link { font-size: 12.5px; padding-top: 8px; }
-.login .errornote { margin-bottom: 14px; }
-
-/* ---------- responsive ------------------------------------------------- */
-@media (max-width: 767px) {
-  #content { padding: 12px; }
-  .dash-grid { grid-template-columns: 1fr; }
-  .results thead { display: none; }
-  .results tbody tr { display: block; border: 1px solid var(--hairline-color); border-radius: 10px; margin-bottom: 8px; padding: 4px 0; }
-  .results tbody td { display: flex; justify-content: space-between; gap: 12px; border-bottom: 0; padding: 6px 12px; }
-  .results tbody td::before {
-    content: attr(data-label);
-    font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
-    color: var(--body-quiet-color); font-weight: 700;
-  }
-  .results tbody td:first-child::before { content: none; }
-}
-</style>
+{# Theme resolution + the whole theme stylesheet live in `extrahead`, the last block in head: per-view media (changelists.css, forms.css) is appended to `extrastyle`, so a stylesheet loading after this one with equal specificity would win. #}
+{% block extrahead %}{{ block.super }}
+<script>
+(function () {
+  var t = localStorage.getItem("theme") || "auto";
+  if (t === "auto") t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", t);
+})();
+</script>
+{% include "admin/_theme.css.html" %}
 {% endblock %}
+
+{# Sidebar: every admin page gets the same permission-filtered model tree (apps/core/templatetags/admin_nav.py), so changelists no longer feel like dead ends. #}
+{% block nav-sidebar %}{% admin_nav as admin_tree %}{% if admin_tree %}
+<aside class="anav" aria-label="{% translate 'Admin navigation' %}">
+  <div class="anav-title">{% translate "Admin" %}</div>
+  {% for group in admin_tree %}
+  <details class="anav-group{% if group.active %} on{% endif %}"{% if group.active %} open{% endif %}>
+    <summary><span>{{ group.name }}</span></summary>
+    <ul>
+      {% for item in group.models %}
+      <li><a href="{{ item.url }}"{% if item.active %} class="on" aria-current="page"{% endif %}>{{ item.name }}</a></li>
+      {% endfor %}
+    </ul>
+  </details>
+  {% endfor %}
+  <a class="anav-back" href="{% url 'home' %}">&larr; {% translate "Back to site" %}</a>
+</aside>
+{% endif %}{% endblock %}
+
+{# Page header used by every changelist / change form / app page; the dashboard overrides it with its hero. #}
+{% block content_title %}
+{% if title %}
+<div class="page-head">
+  <div class="page-head-text">
+    <span class="page-eyebrow">{% translate "Admin" %}</span>
+    <h1>{{ title }}</h1>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+{% block content_subtitle %}{% if subtitle %}<p class="page-sub">{{ subtitle }}</p>{% endif %}{% endblock %}
+
 
 {% block extrabody %}{{ block.super }}
 <script>
@@ -661,14 +63,22 @@ function setLang(l) { document.getElementById('langval').value = l; document.get
   if (en && my) { en.className = (cur === 'en') ? 'on' : ''; my.className = (cur === 'my') ? 'on' : ''; }
 })();
 (function() {
-  var saved = localStorage.getItem('theme');
-  if (saved) document.documentElement.setAttribute('data-theme', saved);
+  // light | dark | auto(system) — same three states as templates/base.html
+  var ORDER = ['light', 'dark', 'auto'];
+  var mq = window.matchMedia('(prefers-color-scheme: dark)');
+  function resolve(t) { return t === 'auto' ? (mq.matches ? 'dark' : 'light') : t; }
+  function apply() {
+    document.documentElement.setAttribute('data-theme', resolve(localStorage.getItem('theme') || 'auto'));
+  }
+  apply();
+  if (mq.addEventListener) mq.addEventListener('change', apply);
+  else if (mq.addListener) mq.addListener(apply);
   var btn = document.getElementById('btn-theme');
   if (btn) btn.addEventListener('click', function() {
-    var el = document.documentElement;
-    var next = (el.getAttribute('data-theme') === 'dark') ? 'light' : 'dark';
-    el.setAttribute('data-theme', next);
+    var cur = localStorage.getItem('theme') || 'auto';
+    var next = ORDER[(ORDER.indexOf(cur) + 1) % ORDER.length];
     localStorage.setItem('theme', next);
+    apply();
   });
 })();
 </script>
@@ -712,4 +122,30 @@ function setLang(l) { document.getElementById('langval').value = l; document.get
   });
 })();
 </script>
+<script>
+/* Mobile changelist cards (max-width 767px in _theme.css.html) label each cell
+   with `content: attr(data-label)`, but Django's change_list_results.html
+   emits no data-label — copy each column header into its cells' data-label so
+   phone cards read "CATEGORY · value" instead of a bare right-aligned value. */
+(function () {
+  document.addEventListener("DOMContentLoaded", function () {
+    var table = document.getElementById("result_list");
+    if (!table || !table.tHead) return;
+    var heads = table.tHead.rows[0] ? table.tHead.rows[0].cells : [];
+    var labels = [];
+    for (var i = 0; i < heads.length; i++) {
+      var text = heads[i].querySelector(".text");
+      labels.push(((text || heads[i]).textContent || "").trim());
+    }
+    table.querySelectorAll("tbody tr").forEach(function (tr) {
+      var cells = tr.cells;
+      if (cells.length !== labels.length) return; // error rows / colspan rows
+      for (var c = 0; c < cells.length; c++) {
+        if (labels[c]) cells[c].setAttribute("data-label", labels[c]);
+      }
+    });
+  });
+})();
+</script>
+{% include "partials/modal.html" %}
 {% endblock %}

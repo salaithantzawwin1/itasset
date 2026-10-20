@@ -36,6 +36,8 @@ STRINGS = {
         "my": "အတည်ပြုစာရင်းသို့ ပို့မည် (အဆင့် ① — အတည်ပြု → ဝယ် → လက်ခံ)",
     },
     "req.submit": {"en": "Submit request", "my": "တောင်းဆိုမှု တင်မည်"},
+    # category-specific specification card (§5 catalogue → Asset.attrs)
+    "spec.title": {"en": "Specifications", "my": "သတ်မှတ်ချက်များ"},
     # overdue loans page (§14 scan_loans made visible)
     "loans.title": {"en": "Overdue loans", "my": "ပြန်ရန် ကျန်ချိန်ကျော်လွန်သော ပေးအပ်မှုများ"},
     "loans.sub": {
@@ -250,6 +252,12 @@ STRINGS = {
     },
     "reports.fmt": {"en": "Format", "my": "ပုံစံ"},
     "reports.run": {"en": "Download", "my": " download ပြုလုပ်မည်"},
+    # create-in-modal dialog (shared: admin Add links + main-app New buttons)
+    "modal.close": {"en": "Close", "my": "ပိတ်မည်"},
+    "modal.discard": {
+        "en": "Discard unsaved changes?",
+        "my": "မသိမ်းရသေးသော ပြင်ဆင်မှုများကို ဖျက်မည်လား?",
+    },
 }
 
 # fix the two placeholder values properly

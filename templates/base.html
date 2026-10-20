@@ -3,6 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    // Theme default = "auto"/system — the same three-mode contract as Django
+    // admin's own theme.js (localStorage "theme": light|dark|auto).
+    // Resolve before first paint so the app and the admin never disagree on
+    // a fresh visit (dark OS → both dark; light OS → both light).
+    (function () {
+      var t = localStorage.getItem('theme') || 'auto';
+      if (t === 'auto') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
   <title>{% block title %}{% t "app.name" %}{% endblock %}</title>
   <style>
     :root {
@@ -161,35 +172,7 @@
   </style>
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="{% url 'home' %}"><span class="logo">IT</span> <span class="bname">{% t "app.name" %}</span></a>
-    <nav class="topnav">
-      <a href="{% url 'home' %}" {% if request.resolver_match.url_name == 'home' %}class="active"{% endif %}>{% t "nav.dashboard" %}</a>
-      <a href="{% url 'asset-list' %}" {% if 'asset' in request.resolver_match.url_name %}class="active"{% endif %}>{% t "nav.assets" %}</a>
-      <a href="{% url 'person-list' %}" {% if 'person' in request.resolver_match.url_name %}class="active"{% endif %}>{% t "nav.people" %}</a>
-      <a href="{% url 'site-list' %}" {% if 'site' in request.resolver_match.url_name %}class="active"{% endif %}>{% t "nav.sites" %}</a>
-      {% if user.is_authenticated %}<a href="{% url 'self-view' %}" {% if request.resolver_match.url_name == 'self-view' %}class="active"{% endif %}>{% t "nav.me" %}</a>{% endif %}
-      {% if user.is_staff %}<a href="/admin/">{% t "nav.admin" %}</a>{% endif %}
-    </nav>
-    <span class="spacer"></span>
-    <div class="userbox">
-      <form method="post" action="{% url 'set-lang' %}">
-        {% csrf_token %}
-        <input type="hidden" name="lang" id="langval" value="">
-        <div class="lang-switch">
-          <button type="button" onclick="setLang('en')" id="btn-en">ENG</button>
-          <button type="button" onclick="setLang('my')" id="btn-my">MM</button>
-        </div>
-      </form>
-      <button class="toggle-theme" id="btn-theme" title="Light / Dark">◐</button>
-      {% if user.is_authenticated %}
-        <span class="uname">{{ user.username }}</span>
-        <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn-ghost" type="submit">{% t "nav.logout" %}</button></form>
-      {% else %}
-        <a class="btn-ghost" style="text-decoration:none;display:inline-block;" href="{% url 'login' %}">{% t "nav.login" %}</a>
-      {% endif %}
-    </div>
-  </header>
+  {% include "partials/topbar.html" %}
   <div class="page">
     {% if messages %}<ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
     {% block content %}{% endblock %}
@@ -203,17 +186,27 @@
       document.getElementById('btn-en').className = (cur === 'en') ? 'on' : '';
       document.getElementById('btn-my').className = (cur === 'my') ? 'on' : '';
     })();
-    // theme toggle with localStorage persistence
+    // theme: light | dark | auto(system) — same three states as the Django
+    // admin theme.js; a missing key defaults to auto/system.
     (function() {
-      var saved = localStorage.getItem('theme');
-      if (saved) document.documentElement.setAttribute('data-theme', saved);
+      var ORDER = ['light', 'dark', 'auto'];
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      function resolve(t) { return t === 'auto' ? (mq.matches ? 'dark' : 'light') : t; }
+      function apply() {
+        document.documentElement.setAttribute('data-theme', resolve(localStorage.getItem('theme') || 'auto'));
+      }
+      apply();
+      // "auto" follows the OS live, exactly like the admin's dark-mode CSS
+      if (mq.addEventListener) mq.addEventListener('change', apply);
+      else if (mq.addListener) mq.addListener(apply);
       document.getElementById('btn-theme').addEventListener('click', function() {
-        var el = document.documentElement;
-        var next = (el.getAttribute('data-theme') === 'dark') ? 'light' : 'dark';
-        el.setAttribute('data-theme', next);
+        var cur = localStorage.getItem('theme') || 'auto';
+        var next = ORDER[(ORDER.indexOf(cur) + 1) % ORDER.length];
         localStorage.setItem('theme', next);
+        apply();
       });
     })();
   </script>
+  {% include "partials/modal.html" %}
 </body>
 </html>

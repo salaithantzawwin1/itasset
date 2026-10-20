@@ -1,7 +1,12 @@
+import json
+
+from django import forms
 from django.contrib import admin
+from django.contrib.admin.helpers import flatten_fieldsets
 
 from apps.core.admin import ScopedAdminMixin, _is_scope_admin
 
+from .forms import AssetForm
 from .models import (
     ApprovalDecision,
     ApprovalDelegation,
@@ -15,19 +20,109 @@ from .models import (
     Transfer,
     WriteOff,
 )
+from .specs import SPEC_FIELD_PREFIX, build_spec_form_fields, schema_as_json
+
+
+class PrettyJSONField(forms.JSONField):
+    """Indented, re-submittable JSON text in the schema textarea.
+
+    BoundField.value() calls field.prepare_value — the stock forms.JSONField
+    would json.dumps a str initial again (double-encoding, which then decodes
+    back to a string and fails structure validation). Strings pass through;
+    dicts are dumped with indentation.
+    """
+
+    def prepare_value(self, value):
+        if isinstance(value, str):
+            return value
+        return json.dumps(value or {}, indent=2, ensure_ascii=False)
+
+
+class CategoryAdminForm(forms.ModelForm):
+    """Schema edited as pretty JSON in a textarea.
+
+    Malformed definitions are rejected by Category.clean →
+    specs.validate_schema_dict during ModelForm._post_clean.
+    """
+
+    schema = PrettyJSONField(
+        required=False,
+        widget=forms.Textarea(
+            attrs={"rows": 22, "cols": 96, "style": "font-family:monospace;font-size:12.5px;"}
+        ),
+    )
+
+    class Meta:
+        model = Category
+        fields = ("code", "name", "schema")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance is not None and self.instance.pk and self.instance.schema:
+            self.initial["schema"] = schema_as_json(self.instance.schema)
 
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ("code", "name")
+    """Category master + its declarative spec schema (ADR-0004 layer 2)."""
+
+    form = CategoryAdminForm
+    list_display = ("code", "name", "field_count")
     search_fields = ("code", "name")
     ordering = ("code",)
+    fields = ("code", "name", "schema")
+
+    @admin.display(description="spec fields")
+    def field_count(self, obj) -> int:
+        fields = (obj.schema or {}).get("fields") if isinstance(obj.schema, dict) else None
+        return len(fields) if isinstance(fields, list) else 0
 
 
 @admin.register(Asset)
 class AssetAdmin(ScopedAdminMixin, admin.ModelAdmin):
+    # AssetForm carries the category's dynamic spec fields (§5 catalogue);
+    # they render after the common columns and save into Asset.attrs.
+    form = AssetForm
     list_display = ("asset_tag", "category", "site", "status", "condition", "warranty_end")
     list_filter = ("status", "condition", "site", "category")
+
+    def get_fieldsets(self, request, obj=None):
+        """Append the category's spec fields as their own fieldset.
+
+        Admin only renders fields it knows via base_fields ∪ fieldsets, while
+        the dynamic spec fields live on the form *instance* (AssetForm.__init__
+        builds them from the category) — so they must be listed here. On a
+        POST re-render the posted category is used, so values entered before
+        a validation error elsewhere survive.
+        """
+        fieldsets = list(super().get_fieldsets(request, obj))
+        cat = None
+        if obj is not None:
+            cat = obj.category
+        elif request.method == "POST" and request.POST.get("category"):
+            cat = Category.objects.filter(pk=request.POST.get("category")).first()
+        if cat is not None:
+            names = list(build_spec_form_fields(cat))
+            if names:
+                fieldsets.append(("Specifications", {"fields": names}))
+        return fieldsets
+
+    def get_form(self, request, obj=None, change=False, **kwargs):
+        # spec__* names are not model columns — strip them before the admin
+        # validates the field list against Asset. Django's changeform view
+        # passes fields=flatten_fieldsets(fieldsets) explicitly, so the strip
+        # must be unconditional. AssetForm.__init__ re-adds the dynamic
+        # fields at instance level from the category schema.
+        if "fields" in kwargs and kwargs["fields"] is None:
+            # _get_form_for_get_fields() wants the bare base form — passing
+            # it through avoids get_form ↔ get_fieldsets recursion.
+            return super().get_form(request, obj, change, **kwargs)
+        fields = kwargs.get("fields")
+        if not isinstance(fields, (list, tuple)):
+            fields = flatten_fieldsets(self.get_fieldsets(request, obj))
+        kwargs["fields"] = [n for n in fields if not n.startswith(SPEC_FIELD_PREFIX)]
+        return super().get_form(request, obj, change, **kwargs)
+
     search_fields = ("asset_tag", "serial_no", "hostname", "model_name")
     date_hierarchy = "purchase_date"
     readonly_fields = ("created_at", "updated_at")

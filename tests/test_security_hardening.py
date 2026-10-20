@@ -73,7 +73,8 @@ def test_html_responses_carry_csp_and_nosniff(client):
     assert "frame-ancestors 'self'" in csp
     assert "object-src 'none'" in csp
     assert r.headers.get("X-Content-Type-Options") == "nosniff"
-    assert r.headers.get("X-Frame-Options") in ("DENY", "SAMEORIGIN")  # project default: DENY
+    # project default: SAMEORIGIN (same-origin create-in-modal iframes)
+    assert r.headers.get("X-Frame-Options") in ("DENY", "SAMEORIGIN")
     assert r.headers.get("Referrer-Policy") == "same-origin"
 
 

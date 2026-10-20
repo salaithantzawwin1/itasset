@@ -1,0 +1,205 @@
+{% load t %}
+{# Create-in-modal dialog, shared by the admin and the main app: Add/New links open the form in a same-origin iframe. #}
+{# The partial hides the framed page's chrome, closes + refreshes on the post-save redirect (transplanting the flash message), and guards unsaved edits. #}
+{# Framed pages never init it (window.top check); cross-site framing stays blocked (CSP frame-ancestors 'self' + X-Frame-Options SAMEORIGIN). #}
+{# Template comments here must stay single-line and must not nest comment markers (Django's comment regex is non-greedy and single-line: a nested marker ends the comment early and the tail renders as literal text). #}
+<style>
+.nb-modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 22px; }
+.nb-modal[hidden] { display: none; }
+.nb-modal-bd { position: absolute; inset: 0; background: rgba(9, 18, 32, .55); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); animation: nb-fade .16s ease; }
+.nb-modal-card {
+  position: relative; display: flex; flex-direction: column;
+  width: min(920px, 100%); height: min(88vh, 880px);
+  background: var(--surface, var(--body-bg, #fff));
+  color: var(--text, var(--body-fg, #1f2d3d));
+  border: 1px solid var(--border, var(--hairline-color, #e3e8ee));
+  border-radius: 16px; overflow: hidden;
+  box-shadow: 0 24px 70px rgba(8, 18, 33, .35);
+  animation: nb-pop .18s cubic-bezier(.2, .9, .3, 1.15);
+}
+.nb-modal-head { display: flex; align-items: center; gap: 12px; padding: 13px 16px 13px 20px; border-bottom: 1px solid var(--border, var(--hairline-color, #e3e8ee)); flex: 0 0 auto; }
+.nb-modal-head h2 { flex: 1; min-width: 0; margin: 0; font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nb-modal-x {
+  flex: 0 0 auto; width: 34px; height: 34px; border-radius: 9px;
+  border: 1px solid var(--border, var(--hairline-color, #e3e8ee));
+  background: transparent; color: var(--muted, var(--body-quiet-color, #6b7a8d));
+  font-size: 20px; line-height: 1; cursor: pointer; transition: all .15s ease;
+}
+.nb-modal-x:hover { background: var(--darkened-bg, rgba(0, 0, 0, .06)); color: var(--text, var(--body-fg, #1f2d3d)); border-color: var(--primary, #0f4c81); }
+.nb-modal-body { position: relative; flex: 1 1 auto; min-height: 0; }
+.nb-modal-body iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; }
+.nb-modal-loader { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 2; background: var(--surface, var(--body-bg, #fff)); }
+.nb-modal-loader[hidden] { display: none; }
+.nb-modal-loader::after {
+  content: ""; width: 34px; height: 34px; border-radius: 50%;
+  border: 3px solid var(--border, var(--hairline-color, #e3e8ee));
+  border-top-color: var(--primary, #0f4c81);
+  animation: nb-spin .7s linear infinite;
+}
+@keyframes nb-spin { to { transform: rotate(360deg); } }
+@keyframes nb-fade { from { opacity: 0; } }
+@keyframes nb-pop { from { opacity: 0; transform: translateY(8px) scale(.985); } }
+@media (prefers-reduced-motion: reduce) { .nb-modal-bd, .nb-modal-card { animation: none; } }
+body.nb-modal-open { overflow: hidden; }
+@media (max-width: 640px) {
+  .nb-modal { padding: 0; }
+  .nb-modal-card { width: 100%; height: 100%; max-height: 100%; border-radius: 0; border: 0; }
+}
+</style>
+<div id="nb-modal" class="nb-modal" hidden data-nb-discard="{% t "modal.discard" %}">
+  <div class="nb-modal-bd" data-nb-close></div>
+  <div class="nb-modal-card" role="dialog" aria-modal="true" aria-labelledby="nb-modal-title">
+    <header class="nb-modal-head">
+      <h2 id="nb-modal-title"></h2>
+      <button type="button" class="nb-modal-x" data-nb-close aria-label="{% t "modal.close" %}">&times;</button>
+    </header>
+    <div class="nb-modal-body">
+      <div class="nb-modal-loader" aria-hidden="true"></div>
+      <iframe id="nb-modal-frame" name="nb-modal-frame" title=""></iframe>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  /* Framed pages (the forms themselves) must never init the dialog — otherwise
+     a form rendered inside the modal would carry a second, nested instance. */
+  if (window.top !== window.self) return;
+  var modal = document.getElementById("nb-modal");
+  if (!modal) return;
+  var frame = document.getElementById("nb-modal-frame");
+  var titleEl = document.getElementById("nb-modal-title");
+  var loader = modal.querySelector(".nb-modal-loader");
+  var lastTrigger = null, startPath = null, dirty = false;
+
+  function isTrigger(a) {
+    if (!a || !a.getAttribute) return false;
+    if (a.hasAttribute("data-modal")) return true;                 // main-app New buttons
+    var href = a.getAttribute("href") || "";
+    if (!href || href.charAt(0) === "#") return false;
+    if (href.indexOf("_popup") !== -1) return false;               // Django popups stay popups
+    if (a.classList.contains("related-widget-wrapper-link")) return false;
+    if (a.closest && a.closest(".related-widget-wrapper")) return false;  // FK "add another"
+    if (a.classList.contains("addlink") && a.closest(".object-tools")) return true;  // changelist Add
+    if (a.classList.contains("dash-act") && a.classList.contains("is-add")) return true;  // dashboard Add
+    return false;
+  }
+
+  function titleFor(a) {
+    var label = (a.textContent || "").replace(/^\s*\+\s*/, "").replace(/\s+/g, " ").trim();
+    if (/^add$/i.test(label)) {                                  // dashboard chip says just "Add"
+      var li = a.closest("li");
+      var model = li && li.querySelector(".dash-model-link");
+      if (model) label = label + " " + model.textContent.trim();
+    }
+    return label;
+  }
+
+  function open(url, label, trigger) {
+    var href;
+    try { href = new URL(url, window.location.href); } catch (e) { return; }
+    lastTrigger = trigger || null;
+    startPath = href.pathname;
+    dirty = false;
+    titleEl.textContent = label || "";
+    frame.title = label || "";
+    modal.hidden = false;
+    document.body.classList.add("nb-modal-open");
+    loader.hidden = false;
+    frame.src = href.href;
+    var x = modal.querySelector(".nb-modal-x");
+    if (x) setTimeout(function () { x.focus(); }, 30);
+  }
+
+  function close(reload) {
+    if (modal.hidden) return;
+    modal.hidden = true;
+    startPath = null;
+    document.body.classList.remove("nb-modal-open");
+    try { frame.src = "about:blank"; } catch (e) {}
+    if (!reload && lastTrigger && lastTrigger.focus) {
+      try { lastTrigger.focus(); } catch (e) {}
+    }
+    if (reload) window.location.reload();
+  }
+
+  function requestClose() {
+    if (modal.hidden) return;
+    if (dirty && !window.confirm(modal.getAttribute("data-nb-discard") || "")) return;
+    close(false);
+  }
+
+  frame.addEventListener("load", function () {
+    if (modal.hidden) return;
+    var doc, loc;
+    try { doc = frame.contentDocument; loc = frame.contentWindow.location; } catch (e) { return; }
+    if (!doc || !loc || loc.href === "about:blank") return;
+    loader.hidden = true;
+    if (startPath && loc.pathname !== startPath) {
+      /* Saved (redirected) or cancelled away from the form. The iframe's
+         render already consumed the flash message — transplant it so the
+         refreshed parent page can still show it. */
+      try {
+        var ml = doc.querySelector(".messagelist, ul.messages");
+        if (ml && ml.children.length) sessionStorage.setItem("nb-modal-msgs", ml.innerHTML);
+      } catch (e) {}
+      close(true);
+      return;
+    }
+    /* Same path: initial render or a validation-error re-POST — stay open. */
+    dirty = false;
+    try {
+      if (!doc.getElementById("nb-modal-skin")) {
+        var s = doc.createElement("style");
+        s.id = "nb-modal-skin";
+        s.textContent =
+          ".topbar,.anav,#nav-sidebar,#footer,.page-head,.breadcrumbs,.login-toprow{display:none!important}" +
+          "body{background:transparent!important}" +
+          "#content{max-width:none!important;margin:0!important;padding:10px 6px!important}" +
+          ".page{margin:0!important;padding:0!important;max-width:none!important}" +
+          ".card{border:0!important;box-shadow:none!important;padding:0!important;margin:0!important;background:transparent!important}" +
+          ".messagelist,.messages{margin:0 0 12px!important}";
+        (doc.head || doc.documentElement).appendChild(s);
+      }
+      doc.addEventListener("input", function () { dirty = true; }, true);
+      doc.addEventListener("change", function () { dirty = true; }, true);
+    } catch (e) {}
+  });
+
+  document.addEventListener("click", function (e) {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    var t = e.target;
+    var a = (t && typeof t.closest === "function") ? t.closest("a") : null;
+    if (!a || !isTrigger(a)) return;
+    e.preventDefault();
+    open(a.getAttribute("href"), titleFor(a), a);
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !modal.hidden) { e.preventDefault(); requestClose(); }
+  });
+
+  modal.addEventListener("click", function (e) {
+    if (e.target === modal || (e.target.hasAttribute && e.target.hasAttribute("data-nb-close"))) requestClose();
+  });
+
+  /* Replay a success message transplanted out of a modal save (see load handler). */
+  (function () {
+    var html = null;
+    try { html = sessionStorage.getItem("nb-modal-msgs"); sessionStorage.removeItem("nb-modal-msgs"); } catch (e) {}
+    if (!html) return;
+    var host = document.querySelector("#content > .messagelist") || document.querySelector("ul.messagelist") || document.querySelector("ul.messages");
+    if (host) { host.insertAdjacentHTML("beforeend", html); return; }
+    var isAdmin = !!document.querySelector("#content-main");
+    var ul = document.createElement("ul");
+    ul.className = isAdmin ? "messagelist" : "messages";
+    ul.innerHTML = html;
+    if (isAdmin) {
+      var main = document.querySelector("#content-main");
+      main.parentNode.insertBefore(ul, main);
+    } else {
+      var page = document.querySelector(".page");
+      if (page) page.insertBefore(ul, page.firstChild);
+    }
+  })();
+})();
+</script>

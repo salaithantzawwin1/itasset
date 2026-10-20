@@ -15,9 +15,37 @@ from django.conf import settings
 from django.core.cache import cache
 from django.db import IntegrityError
 from django.http import HttpResponse
-from django.utils import timezone
+from django.utils import timezone, translation
 
 log = logging.getLogger(__name__)
+
+
+class SessionLocaleMiddleware:
+    """Django's own translations follow the app's ENG/MM switch.
+
+    The UI strings come from ``{% t %}`` (session key ``lang``, English when
+    unset), but Django's admin chrome used to follow ``LANGUAGE_CODE``
+    (Burmese) — so a page mixed Burmese headings with English content. This
+    activates gettext from the same session key, defaulting to English like
+    the rest of the app. Django's stock LocaleMiddleware resolves from cookie/
+    Accept-Language instead, and its translation hook is module-level (not an
+    overridable method), so this is a deliberately small standalone middleware.
+
+    Must sit directly after ``SessionMiddleware``.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        lang = (getattr(request, "session", None) or {}).get("lang")
+        if lang not in ("en", "my"):
+            lang = "en"
+        translation.activate(lang)
+        request.LANGUAGE_CODE = lang
+        response = self.get_response(request)
+        response.headers.setdefault("Content-Language", lang)
+        return response
 
 
 class CorrelationMiddleware:

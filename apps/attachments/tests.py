@@ -34,7 +34,7 @@ def site(db):
 
 @pytest.fixture
 def category(db):
-    return Category.objects.create(code="IT-HW-LAP", name="Laptop")
+    return Category.objects.get_or_create(code="IT-HW-LAP", defaults={"name": "Laptop"})[0]
 
 
 @pytest.fixture

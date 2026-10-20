@@ -14,9 +14,20 @@ class Category(models.Model):
     class Meta:
         ordering = ["code"]
         verbose_name = "category"
+        verbose_name_plural = "categories"  # Django's naive plural was "categorys"
 
     def __str__(self) -> str:
         return f"{self.code} — {self.name}"
+
+    def clean(self):
+        """Structural check of the declarative spec schema (ADR-0004 layer 2).
+
+        Runs in ModelForms/admin (Django calls full_clean there); raw ORM
+        writes (services, migrations) stay schema-engine-free by design.
+        """
+        from .specs import validate_schema_dict
+
+        validate_schema_dict(self.schema)
 
 
 class Asset(models.Model):

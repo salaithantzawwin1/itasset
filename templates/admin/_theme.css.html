@@ -1,0 +1,953 @@
+<style>
+/* =========================================================================
+   IT Asset Manager — modern admin theme (redesign v2)
+   Design tokens mirror Django's own CSS variables, so every stock admin
+   component (buttons, tables, forms, messages) follows the palette below.
+   Light is :root; dark mirrors both of Django's dark triggers:
+   html[data-theme="dark"] (explicit) and system-dark while theme=auto.
+   ========================================================================= */
+
+/* Django declares its tokens on `html[data-theme="light"], :root` (0,1,1).
+   A plain `:root` here (0,1,0) loses to it — which is why light mode used to
+   render Django's stock palette. Mirror the selector so the theme wins. */
+html[data-theme="light"],
+:root {
+  /* brand — main app palette (#0f4c81 primary, #2a9d8f accent) */
+  --primary: #0f4c81;
+  --primary-dark: #0a355c;
+  --secondary: #0f4c81;
+  --accent: #2a9d8f;
+  /* filled surfaces need AA on white text; #2a9d8f is only 3.1:1 */
+  --accent-strong: #1f7a6e;
+  --accent-strong-hover: #17675d;
+  --primary-fg: #fff;
+
+  /* surfaces */
+  --body-fg: #1f2d3d;
+  --body-bg: #ffffff;
+  --page-bg: #f4f6f9;
+  --body-quiet-color: #6b7a8d;
+  --body-medium-color: #44566b;
+  --body-loud-color: #14212f;
+  --surface-2: #f0f4f8;
+
+  /* header / breadcrumbs */
+  --header-color: #dfe8f2;
+  --header-bg: linear-gradient(90deg, #0a355c, #0f4c81);
+  --header-link-color: #ffffff;
+  --header-branding-color: transparent;
+  --breadcrumbs-fg: #cfe0f0;
+  --breadcrumbs-link-fg: #ffffff;
+  --breadcrumbs-bg: #0a355c;
+
+  /* links */
+  --link-fg: #0f4c81;
+  --link-hover-color: #2a9d8f;
+  --link-selected-fg: #0f4c81;
+
+  /* lines */
+  --hairline-color: #e3e8ee;
+  --border-color: #d7dee8;
+  --input-border: #ccd7e3;
+
+  /* feedback */
+  --error-fg: #c0392b;
+  --message-success-bg: #e6f6f3;
+  --message-warning-bg: #fdf4e7;
+  --message-error-bg: #fdf0ee;
+
+  /* states */
+  --darkened-bg: #f4f6f9;
+  --selected-bg: #e8f1fa;
+  --selected-row: #dfeefa;
+
+  /* buttons */
+  --button-fg: #ffffff;
+  --button-bg: #0f4c81;
+  --button-hover-bg: #0a355c;
+  --default-button-bg: #0f4c81;
+  --default-button-hover-bg: #0a355c;
+  --delete-button-bg: #c0392b;
+  --delete-button-hover-bg: #a53124;
+  --object-tools-fg: #ffffff;
+  --object-tools-bg: var(--accent-strong);
+  --object-tools-hover-bg: var(--accent-strong-hover);
+
+  --radius: 10px;
+  --radius-lg: 14px;
+  --shadow: 0 1px 3px rgba(16, 42, 67, .07);
+  --shadow-lift: 0 8px 24px rgba(16, 42, 67, .12);
+  --ring: 0 0 0 3px rgba(42, 157, 143, .25);
+  --topbar-h: 58px;
+
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --primary: #4a90c8;
+  --secondary: #16324a;
+  --accent: #35b8a8;
+  --accent-strong: #2a9d8f;
+  --accent-strong-hover: #35b8a8;
+  --primary-fg: #ffffff;
+
+  --body-fg: #e2e8f0;
+  --body-bg: #1a222b;
+  --page-bg: #10161d;
+  --body-quiet-color: #8fa0b3;
+  --body-medium-color: #b9c6d6;
+  --body-loud-color: #f2f6fa;
+  --surface-2: #202b36;
+
+  --header-bg: linear-gradient(90deg, #081a2b, #0d2f4f);
+  --header-color: #cfe0f2;
+  --breadcrumbs-bg: #0d2437;
+  --breadcrumbs-fg: #9fb6cb;
+  --breadcrumbs-link-fg: #e8f1fa;
+
+  --link-fg: #7dbcea;
+  --link-hover-color: #a9d4f2;
+  --link-selected-fg: #9ccdf3;
+
+  --hairline-color: #2a3441;
+  --border-color: #33414f;
+  --input-border: #3b4a5a;
+
+  --error-fg: #e07060;
+  --message-success-bg: #12352a;
+  --message-warning-bg: #3a2f1a;
+  --message-error-bg: #3a2422;
+
+  --darkened-bg: #161d26;
+  --selected-bg: #16324a;
+  --selected-row: #1d3c58;
+
+  --button-bg: #1f5f96;
+  --button-hover-bg: #2b74b3;
+  --default-button-bg: #1f5f96;
+  --default-button-hover-bg: #2b74b3;
+  --delete-button-bg: #b04a3c;
+  --delete-button-hover-bg: #c05a4c;
+  --object-tools-bg: #2a9d8f;
+  --object-tools-hover-bg: #35b8a8;
+
+  --shadow: 0 1px 3px rgba(0, 0, 0, .35);
+  --shadow-lift: 0 8px 24px rgba(0, 0, 0, .45);
+
+  color-scheme: dark;
+}
+/* theme=auto follows the OS, exactly like Django's dark_mode.css */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary: #4a90c8;
+    --secondary: #16324a;
+    --accent: #35b8a8;
+    --accent-strong: #2a9d8f;
+    --accent-strong-hover: #35b8a8;
+    --primary-fg: #ffffff;
+    --body-fg: #e2e8f0;
+    --body-bg: #1a222b;
+    --page-bg: #10161d;
+    --body-quiet-color: #8fa0b3;
+    --body-medium-color: #b9c6d6;
+    --body-loud-color: #f2f6fa;
+    --surface-2: #202b36;
+    --header-bg: linear-gradient(90deg, #081a2b, #0d2f4f);
+    --header-color: #cfe0f2;
+    --breadcrumbs-bg: #0d2437;
+    --breadcrumbs-fg: #9fb6cb;
+    --breadcrumbs-link-fg: #e8f1fa;
+    --link-fg: #7dbcea;
+    --link-hover-color: #a9d4f2;
+    --link-selected-fg: #9ccdf3;
+    --hairline-color: #2a3441;
+    --border-color: #33414f;
+    --input-border: #3b4a5a;
+    --error-fg: #e07060;
+    --message-success-bg: #12352a;
+    --message-warning-bg: #3a2f1a;
+    --message-error-bg: #3a2422;
+    --darkened-bg: #161d26;
+    --selected-bg: #16324a;
+    --selected-row: #1d3c58;
+    --button-bg: #1f5f96;
+    --button-hover-bg: #2b74b3;
+    --default-button-bg: #1f5f96;
+    --default-button-hover-bg: #2b74b3;
+    --delete-button-bg: #b04a3c;
+    --delete-button-hover-bg: #c05a4c;
+    --object-tools-bg: #2a9d8f;
+    --object-tools-hover-bg: #35b8a8;
+    --shadow: 0 1px 3px rgba(0, 0, 0, .35);
+    --shadow-lift: 0 8px 24px rgba(0, 0, 0, .45);
+    color-scheme: dark;
+  }
+}
+/* explicit "light" wins even when the OS is dark */
+html[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* ---------- base ------------------------------------------------------- */
+body {
+  font-family: system-ui, "Myanmar Text", "Padauk", sans-serif;
+  background: var(--page-bg);
+  font-size: 15px;  /* same as the main app — 14.5px made admin text look different */
+}
+a { transition: color .15s ease; }
+a:focus-visible, button:focus-visible, input:focus-visible,
+select:focus-visible, textarea:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.help, .form-row .help { color: var(--body-quiet-color); font-size: 12.5px; }
+#footer { color: var(--body-quiet-color); font-size: 12px; padding: 18px 24px 28px; }
+
+/* ---------- topbar (identical to the main app) ------------------------- */
+.topbar {
+  background: linear-gradient(90deg, var(--primary-dark), var(--primary));
+  color: #fff; padding: 0 28px; height: var(--topbar-h);
+  display: flex; align-items: center; gap: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
+  position: sticky; top: 0; z-index: 50;
+  /* #container is a column flexbox: without this the header shrinks to fit
+     the page and every sticky offset below it lands in the wrong place */
+  flex-shrink: 0;
+}
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; letter-spacing: .3px; color: #fff; text-decoration: none; }
+.brand .logo { width: 30px; height: 30px; border-radius: 8px; background: var(--accent); display: inline-flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; color: #fff; }
+.topnav { display: flex; gap: 4px; }
+.topnav a { color: rgba(255, 255, 255, .78); text-decoration: none; padding: 8px 14px; border-radius: 8px; font-size: 14px; transition: all .15s; }
+.topnav a:hover { background: rgba(255, 255, 255, .12); color: #fff; }
+.topnav a.active { background: rgba(255, 255, 255, .18); color: #fff; font-weight: 600; }
+/* Django's `a:link` (0,1,0) outranks `.brand` (0,1,0) by source order — pin it */
+a.brand, a.brand:link, a.brand:visited { color: #fff; }
+a.brand:hover { color: #fff; }
+.topbar .spacer { flex: 1; }
+.userbox { display: flex; align-items: center; gap: 10px; }
+.userbox .uname { color: rgba(255, 255, 255, .85); font-size: 13px; }
+.userbox form { margin: 0; display: inline; }
+.btn-ghost { background: transparent; border: 1px solid rgba(255, 255, 255, .35); color: #fff; padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+.btn-ghost:hover { background: rgba(255, 255, 255, .14); }
+.toggle-theme { background: transparent; border: 1px solid rgba(255, 255, 255, .35); color: #fff; padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 14px; line-height: 1; }
+.toggle-theme:hover { background: rgba(255, 255, 255, .14); }
+.lang-switch { display: inline-flex; border: 1px solid rgba(255, 255, 255, .35); border-radius: 8px; overflow: hidden; }
+.lang-switch button { background: transparent; color: rgba(255, 255, 255, .8); border: none; padding: 6px 10px; cursor: pointer; font-size: 12px; font-weight: 700; }
+.lang-switch button.on { background: rgba(255, 255, 255, .22); color: #fff; }
+.brand .bname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* identical breakpoints to templates/base.html so the bar wraps the same way */
+@media (max-width: 1024px) {
+  .topbar { height: auto; min-height: var(--topbar-h); flex-wrap: wrap; padding: 8px 16px; row-gap: 6px; }
+  .topbar .spacer { display: none; }
+  .userbox { margin-left: auto; }
+  .topnav { flex-wrap: wrap; gap: 2px; }
+}
+@media (max-width: 640px) {
+  .topbar { padding: 6px 10px; gap: 8px; }
+  .brand { font-size: 14px; }
+  .brand .logo { width: 26px; height: 26px; font-size: 13px; }
+  .topnav a { padding: 6px 9px; font-size: 13px; }
+  .userbox .uname { display: none; }
+}
+
+/* ---------- shell: sticky model sidebar + content ---------------------- */
+#container > .main#main { display: flex; align-items: flex-start; }
+.anav {
+  flex: 0 0 252px; width: 252px;
+  position: sticky; top: var(--topbar-h);
+  height: calc(100vh - var(--topbar-h));
+  overflow-y: auto; scrollbar-width: thin;
+  background: var(--body-bg);
+  border-right: 1px solid var(--hairline-color);
+  padding: 14px 10px 20px;
+}
+.anav-title {
+  font-size: 10.5px; font-weight: 800; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--body-quiet-color);
+  padding: 4px 12px 8px;
+}
+.anav-group { margin: 1px 0; }
+.anav-group > summary {
+  list-style: none; cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-radius: 8px;
+  font-size: 12px; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--body-quiet-color);
+}
+.anav-group > summary::-webkit-details-marker { display: none; }
+.anav-group > summary::before {
+  content: "\25B8"; font-size: 10px; color: var(--body-quiet-color);
+  transition: transform .15s ease;
+}
+.anav-group[open] > summary::before { transform: rotate(90deg); }
+.anav-group > summary:hover { background: var(--surface-2); color: var(--body-medium-color); }
+.anav-group.on > summary { color: var(--primary); }
+.anav-group ul { list-style: none; margin: 2px 0 6px; padding: 0 0 0 6px; }
+/* Django sets `ul > li { list-style-type: square }` — override on the <li> */
+.anav-group ul li, .anav-back { list-style: none; padding: 0; }
+.anav-group ul li a {
+  display: block; padding: 7px 12px 7px 20px; border-radius: 8px;
+  font-size: 13.5px; color: var(--body-fg); text-decoration: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.anav-group ul li a:hover { background: var(--surface-2); color: var(--primary); }
+.anav-group ul li a.on {
+  background: var(--selected-bg); color: var(--primary);
+  font-weight: 600; box-shadow: inset 3px 0 0 var(--primary);
+}
+.anav-back {
+  display: block; margin: 14px 8px 0; padding: 10px 12px 0;
+  border-top: 1px solid var(--hairline-color);
+  font-size: 12.5px; color: var(--body-quiet-color); text-decoration: none;
+}
+.anav-back:hover { color: var(--primary); }
+.main > .content { flex: 1 1 auto; min-width: 0; max-width: none; }
+#content {
+  position: relative;
+  max-width: 1240px; margin: 0 auto;
+  padding: 26px 30px 52px;
+}
+.dashboard #content { width: auto; }  /* stock base.css pins the dashboard to 600px */
+
+/* ---------- page header ------------------------------------------------ */
+.page-head { display: flex; align-items: flex-end; gap: 16px; margin: 0 0 20px; padding-right: 190px; }
+.page-eyebrow {
+  display: block; margin-bottom: 3px;
+  font-size: 10.5px; font-weight: 800; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--accent);
+}
+#content h1 { margin: 0; font-size: 25px; font-weight: 800; letter-spacing: -.015em; color: var(--body-loud-color); }
+.page-sub { margin: 6px 0 0; color: var(--body-quiet-color); font-size: 13.5px; }
+
+/* ---------- messages --------------------------------------------------- */
+.messagelist { list-style: none; padding: 0; margin: 0 0 18px; display: grid; gap: 8px; }
+.messagelist li {
+  padding: 11px 16px;
+  border-radius: var(--radius);
+  border-left: 4px solid var(--primary);
+  background: var(--selected-bg);
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: var(--shadow);
+}
+.messagelist li.success { border-left-color: var(--accent); background: var(--message-success-bg); }
+.messagelist li.warning { border-left-color: #d9822b; background: var(--message-warning-bg); }
+.messagelist li.error   { border-left-color: var(--delete-button-bg); background: var(--message-error-bg); }
+.errornote {
+  background: var(--message-error-bg);
+  border-left: 4px solid var(--delete-button-bg);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  color: var(--error-fg);
+  font-size: 13.5px;
+}
+
+/* ---------- buttons & form controls ----------------------------------- */
+.button, input[type="submit"], input[type="button"], .submit-row input,
+.submit-row a, button:where(.button) {
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background .15s ease, box-shadow .15s ease, transform .05s ease;
+}
+.button:hover, input[type="submit"]:hover, .submit-row input:hover {
+  box-shadow: var(--shadow);
+}
+.button:active, input[type="submit"]:active { transform: translateY(1px); }
+input[type="text"], input[type="email"], input[type="url"], input[type="password"],
+input[type="number"], input[type="search"], input[type="tel"], textarea, select,
+input[type="date"], input[type="datetime"], input[type="datetime-local"], input[type="time"] {
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  background: var(--body-bg);
+  color: var(--body-fg);
+  padding: 8px 11px;
+  font-size: 14px;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+select { height: auto; }  /* Django pins selects to 1.875rem, which clips the padding above */
+input:hover, textarea:hover, select:hover { border-color: var(--primary); }
+input:focus, textarea:focus, select:focus {
+  border-color: var(--accent);
+  box-shadow: var(--ring);
+  outline: none;
+}
+textarea { line-height: 1.5; }
+label { font-weight: 600; font-size: 13px; color: var(--body-medium-color); }
+
+/* ---------- object tools: aligned with the page title ------------------ */
+ul.object-tools {
+  position: absolute; top: 26px; right: 30px; z-index: 5;
+  float: none; margin: 0; padding: 0; display: flex; gap: 8px;
+}
+ul.object-tools li { display: flex; float: none; height: auto; margin: 0; }
+.object-tools a {
+  display: inline-block; padding: 9px 16px !important;
+  border-radius: 8px !important; text-decoration: none;
+  font-size: 12.5px !important; font-weight: 700 !important;
+  text-transform: none !important; letter-spacing: 0 !important;
+  background: var(--object-tools-bg) !important; color: #fff !important;
+}
+.object-tools a:hover { background: var(--object-tools-hover-bg) !important; }
+.object-tools a.addlink { background: var(--accent) !important; }
+.object-tools a.addlink:hover { background: var(--accent-strong-hover) !important; }
+.object-tools a.viewsitelink, .object-tools a:not(.addlink) { background: var(--primary) !important; }
+
+/* ---------- change form ------------------------------------------------ */
+fieldset.module {
+  border: 1px solid var(--hairline-color);
+  border-radius: var(--radius-lg);
+  background: var(--body-bg);
+  box-shadow: var(--shadow);
+  padding: 0 0 10px;
+  margin-bottom: 18px;
+}
+fieldset.module > h2, fieldset.module .fieldset-heading {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--hairline-color);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 12px 20px;
+  margin: 0;
+}
+fieldset.module .description { padding: 10px 20px 0; color: var(--body-quiet-color); font-size: 13px; }
+fieldset.module.aligned { padding-top: 0; }
+fieldset.module .form-row { padding: 10px 20px 4px; border-bottom: 1px solid var(--hairline-color); }
+fieldset.module .form-row:last-of-type { border-bottom: 0; }
+fieldset.module .form-row.errors { background: var(--message-error-bg); }
+fieldset.module .form-row label { display: block; margin-bottom: 0; }
+.fieldBox label { display: block; margin-bottom: 5px; }
+.readonly {
+  background: var(--darkened-bg);
+  border: 1px dashed var(--border-color);
+  border-radius: 8px;
+  padding: 8px 11px;
+  color: var(--body-medium-color);
+  min-height: 24px;
+}
+/* two-column field grid on wide screens: 22 spec rows read twice as fast */
+@media (min-width: 960px) {
+  fieldset.module .form-row > div > .flex-container:not(.form-multiline):not(.checkbox-row) {
+    display: grid;
+    grid-template-columns: 210px minmax(0, 1fr);
+    gap: 6px 18px;
+    align-items: start;
+  }
+  fieldset.module .form-row > div > .flex-container:not(.form-multiline):not(.checkbox-row) > label {
+    text-align: right; padding-top: 9px;
+  }
+  fieldset.module .form-row > div > .flex-container:not(.form-multiline):not(.checkbox-row) > input:not([type="checkbox"]),
+  fieldset.module .form-row > div > .flex-container:not(.form-multiline):not(.checkbox-row) > select,
+  fieldset.module .form-row > div > .flex-container:not(.form-multiline):not(.checkbox-row) > .related-widget-wrapper {
+    max-width: 560px;
+  }
+  fieldset.module .form-row .flex-container.checkbox-row { padding-left: 228px; }
+  fieldset.module .form-row .flex-container.checkbox-row label { margin-bottom: 0; }
+}
+fieldset.module .form-row .flex-container.checkbox-row { display: flex; align-items: center; gap: 10px; }
+fieldset.module .form-row textarea { max-width: 100%; box-sizing: border-box; }
+fieldset.module .form-row .help { padding-top: 4px; }
+.related-widget-wrapper { display: inline-flex; align-items: center; gap: 6px; }
+.related-widget-wrapper select { flex: 1; }
+
+/* save bar: always reachable on long forms, never covers the last field */
+.submit-row {
+  position: sticky; bottom: 14px; z-index: 20;
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  justify-content: flex-end;
+  background: var(--body-bg);
+  border: 1px solid var(--hairline-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lift);
+  padding: 12px 14px;
+}
+.submit-row input.default { background: var(--accent-strong); border-color: var(--accent-strong-hover); }
+.submit-row input.default:hover { background: var(--accent-strong-hover); }
+.submit-row .deletelink, a.deletelink {
+  background: var(--delete-button-bg); color: #fff !important;
+  border-radius: 8px; padding: 8px 16px; text-decoration: none; font-weight: 600; font-size: 13px;
+}
+.submit-row .deletelink:hover, a.deletelink:hover { background: var(--delete-button-hover-bg); }
+.submit-row .closelink { margin-right: auto; }
+
+/* ---------- changelist ------------------------------------------------- */
+.module#changelist {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 250px;
+  border: 1px solid var(--hairline-color);
+  border-radius: var(--radius-lg);
+  background: var(--body-bg);
+  box-shadow: var(--shadow);
+  align-items: start;
+}
+.module#changelist:not(.filtered) { grid-template-columns: minmax(0, 1fr); }
+.changelist-form-container { min-width: 0; }
+
+#toolbar {
+  padding: 14px 18px 12px; margin: 0;
+  border-bottom: 1px solid var(--hairline-color);
+  background: transparent;
+}
+#changelist-search { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+#changelist-search > div:first-child { display: flex; gap: 8px; align-items: center; flex: 1; min-width: 240px; }
+#searchbar { flex: 1; min-width: 180px; }
+/* beats Django's `#toolbar form input[type=submit]` (1,1,2) — needs two ids */
+#toolbar #changelist-search input[type="submit"] {
+  background: var(--primary); color: #fff;
+  border: 1px solid var(--primary); padding: 8px 16px; font-size: 13px;
+}
+#toolbar #changelist-search input[type="submit"]:focus,
+#toolbar #changelist-search input[type="submit"]:hover {
+  background: var(--button-hover-bg); border-color: var(--button-hover-bg);
+}
+#changelist-search label img { display: none; }
+#changelist-search .small.quiet { font-size: 12.5px; color: var(--body-quiet-color); }
+
+/* Django sets `#changelist-form .results { width: 100% }` (changelists.css);
+   on our content-box element that adds the 36px of side padding ON TOP of the
+   parent width → 20px of horizontal page scroll on phones. Border-box keeps
+   the padded box inside the parent. */
+.results { padding: 0 18px 6px; box-sizing: border-box; }
+.results table { border-collapse: separate; border-spacing: 0; width: 100%; }
+.results thead th {
+  /* beats Django's `#changelist table thead th { padding: 0 }` */
+  padding: 10px 12px;
+  background: var(--surface-2);
+  color: var(--body-medium-color);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-weight: 700;
+  padding: 10px 14px;
+  border-bottom: 2px solid var(--hairline-color);
+  white-space: nowrap;
+}
+.results thead th a { color: var(--body-medium-color); text-decoration: none; }
+.results thead th a:hover { color: var(--primary); }
+.results tbody td {
+  padding: 10px 12px;
+  /* beat `#changelist table tbody td { padding }` from changelists.css */
+  /* long FK labels wrap instead of pushing every other column off-screen */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--hairline-color);
+  font-size: 14px;  /* = main app body text (was 13.5px — read as a different font) */
+  vertical-align: middle;
+}
+.results tbody tr:nth-child(even) { background: var(--darkened-bg); }
+.results tbody tr:hover { background: var(--selected-bg); }
+.results tbody tr.selected-row { background: var(--selected-row) !important; }
+.results tbody td:first-child a { font-weight: 600; }
+.results .action-checkbox-column { width: 34px; }
+
+.paginator {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  padding: 12px 18px 16px; margin: 0;
+  font-size: 13px; color: var(--body-quiet-color);
+}
+.paginator a, .paginator .this-page {
+  display: inline-block; min-width: 30px; text-align: center;
+  padding: 5px 9px; border-radius: 8px; text-decoration: none;
+  border: 1px solid var(--hairline-color); background: var(--body-bg);
+  color: var(--link-fg); font-size: 13px;
+}
+.paginator a:hover { border-color: var(--primary); background: var(--selected-bg); }
+.paginator .this-page { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 700; }
+.paginator .showall { margin-left: auto; }
+.paginator input[type="submit"] { margin-left: auto; }
+
+/* Django: `#changelist .actions { width: 100% }` — with our 18px side margins
+   that's parent+36px wide. A block-level flex box sizes itself correctly at
+   `auto`, so the bar (and the page) stops overflowing horizontally. */
+#changelist .actions { width: auto; }
+.actions {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  margin: 12px 18px 0;
+  padding: 10px 14px;
+  background: var(--darkened-bg);
+  border: 1px solid var(--hairline-color);
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+.actions label { font-weight: 500; color: var(--body-medium-color); display: flex; gap: 8px; align-items: center; }
+.actions .button { background: var(--primary); color: #fff; }
+.actions .button:hover { background: var(--button-hover-bg); }
+.action-counter, .action-counter * { color: var(--body-quiet-color); font-size: 12.5px; }
+
+/* filter rail */
+#changelist-filter {
+  background: var(--darkened-bg);
+  border-left: 1px solid var(--hairline-color);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  padding: 16px 14px;
+  align-self: stretch;
+}
+#changelist-filter h2, #changelist-filter #changelist-filter-header {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .1em;
+  color: var(--body-quiet-color); font-weight: 700; margin: 0 0 10px;
+  background: transparent; padding: 0; border: 0;
+}
+#changelist-filter details { border-bottom: 0; margin-bottom: 8px; }
+#changelist-filter details > summary {
+  list-style: none;
+  font-size: 13px; font-weight: 700; color: var(--body-medium-color);
+  padding: 7px 10px; border-radius: 8px; cursor: pointer;
+  background: var(--body-bg); border: 1px solid var(--hairline-color);
+}
+#changelist-filter details > summary::-webkit-details-marker { display: none; }
+/* Django already ships a → / ↓ arrow here; restyle it instead of doubling it */
+#changelist-filter details > summary::before {
+  content: "\25B8"; color: var(--body-quiet-color);
+  font-size: 10px; margin-right: 7px; display: inline-block;
+  transition: transform .15s ease;
+}
+#changelist-filter details[open] > summary::before {
+  content: "\25B8"; transform: rotate(90deg);
+}
+#changelist-filter details[open] > summary { color: var(--primary); border-color: var(--primary); }
+#changelist-filter details ul { margin: 6px 0 0; padding: 0 4px; list-style: none; }
+#changelist-filter details ul li a {
+  display: block; font-size: 13px; text-decoration: none;
+  color: var(--body-fg); padding: 6px 10px; border-radius: 8px;
+}
+#changelist-filter details ul li a:hover { background: var(--selected-bg); color: var(--link-fg); }
+#changelist-filter details ul li.selected a {
+  background: var(--primary); color: #fff; font-weight: 600;
+}
+#changelist-filter-extra-actions { font-size: 12.5px; display: grid; gap: 4px; margin-bottom: 8px; }
+#changelist-filter-extra-actions a { color: var(--link-fg); }
+#changelist-filter h3 { font-size: 12px; margin: 0 0 6px; }
+
+/* ---------- status badges (filled by the script in extrabody) ---------- */
+.badge {
+  display: inline-block;
+  padding: 3px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.7;
+  white-space: nowrap;
+}
+.badge-green { background: #e3f6f1; color: #17786b; }
+.badge-blue  { background: #e8f1fa; color: #0f4c81; }
+.badge-amber { background: #fdf0dd; color: #94570f; }
+.badge-red   { background: #fdeae7; color: #b03a2b; }
+.badge-gray  { background: #eceff3; color: #5b6b7d; }
+html[data-theme="dark"] .badge-green { background: #143b34; color: #6fe0cd; }
+html[data-theme="dark"] .badge-blue  { background: #16324a; color: #9ccdf3; }
+html[data-theme="dark"] .badge-amber { background: #3a2f18; color: #f0b968; }
+html[data-theme="dark"] .badge-red   { background: #3a2422; color: #f1a294; }
+html[data-theme="dark"] .badge-gray  { background: #242d38; color: #a8b6c6; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .badge-green { background: #143b34; color: #6fe0cd; }
+  :root:not([data-theme="light"]) .badge-blue  { background: #16324a; color: #9ccdf3; }
+  :root:not([data-theme="light"]) .badge-amber { background: #3a2f18; color: #f0b968; }
+  :root:not([data-theme="light"]) .badge-red   { background: #3a2422; color: #f1a294; }
+  :root:not([data-theme="light"]) .badge-gray  { background: #242d38; color: #a8b6c6; }
+}
+
+/* ---------- dashboard: KPI strip --------------------------------------- */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+@media (max-width: 1100px) {
+  .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 620px) {
+  .kpi-grid { grid-template-columns: 1fr; }
+}
+.kpi-card {
+  position: relative;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 15px 18px 14px;
+  background: var(--body-bg);
+  border: 1px solid var(--hairline-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  text-decoration: none;
+  color: var(--body-fg);
+  overflow: hidden;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.kpi-card::before {
+  content: ""; position: absolute; inset: 0 auto 0 0; width: 4px;
+  background: var(--primary);
+}
+.kpi-card.tone-green::before { background: var(--accent); }
+.kpi-card.tone-amber::before { background: #d9822b; }
+.kpi-card.tone-red::before { background: var(--delete-button-bg); }
+.kpi-card.tone-gray::before { background: var(--body-quiet-color); }
+.kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+.kpi-label {
+  font-size: 10.5px; font-weight: 800; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--body-quiet-color);
+}
+.kpi-value { font-size: 27px; font-weight: 800; line-height: 1.15; color: var(--body-loud-color); }
+.kpi-meta { font-size: 12px; color: var(--body-quiet-color); }
+
+/* ---------- dashboard: app cards --------------------------------------- */
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 18px;
+}
+.dash-card {
+  background: var(--body-bg);
+  border: 1px solid var(--hairline-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.dash-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+.dash-card-head {
+  display: flex; align-items: center; gap: 11px;
+  padding: 14px 16px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--hairline-color);
+}
+.dash-chip {
+  width: 34px; height: 34px; flex: 0 0 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: #fff; font-size: 13px; font-weight: 800;
+  display: inline-flex; align-items: center; justify-content: center;
+  letter-spacing: .02em;
+}
+.dash-card-head h2 { margin: 0; font-size: 15px; font-weight: 700; flex: 1; min-width: 0; }
+.dash-card-head h2 a { color: var(--body-fg); text-decoration: none; }
+.dash-card-head h2 a:hover { color: var(--primary); }
+.dash-count {
+  background: var(--selected-bg); color: var(--primary);
+  border-radius: 999px; padding: 2px 10px;
+  font-size: 12px; font-weight: 700;
+}
+.dash-models { list-style: none; margin: 0; padding: 7px; }
+.dash-models li {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 9px;
+  border-radius: 9px;
+  transition: background .12s ease;
+}
+.dash-models li:hover { background: var(--selected-bg); }
+.dash-model-link { flex: 1; min-width: 0; color: var(--body-fg); font-size: 14px; text-decoration: none; }
+.dash-model-link:hover { color: var(--link-fg); }
+.dash-actions { display: flex; gap: 5px; }
+.dash-act {
+  font-size: 11px; font-weight: 700;
+  padding: 3px 10px; border-radius: 999px;
+  border: 1px solid var(--hairline-color);
+  color: var(--body-quiet-color);
+  text-decoration: none;
+  background: var(--body-bg);
+  transition: all .12s ease;
+}
+.dash-act:hover { border-color: currentColor; }
+.dash-act.is-add { color: var(--accent); }
+.dash-act.is-add:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+.dash-act.is-change { color: var(--primary); }
+.dash-act.is-change:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+.dash-act.is-view { color: var(--body-quiet-color); }
+.dash-act.is-view:hover { background: var(--surface-2); color: var(--primary); }
+
+.dash-title { margin: 6px 0 0; font-size: 27px; }
+.dash-sub { margin: 6px 0 22px; color: var(--body-quiet-color); font-size: 13.5px; }
+
+.dash-recent { margin-top: 20px; }
+.dash-recent .actionlist { list-style: none; margin: 0; padding: 8px; }
+.dash-recent .actionlist li {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 9px 11px; border-radius: 9px; font-size: 13.5px;
+  flex-wrap: wrap;
+}
+.dash-recent .actionlist li:hover { background: var(--selected-bg); }
+.dash-recent .act-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--body-quiet-color); flex: 0 0 8px; align-self: center;
+}
+.dash-recent .actionlist li.addlink .act-dot { background: var(--accent); }
+.dash-recent .actionlist li.changelink .act-dot { background: var(--primary); }
+.dash-recent .actionlist li.deletelink .act-dot { background: var(--delete-button-bg); }
+.dash-recent .act-meta { color: var(--body-quiet-color); font-size: 12.5px; margin-left: auto; }
+.dash-empty { color: var(--body-quiet-color); font-size: 13.5px; padding: 8px 12px; margin: 0; }
+
+/* ---------- login ------------------------------------------------------ */
+/* login now renders the shared topbar: card centers below it, not over it */
+body.login {
+  background:
+    radial-gradient(1000px 500px at 15% -10%, rgba(42, 157, 143, .16), transparent 60%),
+    radial-gradient(800px 500px at 110% 20%, rgba(15, 76, 129, .18), transparent 55%),
+    var(--page-bg);
+}
+body.login #container { min-height: 100vh; display: flex; flex-direction: column; }
+body.login main { flex: 1; display: flex; align-items: center; justify-content: center; }
+.login .main, .login #content-start { width: 100%; }
+.login #content { max-width: 420px; width: 100%; margin: 0 auto; padding: 0 16px; position: static; }
+.login-card {
+  background: var(--body-bg);
+  border: 1px solid var(--hairline-color);
+  border-radius: 18px;
+  box-shadow: 0 18px 50px rgba(16, 42, 67, .18);
+  padding: 34px 32px 26px;
+  margin: 40px 0;
+}
+.login-card-head { display: flex; align-items: center; gap: 13px; margin-bottom: 22px; }
+.login-card-head .brand-chip-lg {
+  width: 46px; height: 46px; border-radius: 13px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: #fff; font-weight: 800; font-size: 17px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.login-card-head h1 { margin: 0; font-size: 19px; font-weight: 800; color: var(--body-fg); }
+.login-card-head p { margin: 2px 0 0; font-size: 12.5px; color: var(--body-quiet-color); }
+/* ENG/MM + theme row left over from the removed topbar (admin login has no
+   menu bar — those global styles are white-on-gradient, so re-tone them for
+   the login background in both themes) */
+.login-toprow { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 26px; }
+.login-toprow form { margin: 0; }
+.login .login-toprow .lang-switch { border-color: var(--hairline-color); }
+.login .login-toprow .lang-switch button { color: var(--body-medium-color); }
+.login .login-toprow .lang-switch button.on { background: var(--surface-2); color: var(--body-fg); }
+.login .login-toprow .toggle-theme { border-color: var(--hairline-color); color: var(--body-medium-color); }
+.login .login-toprow .toggle-theme:hover { background: var(--surface-2); color: var(--body-fg); }
+.login .login-card { margin-top: 14px; }
+.login .form-row { padding: 10px 0; }
+.login .form-row label { display: block; margin-bottom: 6px; }
+.login .form-row input[type="text"], .login .form-row input[type="password"] { width: 100%; box-sizing: border-box; }
+.login .submit-row { border: 0; box-shadow: none; background: transparent; padding: 16px 0 0; position: static; }
+.login .submit-row input[type="submit"] {
+  width: 100%; background: var(--accent-strong); border-color: var(--accent-strong-hover);
+  font-size: 14.5px; padding: 11px;
+}
+.login .submit-row input[type="submit"]:hover { background: var(--accent-strong-hover); }
+.login .password-reset-link { font-size: 12.5px; padding-top: 8px; }
+.login .errornote { margin-bottom: 14px; }
+.login-back { margin: 22px 0 0; padding-top: 16px; border-top: 1px solid var(--hairline-color); font-size: 12.5px; text-align: center; }
+.login-back a { color: var(--body-quiet-color); text-decoration: none; }
+.login-back a:hover { color: var(--primary); }
+
+/* ---------- changelist toolbar fine-tune (design pass 2) --------------- */
+/* date hierarchy as chips (beats .change-list .toplinks (0,2,0) + Django's
+   #changelist .toplinks (1,1,0) border-bottom via equal specificity + later
+   position — theme sits in extrahead, after changelists.css in extrastyle) */
+#changelist .toplinks {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 7px;
+  padding: 10px 18px 12px;
+  border-bottom: 1px solid var(--hairline-color);
+  font-weight: 600;
+}
+.toplinks-label {
+  font-size: 10.5px; font-weight: 800; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--body-quiet-color); margin-right: 2px;
+}
+#changelist .toplinks a {
+  border: 1px solid var(--hairline-color); border-radius: 999px;
+  padding: 4px 12px; font-size: 12.5px; font-weight: 600;
+  color: var(--body-medium-color); background: var(--body-bg);
+  text-decoration: none; transition: all .12s ease;
+}
+#changelist .toplinks a:hover { border-color: var(--primary); color: var(--primary); background: var(--selected-bg); }
+#changelist .toplinks a.date-back { color: var(--body-quiet-color); border-style: dashed; }
+#changelist .toplinks .toplinks-current {
+  padding: 4px 12px; font-size: 12.5px; font-weight: 700;
+  color: var(--primary); background: var(--selected-bg); border-radius: 999px;
+}
+/* search placeholder (label img is hidden above) */
+#searchbar::placeholder { color: var(--body-quiet-color); opacity: 1; }
+
+/* actions bar: card row instead of Django's bare #changelist .actions
+   (1,1,0) — mirror that selector so ours wins, then theme later wins ties */
+#changelist .actions {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  width: auto; margin: 12px 18px 0; padding: 10px 14px;
+  background: var(--darkened-bg); border: 1px solid var(--hairline-color);
+  border-radius: var(--radius); font-size: 13px; line-height: normal;
+}
+#changelist .actions label {
+  display: flex; gap: 8px; align-items: center;
+  font-size: 10.5px; font-weight: 800; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--body-quiet-color);
+  vertical-align: middle;
+}
+#changelist .actions select {
+  height: auto; min-width: 220px; margin: 0; padding: 8px 11px;
+  vertical-align: middle;
+}
+#changelist .actions .button {
+  height: auto; margin: 0; padding: 8px 16px; border-radius: 8px;
+  font-size: 13px; background: var(--primary); color: #fff;
+  box-shadow: none; vertical-align: middle;
+}
+#changelist .actions .button:hover { background: var(--button-hover-bg); border-color: var(--button-hover-bg); }
+#changelist .actions span.action-counter { margin-left: auto; font-size: 12.5px; color: var(--body-quiet-color); }
+
+/* filter rail extra actions (Show counts / Clear all filters) as pills */
+#changelist-filter-extra-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+#changelist-filter-extra-actions h3 { margin: 0; }
+#changelist-filter-extra-actions a {
+  display: inline-flex; align-items: center; padding: 4px 11px;
+  border: 1px solid var(--hairline-color); border-radius: 999px;
+  background: var(--body-bg); background-image: none;
+  color: var(--body-medium-color); font-size: 12px; font-weight: 600;
+  text-decoration: none;
+}
+#changelist-filter-extra-actions a:hover { border-color: var(--primary); color: var(--primary); background: var(--selected-bg); }
+
+/* empty state for zero-row changelists (admin/change_list_results.html) */
+.cl-empty-wrap { display: flex; justify-content: center; padding: 26px 18px 34px; }
+.cl-empty { text-align: center; max-width: 420px; color: var(--body-quiet-color); }
+.cl-empty-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 62px; height: 62px; border-radius: 16px;
+  background: var(--selected-bg); color: var(--primary); margin-bottom: 12px;
+}
+.cl-empty-title { margin: 0 0 5px; font-size: 16px; font-weight: 700; color: var(--body-loud-color); }
+.cl-empty-sub { margin: 0; font-size: 13.5px; line-height: 1.6; }
+.cl-empty-clear {
+  display: inline-block; margin-top: 12px; padding: 7px 15px;
+  border: 1px solid var(--hairline-color); border-radius: 8px;
+  background: var(--body-bg); color: var(--primary);
+  font-size: 12.5px; font-weight: 600; text-decoration: none;
+}
+.cl-empty-clear:hover { border-color: var(--primary); background: var(--selected-bg); }
+
+/* ---------- responsive ------------------------------------------------- */
+@media (max-width: 1023px) {
+  .anav { display: none; }  /* topbar keeps the global nav; dashboard keeps the model tree */
+  #content { padding: 20px 18px 44px; }
+}
+@media (max-width: 900px) {
+  .module#changelist, .module#changelist:not(.filtered) { grid-template-columns: minmax(0, 1fr); }
+  #changelist-filter { border-left: 0; border-top: 1px solid var(--hairline-color); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+  .page-head { padding-right: 0; }
+  ul.object-tools { position: static; margin: 0 0 12px; }
+}
+@media (max-width: 767px) {
+  #content { padding: 14px; }
+  .dash-grid { grid-template-columns: 1fr; }
+  .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .results thead { display: none; }
+  .results tbody tr { display: block; border: 1px solid var(--hairline-color); border-radius: 10px; margin-bottom: 8px; padding: 4px 0; }
+  .results tbody td { display: flex; justify-content: space-between; gap: 12px; border-bottom: 0; padding: 6px 12px; }
+  .results tbody td::before {
+    content: attr(data-label);
+    font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--body-quiet-color); font-weight: 700;
+    /* label column keeps its words whole; only the value wraps */
+    flex: 0 0 auto; white-space: nowrap; overflow-wrap: normal;
+    text-align: left;
+  }
+  .results tbody td { text-align: right; }
+  .results tbody td > * { margin-left: auto; }
+  .results tbody td:first-child::before { content: none; }
+  .submit-row { position: static; }
+}
+</style>

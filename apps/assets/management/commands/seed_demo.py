@@ -13,10 +13,73 @@ CATEGORIES = [
     ("IT-HW-LAP", "Laptop"),
     ("IT-HW-DSK", "Desktop / Workstation"),
     ("IT-HW-MON", "Monitor"),
-    ("IT-HW-SRV", "Server"),
+    ("IT-HW-SRV", "Physical Server"),
     ("IT-HW-PER", "Peripheral"),
     ("IT-CON", "Consumable"),
+    # §5 catalogue categories (migration 0008 ships their field schemas)
+    ("IT-HW-WKS", "Workstation"),
+    ("IT-HW-VM", "Virtual Machine"),
+    ("IT-HW-PRN", "Printer / Scanner / MFP"),
+    ("IT-NET-SW", "Network Switch"),
+    ("IT-NET-RT", "Router"),
+    ("IT-NET-FW", "Firewall / Security Appliance"),
+    ("IT-NET-AP", "Wireless Access Point"),
+    ("IT-STG-NAS", "NAS / Storage Appliance"),
+    ("IT-HW-UPS", "UPS"),
+    ("IT-HW-MOB", "Mobile Phone / Tablet"),
+    ("IT-SW-LIC", "Software License / Subscription"),
+    ("IT-OTHER", "Other Physical Asset"),
 ]
+
+# Deterministic sample values for the four demo categories (§5 catalogue
+# field keys) so detail pages and reports show realistic specifications.
+DEMO_SPECS = {
+    "IT-HW-LAP": {
+        "cpu_manufacturer": "Intel",
+        "cpu_model": "Intel Core i5-1335U",
+        "cpu_cores": 10,
+        "ram_capacity_gb": 16.0,
+        "ram_type": "DDR4",
+        "storage_1_type": "NVMe SSD",
+        "storage_1_capacity_gb": 512,
+        "screen_size_in": 14.0,
+        "screen_resolution": "1920x1080",
+        "touchscreen": False,
+        "battery_health_pct": 87,
+        "battery_condition": "Good",
+        "os_name": "Windows 11 Pro",
+        "device_encryption": "Enabled",
+    },
+    "IT-HW-DSK": {
+        "cpu_manufacturer": "AMD",
+        "cpu_model": "Ryzen 7 7700",
+        "cpu_cores": 8,
+        "ram_capacity_gb": 32.0,
+        "ram_type": "DDR5",
+        "storage_1_type": "NVMe SSD",
+        "storage_1_capacity_gb": 1000,
+        "os_name": "Windows 11 Pro",
+        "os_version": "23H2",
+    },
+    "IT-HW-MON": {
+        "screen_size_in": 27.0,
+        "panel_type": "IPS",
+        "native_resolution": "2560x1440",
+        "refresh_rate_hz": 75,
+        "video_inputs": ["HDMI", "DisplayPort"],
+    },
+    "IT-HW-SRV": {
+        "server_role": "Virtualization",
+        "chassis_form_factor": "Rack",
+        "cpu_model": "Intel Xeon Silver 4310",
+        "ram_capacity_gb": 128.0,
+        "ram_type": "DDR4",
+        "os_name": "VMware ESXi",
+        "os_version": "8.0",
+        "rack_location": "DC1",
+        "rack_unit": "U22",
+    },
+}
 
 SITES = [
     ("yangon", "Yangon HQ"),
@@ -63,6 +126,7 @@ class Command(BaseCommand):
                 purchase_date=today - timedelta(days=rng.randint(30, 1400)),
                 cost=rng.randint(5, 30) * 100,
                 warranty_end=date(2026, 1, 1) + timedelta(days=rng.randint(0, 700)),
+                attrs=dict(DEMO_SPECS.get(cat.code)) if n % 3 == 0 else {},
             )
             made += 1
         self.stdout.write(self.style.SUCCESS(f"Seeded {made} assets."))

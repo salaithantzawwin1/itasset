@@ -94,7 +94,7 @@ def test_technician_can_create_asset_but_not_site(client, django_user_model, gro
     assert client.get(URLS["site_create"]).status_code == 403
 
     site = _site()
-    cat = Category.objects.create(code="IT-HW-LAP", name="Laptop")
+    cat = Category.objects.get_or_create(code="IT-HW-LAP", defaults={"name": "Laptop"})[0]
     r = client.post(
         URLS["asset_create"],
         {
@@ -266,7 +266,7 @@ def test_request_carve_out_own_site_only(client, django_user_model, db, settings
     settings.SCOPE_ENFORCEMENT_ENABLED = True  # shadow mode would allow all
     own = Site.objects.create(name="Own", code="own")
     other = Site.objects.create(name="Other", code="other")
-    cat = Category.objects.create(code="IT-HW-PER", name="Peripheral")
+    cat = Category.objects.get_or_create(code="IT-HW-PER", defaults={"name": "Peripheral"})[0]
     emp = django_user_model.objects.create_user("emp1", "e@x.dev", "pass12345!")
     Person.objects.create(employee_no="E777", name="Emp", site=own, user=emp)
     _login(client, emp)

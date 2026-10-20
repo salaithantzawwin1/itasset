@@ -1,0 +1,52 @@
+{% load i18n %}
+{# Overridden from django's change_list_results.html: identical to Django 5.2 except the {% else %} empty-state branch. Keep template comments single-line and never nest comment markers inside them (Django's comment regex is non-greedy and single-line: a nested marker ends the comment early and the tail renders as literal text). #}
+{% if result_hidden_fields %}
+<div class="hiddenfields">{# DIV for HTML validation #}
+{% for item in result_hidden_fields %}{{ item }}{% endfor %}
+</div>
+{% endif %}
+{% if results %}
+<div class="results">
+<table id="result_list">
+<thead>
+<tr>
+{% for header in result_headers %}
+<th scope="col"{{ header.class_attrib }}>
+   {% if header.sortable and header.sort_priority > 0 %}
+       <div class="sortoptions">
+         <a class="sortremove" href="{{ header.url_remove }}" title="{% translate "Remove from sorting" %}"></a>
+         {% if num_sorted_fields > 1 %}<span class="sortpriority" title="{% blocktranslate with priority_number=header.sort_priority %}Sorting priority: {{ priority_number }}{% endblocktranslate %}">{{ header.sort_priority }}</span>{% endif %}
+         <a href="{{ header.url_toggle }}" class="toggle {{ header.ascending|yesno:'ascending,descending' }}" title="{% translate "Toggle sorting" %}"></a>
+       </div>
+   {% endif %}
+   <div class="text">{% if header.sortable %}<a href="{{ header.url_primary }}">{{ header.text|capfirst }}</a>{% else %}<span>{{ header.text|capfirst }}</span>{% endif %}</div>
+   <div class="clear"></div>
+</th>{% endfor %}
+</tr>
+</thead>
+<tbody>
+{% for result in results %}
+{% if result.form and result.form.non_field_errors %}
+    <tr><td colspan="{{ result|length }}">{{ result.form.non_field_errors }}</td></tr>
+{% endif %}
+<tr>{% for item in result %}{{ item }}{% endfor %}</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% else %}
+<div class="results cl-empty-wrap">
+  <div class="cl-empty">
+    <span class="cl-empty-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><path d="M3 8l2.4-3.2A2 2 0 0 1 7.1 4h9.8a2 2 0 0 1 1.7.8L21 8"/><path d="M3 8h5l1.2 2.4h5.6L16 8h5"/></svg>
+    </span>
+    {% if cl.query or cl.has_active_filters %}
+    <p class="cl-empty-title">{% translate "No results found" %}</p>
+    <p class="cl-empty-sub">{% translate "Nothing matches your search or filters." %}<br><a class="cl-empty-clear" href="?">{% translate "Clear search and filters" %}</a></p>
+    {% else %}
+    <p class="cl-empty-title">{% blocktranslate with name=cl.opts.verbose_name_plural|capfirst %}No {{ name }} yet{% endblocktranslate %}</p>
+    <p class="cl-empty-sub">{% translate "New records appear here as soon as they are added." %}</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}

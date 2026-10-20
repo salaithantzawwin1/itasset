@@ -3,6 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    // default "auto"/system — same contract as admin/js/theme.js and base.html
+    (function () {
+      var t = localStorage.getItem('theme') || 'auto';
+      if (t === 'auto') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
   <title>{% t "login.signin" %} — {% t "app.name" %}</title>
   <style>
     :root { --primary:#0a355c; --primary2:#0f4c81; --accent:#2a9d8f; --danger:#c0392b; --text:#1f2d3d; --muted:#6b7a8d; }
@@ -49,7 +57,7 @@
           <button type="submit" name="lang" value="my" class="{% if request.session.lang == 'my' %}on{% endif %}">MM</button>
         </div>
       </form>
-      <button class="toggle-theme" title="Light / Dark">◐</button>
+      <button class="toggle-theme" title="Light / Dark / System">◐</button>
     </div>
     <div class="brandrow">
       <span class="logo">IT</span>
@@ -72,14 +80,22 @@
   </div>
   <script>
     (function() {
-      var saved = localStorage.getItem('theme');
-      if (saved === 'dark') { document.documentElement.setAttribute('data-theme','dark'); document.body.classList.add('theme-dark'); }
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      function resolve(t) { return t === 'auto' ? (mq.matches ? 'dark' : 'light') : t; }
+      function applyTheme() {
+        var t = resolve(localStorage.getItem('theme') || 'auto');
+        document.documentElement.setAttribute('data-theme', t);
+        document.body.classList.toggle('theme-dark', t === 'dark');
+      }
+      applyTheme();
+      if (mq.addEventListener) mq.addEventListener('change', applyTheme);
+      else if (mq.addListener) mq.addListener(applyTheme);
       document.querySelector('.toggle-theme').addEventListener('click', function() {
-        var el = document.documentElement;
-        var next = (el.getAttribute('data-theme') === 'dark') ? 'light' : 'dark';
-        el.setAttribute('data-theme', next);
-        document.body.classList.toggle('theme-dark', next === 'dark');
+        var ORDER = ['light', 'dark', 'auto'];
+        var cur = localStorage.getItem('theme') || 'auto';
+        var next = ORDER[(ORDER.indexOf(cur) + 1) % ORDER.length];
         localStorage.setItem('theme', next);
+        applyTheme();
       });
     })();
   </script>

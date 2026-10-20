@@ -13,9 +13,9 @@
 |---|---|
 | Current milestone | M8 — Go-live |
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
-| Last updated | 2026-10-17 |
+| Last updated | 2026-10-19 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **275 passed + 1 skipped + 69 subtests** (2026-10-17, local sqlite override, 211 s, exit 0; server: see session log) |
+| Test suite | **335 passed + 85 subtests** (2026-10-19, local, 249 s, exit 0; server: see session log) |
 
 ---
 
@@ -185,6 +185,31 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-19 (session 18 — admin redesign v2 + live KPI dashboard)
+- **Admin shell rebuilt around a model sidebar** (`apps/core/templatetags/admin_nav.py`):
+  every admin page carries the same permission-filtered app/model tree (from
+  `admin.site.get_app_list`, so scoped ModelAdmin gates still apply), with the
+  current app expanded and the current model highlighted; collapses below 1024 px.
+- **Dashboard**: six live KPI cards (total/active/assigned assets, pending requests,
+  overdue loans, warranty ≤30 d) from a `{% admin_stats %}` tag, page-eyebrow header,
+  refined app cards and recent actions; KPI grid is 3×2 on desktop, 2-col, then 1-col.
+- **Page headers + forms**: shared eyebrow/h1/subtitle header, object tools aligned to it;
+  fieldsets use a 210 px label / field grid on ≥960 px (the 22-field spec fieldset reads
+  twice as fast); sticky save bar on long forms; refined changelist toolbar, filter rail
+  (custom chevrons), badges and pagination.
+- **One language per page**: new `SessionLocaleMiddleware` makes Django's admin chrome
+  follow the same ENG/MM session switch as `{% t %}` (English when unset) — the admin no
+  longer mixed Burmese headings with English content. Location is derived from the
+  session key only, not cookies.
+- `Category` plural fixed (`categorys` → `categories`, migration `assets.0009`).
+- Fixed two layout defects found in browser verification: the shared topbar was being
+  flex-shrunk to 35 px by `#container` (breaking every sticky offset), and a sticky
+  `thead` inside the auto-scrolling `.results` container overlapped the first row.
+- Gates: ruff check + format clean, **335 passed + 85 subtests, exit 0** (4 new admin tests).
+- Deployed to 192.168.100.142: DB backup first, `assets.0009` applied, services restarted,
+  post-deploy probe **26 ok / 0 failed**, admin verified live (dashboard, changelist,
+  change form, ENG↔MM switch).
 
 ### 2026-10-17 (session 17 — the last §14 email rows: approvals, loan overdue, damage, transfer exception)
 - **Request awaiting approval → approvers**: `services.notify_pending_approvers`

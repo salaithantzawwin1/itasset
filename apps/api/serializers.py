@@ -69,6 +69,9 @@ class AssetSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     condition_display = serializers.CharField(source="get_condition_display", read_only=True)
     holder = serializers.SerializerMethodField()
+    # category-specific specifications (§5 catalogue → Asset.attrs), validated
+    # below through the same engine as the asset form
+    attrs = serializers.DictField(required=False)
 
     class Meta:
         model = Asset
@@ -91,6 +94,7 @@ class AssetSerializer(serializers.ModelSerializer):
             "cost",
             "warranty_end",
             "remarks",
+            "attrs",
             "version",
             "holder",
             "created_at",
@@ -99,6 +103,36 @@ class AssetSerializer(serializers.ModelSerializer):
         # `version` is the optimistic lock (Spec A §10.1): written by the view
         # after its stale-check, never taken from the payload itself.
         read_only_fields = ["id", "version", "created_at", "updated_at"]
+
+    def validate_attrs(self, value):
+        """§5 catalogue engine: types, option sets, min/max, unknown keys.
+
+        Values recorded under a previous category (keys outside the current
+        schema) are preserved — spec data is never silently deleted (§8.2).
+        """
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        from apps.assets.models import Category as _Category
+        from apps.assets.specs import merge_preserved, validate_specs
+
+        category = getattr(self.instance, "category", None)
+        raw_cat = (self.initial_data or {}).get("category_id") or (self.initial_data or {}).get(
+            "category"
+        )
+        if isinstance(raw_cat, _Category):
+            category = raw_cat
+        elif raw_cat not in (None, ""):
+            category = _Category.objects.filter(pk=raw_cat).first() or category
+        if category is None:
+            raise serializers.ValidationError("category is required to validate specifications.")
+        try:
+            cleaned = validate_specs(category, value or {})
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(
+                getattr(exc, "message_dict", None) or exc.messages
+            ) from exc
+        old = (self.instance.attrs if self.instance else None) or {}
+        return merge_preserved(old, cleaned, category)
 
     def get_holder(self, obj) -> dict | None:
         from apps.assets.services import active_assignment

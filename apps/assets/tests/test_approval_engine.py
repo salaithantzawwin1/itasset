@@ -182,7 +182,9 @@ def test_rejection_is_final_at_any_step(make_request, actors):
 def test_rules_match_by_quantity_site_and_category(make_request, actors, site):
     big = _rule("Bulk order sign-off", step=1, min_quantity=3)
     elsewhere = _rule("Mandalay only", step=2, site=site)  # site matches this request
-    other_category = Category.objects.create(code="IT-HW-SRV", name="Server")
+    other_category = Category.objects.get_or_create(code="IT-HW-SRV", defaults={"name": "Server"})[
+        0
+    ]
     _rule("Servers only", step=3, category=other_category)  # must NOT match below
 
     small = make_request(quantity=1)

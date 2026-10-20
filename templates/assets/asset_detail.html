@@ -28,6 +28,19 @@
   </table>
 </div>
 
+{% if spec_rows %}
+<div class="card">
+  <h2>{% t "spec.title" %}</h2>
+  <table class="data">
+    <tbody>
+    {% for label, value in spec_rows %}
+      <tr><th style="width:240px;background:var(--thead-bg);">{{ label }}</th><td>{{ value }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
 {% if user.is_authenticated and can_lifecycle %}
 <div class="card">
   <h2>{% t "asset.actions" %}</h2>

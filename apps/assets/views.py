@@ -24,6 +24,7 @@ from apps.people.models import Person, Site
 from . import services
 from .forms import AssetForm, AssetRequestForm
 from .models import ApprovalDecision, Asset, AssetRequest, Assignment
+from .specs import spec_rows
 
 
 class AssetList(RoleRequiredMixin, ListView):
@@ -91,6 +92,8 @@ class AssetDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
             .select_related("to_person", "assigned_by")
             .order_by("-out_at")
         )
+        # category-specific specification values (§5 catalogue → Asset.attrs)
+        ctx["spec_rows"] = spec_rows(self.object.category, self.object.attrs)
         ctx["can_lifecycle"] = is_technician_or_admin(self.request.user)
         ctx["conditions"] = Asset.Condition.choices
         ctx["people"] = scope_list(

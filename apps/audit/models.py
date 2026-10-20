@@ -33,6 +33,7 @@ class ActivityLog(models.Model):
         ordering = ["-created_at"]
         indexes = [models.Index(fields=["content_type", "object_id"])]
         verbose_name = "activity log entry"
+        verbose_name_plural = "activity log entries"  # Django's naive plural: "entrys"
 
     def __str__(self) -> str:
         who = self.actor.username if self.actor else "system"

@@ -44,3 +44,7 @@ htmlcov/
 .vscode/
 .idea/
 .DS_Store
+
+# local dev artifacts
+.devserver.log
+screenshots/

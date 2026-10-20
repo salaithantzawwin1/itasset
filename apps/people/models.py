@@ -62,6 +62,7 @@ class Person(models.Model):
     class Meta:
         ordering = ["name"]
         verbose_name = "person"
+        verbose_name_plural = "people"  # Django's naive plural was "persons"
 
     def __str__(self) -> str:
         return f"{self.name} ({self.employee_no})"

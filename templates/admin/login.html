@@ -7,7 +7,7 @@
 
 {% block bodyclass %}{{ block.super }} login{% endblock %}
 
-{# header, breadcrumbs and sidebar are hidden — the brand lives in the card #}
+{# no shared topbar on login — the menu bar has no destination before sign-in; the ENG/MM + theme controls move into the card page (same pattern as templates/registration/login.html) #}
 {% block header %}{% endblock %}
 {% block nav-breadcrumbs %}{% endblock %}
 {% block nav-sidebar %}{% endblock %}
@@ -15,9 +15,21 @@
 {% block content_title %}{% endblock %}
 
 {% block content %}
+{# ENG/MM + theme survived the topbar removal — same ids/onclicks as partials/topbar.html so base_site's extrabody script wires them up #}
+<div class="login-toprow">
+  <form method="post" action="{% url 'set-lang' %}">
+    {% csrf_token %}
+    <input type="hidden" name="lang" id="langval" value="">
+    <div class="lang-switch">
+      <button type="button" onclick="setLang('en')" id="btn-en">ENG</button>
+      <button type="button" onclick="setLang('my')" id="btn-my">MM</button>
+    </div>
+  </form>
+  <button class="toggle-theme" id="btn-theme" title="Light / Dark / System">◐</button>
+</div>
 <div class="login-card">
   <div class="login-card-head">
-    <span class="brand-chip-lg" aria-hidden="true">IA</span>
+    <span class="brand-chip-lg" aria-hidden="true">IT</span>
     <div>
       <h1>IT Asset Manager</h1>
       <p>{% translate 'Administration' %}</p>
@@ -67,5 +79,6 @@
       <input type="submit" value="{% translate 'Log in' %}">
     </div>
   </form>
+  <p class="login-back"><a href="{% url 'home' %}">&larr; {% translate 'Back to IT Asset Manager' %}</a></p>
 </div>
 {% endblock %}

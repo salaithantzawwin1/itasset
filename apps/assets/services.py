@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from apps.assets.models import Asset, Assignment
@@ -897,6 +898,15 @@ def fulfill_request(request, *, actor, specs=None):
         tag = spec.get("asset_tag")
         if not tag:
             raise LifecycleError("each received unit needs an asset_tag (§13: system-generated)")
+        # category-specific specifications (§5 catalogue) — validated through
+        # the same engine as the asset form/API; absent attrs stay empty
+        from .specs import validate_specs as _validate_specs
+
+        attrs = spec.get("attrs") or {}
+        try:
+            attrs = _validate_specs(request.category, attrs)
+        except ValidationError as exc:
+            raise LifecycleError(f"unit {tag}: {exc.message_dict}") from exc
         asset = Asset.objects.create(
             asset_tag=tag,
             category=request.category,
@@ -909,6 +919,7 @@ def fulfill_request(request, *, actor, specs=None):
             hostname=spec.get("hostname", ""),
             cost=spec.get("cost", request.estimated_cost),
             warranty_end=spec.get("warranty_end"),
+            attrs=attrs,
         )
         request.assets.add(asset)
         created.append(asset)

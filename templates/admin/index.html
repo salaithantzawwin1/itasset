@@ -1,5 +1,5 @@
 {% extends "admin/base_site.html" %}
-{% load i18n static log %}
+{% load i18n static log admin_nav %}
 
 {% block title %}{{ block.super }}{% endblock %}
 
@@ -10,12 +10,55 @@
 
 {% block content_title %}
 {% translate 'Control panel' as default_title %}
-<h1 class="dash-title">{{ title|default:default_title }}</h1>
-<p class="dash-sub">{% translate 'Sites, assets, people, vendors and lifecycle records — everything in one place.' %}</p>
+<div class="dash-hero">
+  <span class="page-eyebrow">{% translate "Admin" %}</span>
+  <h1 class="dash-title">{{ title|default:default_title }}</h1>
+  <p class="dash-sub">{% translate 'Sites, assets, people, vendors and lifecycle records — everything in one place.' %}</p>
+</div>
 {% endblock %}
 
 {% block content %}
+{% admin_stats as st %}
 <div id="content-main">
+  <div class="kpi-grid">
+    <a class="kpi-card" href="{% url 'admin:assets_asset_changelist' %}">
+      <span class="kpi-label">{% translate "Total assets" %}</span>
+      <span class="kpi-value">{{ st.total }}</span>
+      <span class="kpi-meta">{% translate "in the register" %}</span>
+    </a>
+    {% if perms.assets.view_asset %}
+    <a class="kpi-card tone-gray" href="{% url 'admin:assets_asset_changelist' %}">
+      <span class="kpi-label">{% translate "Active" %}</span>
+      <span class="kpi-value">{{ st.active }}</span>
+      <span class="kpi-meta">{% translate "not retired or disposed" %}</span>
+    </a>
+    <a class="kpi-card tone-green" href="{% url 'admin:assets_asset_changelist' %}?status__exact=ASSIGNED">
+      <span class="kpi-label">{% translate "Assigned" %}</span>
+      <span class="kpi-value">{{ st.assigned }}</span>
+      <span class="kpi-meta">{% translate "with a holder" %}</span>
+    </a>
+    {% endif %}
+    {% if perms.assets.view_assetrequest %}
+    <a class="kpi-card tone-amber" href="{% url 'admin:assets_assetrequest_changelist' %}?status__exact=PENDING">
+      <span class="kpi-label">{% translate "Pending requests" %}</span>
+      <span class="kpi-value">{{ st.pending }}</span>
+      <span class="kpi-meta">{% translate "awaiting approval" %}</span>
+    </a>
+    {% endif %}
+    {% if perms.assets.view_assignment %}
+    <a class="kpi-card tone-red" href="{% url 'loan-overdue' %}">
+      <span class="kpi-label">{% translate "Overdue loans" %}</span>
+      <span class="kpi-value">{{ st.overdue }}</span>
+      <span class="kpi-meta">{% translate "past their due date" %}</span>
+    </a>
+    {% endif %}
+    <a class="kpi-card tone-amber" href="{% url 'asset-list' %}?warranty_days=30">
+      <span class="kpi-label">{% translate "Warranty ≤30 days" %}</span>
+      <span class="kpi-value">{{ st.warranty }}</span>
+      <span class="kpi-meta">{% translate "expiring soon" %}</span>
+    </a>
+  </div>
+
   {% if app_list %}
   <div class="dash-grid">
     {% for app in app_list %}

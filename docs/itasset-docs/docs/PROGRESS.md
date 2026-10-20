@@ -13,7 +13,7 @@
 |---|---|
 | Current milestone | M8 — Go-live |
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
-| Last updated | 2026-10-19 |
+| Last updated | 2026-10-20 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
 | Test suite | **335 passed + 85 subtests** (2026-10-19, local, 249 s, exit 0; server: see session log) |
 
@@ -185,6 +185,41 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-20 (session 19 — UI/UX fine-tune + create-in-modal)
+- **Create-in-modal** (`templates/partials/modal.html`, included from `base.html` +
+  `admin/base_site.html`): admin object-tools **Add** links, dashboard **Add** chips and
+  the site's **+ New asset / Request asset** buttons (`data-modal`) open the form in a
+  same-origin iframe dialog instead of navigating away. The partial injects a skin into
+  the framed document (hides topbar/sidebar/page-head), keeps validation errors inside
+  the dialog, and on the post-save redirect closes + refreshes the parent while
+  transplanting the flash message the iframe render would otherwise swallow; ESC/
+  backdrop close guarded by a dirty-form `confirm`. Framed pages never init a nested
+  instance (`window.top` check); Django `_popup` links and related-widget "add another"
+  are excluded. `X_FRAME_OPTIONS` flips `DENY` → `SAMEORIGIN` (CSP `frame-ancestors
+  'self'` already matched — cross-site framing stays blocked).
+- **Changelist chrome fine-tune** (the two red-boxed areas from the request): model-named
+  search placeholder (`admin/search_form.html` override), date-hierarchy links restyled
+  as chips with a "By date" caption (`admin/date_hierarchy.html`), card-style actions
+  bar with right-aligned counter, pill filter-rail actions (Show counts / Clear all),
+  and a themed **empty state** (`admin/change_list_results.html` override — a zero-row
+  changelist previously rendered a blank card) that distinguishes "nothing yet" from
+  "no matches" with a clear-filters escape.
+- **Django template gotcha, found twice in browser**: `{# ... #}` comments are
+  single-line and non-greedy — a nested marker (or multi-line body) ends the comment
+  early and the tail renders as literal text (one leaked into the empty state, one into
+  every page). All comments in the new templates are single-line, marker-free.
+- Gates: ruff check + format clean (183 files), `makemigrations --check` exit 0,
+  **335 passed + 85 subtests** locally and on the server with
+  `SCOPE_ENFORCEMENT_ENABLED=1`; browser-verified both themes (modal open/validation/
+  save/close+message, empty states, chips, placeholder).
+- Deployed to 192.168.100.142: `git -c core.autocrlf=false archive` LF sync → server
+  suite green → migrate (0 pending; `assets.0008/0009`, `audit.0004`, `people.0005`
+  already applied by session 18's worktree drop) → collectstatic (154 unmodified) →
+  gunicorn restart → probe **18 ok / 0 failed** (anon; authenticated phase needs
+  `PROBE_USER`/`PROBE_PASS`, not stored server-side) → headers verified live
+  (`X-Frame-Options: SAMEORIGIN`, CSP, correlation id) and the modal/empty-state
+  markup confirmed rendered on `/admin/login/` and `/`. Pushed `434490e..eaed9a9`.
 
 ### 2026-10-19 (session 18 — admin redesign v2 + live KPI dashboard)
 - **Admin shell rebuilt around a model sidebar** (`apps/core/templatetags/admin_nav.py`):

@@ -186,6 +186,44 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-10-21 (session 22 — tabbed asset form, calendar popup skin, icon tooltips, first authenticated probe)
+- **Tabbed create/edit form** (request: the page was one endless scroll):
+  `build_form_tabs()` in `apps/assets/views.py` buckets the form's fields into
+  **Basics / Category & specs / Device / Procurement** — `spec__*` fields join
+  the specs tab automatically, unknown future fields fall into the last tab so
+  nothing can silently vanish (unrendered fields would vanish from POST too).
+  Progressive enhancement: no JS → sections stack under their own headings;
+  with JS → strip activates, server-side errors auto-open and dot-mark their
+  section, and an invalid field in a hidden section reveals its panel before
+  the native bubble (which would otherwise be "not focusable" and invisible).
+  2–3-column grid per panel (textarea spans full width). Regression test
+  asserts tablist + all four panels + every field on both create and edit.
+- **Calendar popup re-skinned** (the follow-up request): stock `widgets.css`
+  hardcoded `background: white` on the table (a white sheet in dark mode),
+  sprite arrows and a solid accent caption — now token surfaces, ghost
+  prev/next buttons, accent-filled selected day, ring on "today", quiet
+  Yesterday/Today/Tomorrow bar and Cancel.
+- **Icon tooltips** (follow-up): native `title` bubbles replaced by themed CSS
+  bubbles (`data-tip` + `aria-label`, moved by a MutationObserver so
+  DateTimeShortcuts' late-injected calendar trigger is dressed too); had to
+  un-clip stock `forms.css`'s legacy `.form-row { overflow: hidden }` float
+  clearfix (the floats it contained live in `ul.inline`/`h3`, not form rows) —
+  it was slicing every bubble in half.
+- Gates: ruff check + format clean; **337 passed + 85 subtests** locally and
+  on the server (`SCOPE_ENFORCEMENT_ENABLED=1`); browser-verified both themes
+  (tab switching, hidden-field reveal, server-error marking, save round-trip,
+  calendar popup, tooltip bubble).
+- Deployed to 192.168.100.142 (templates only: LF archive sync → gunicorn
+  restart; no migrate/collectstatic). **First authenticated probe run** using
+  operator-supplied break-glass credentials (not stored repo- or server-side
+  config): `PROBE_USER=itadmin SKIP_THROTTLE=1` → **27 ok / 0 failed** (tokens,
+  bad-ordering 400, idempotent create replay, stale 409, PATCH 200, PROBE asset
+  cleanup), then the plain run → **18 ok / 0 failed** including the throttle
+  (429 + Retry-After 300) — **45 checks green, exit 0 on both runs**. Live
+  authed GETs: `/assets/6/edit/` serves all four panels + 34 fields (pk 2 does
+  not exist in prod data — 404, not a defect); admin change form carries the
+  tooltip script + calendar skin. Pushed `c345ee2..HEAD`.
+
 ### 2026-10-21 (session 21 — related-widget icons + date shortcuts re-skinned)
 - The change-form FK cluster (Category/Site/…) shipped Django's stock 24 px
   multicolour icons (yellow pencil, green +, red X, blue eye) and DateTimeShortcuts'

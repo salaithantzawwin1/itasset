@@ -186,6 +186,28 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-10-21 (session 21 — related-widget icons + date shortcuts re-skinned)
+- The change-form FK cluster (Category/Site/…) shipped Django's stock 24 px
+  multicolour icons (yellow pencil, green +, red X, blue eye) and DateTimeShortcuts'
+  blue "Today | calendar" pair — a rainbow that fought the redesign in both themes
+  (the request's two red boxes). `_theme.css.html` now redraws all of them as
+  monochrome `currentColor` mask icons in a 28 px ghost-button group: quiet by
+  default, accent on hover, danger-red for delete, focus ring; DOM order reworked
+  via flex `order` so the destructive action sits last. "Today" becomes a quiet
+  surface pill; the calendar icon gets the same ghost button.
+- Field-width tidy in the same red box: `Cost` (and every admin number input) is
+  capped at 220 px instead of stretching the full 560 px column; date inputs a
+  consistent 150 px. Two Django rules outranked the first draft
+  (`.related-widget-wrapper-link:link` and the theme's own 560 px grid rule) —
+  fixed with a wrapper-scoped selector and `:not([type="number"])`, no
+  `!important` needed.
+- Gates: ruff clean; admin-smoke + smoke **13 passed + 69 subtests**, full suite
+  **336 passed + 85 subtests**; browser-verified both themes (icon colors, mask
+  icons, order, Today pill, widths via computed styles + screenshots).
+- Deployed to 192.168.100.142 (CSS-in-template: LF archive sync → gunicorn
+  restart, no collectstatic/migrate): `/admin/login/` serves the new rules
+  (`field-icon` ×6), `/healthz` ok. Pushed `e8bfd12..6434406`.
+
 ### 2026-10-21 (session 20 — `<html lang>` follows the ENG/MM switch)
 - `base.html` and `registration/login.html` hardcoded `<html lang="my">` while
   `{% t %}` (and session 18's `SessionLocaleMiddleware`, which sets

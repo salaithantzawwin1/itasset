@@ -5,8 +5,9 @@ Detail page shows full assignment history (§3 handover trail).
 """
 
 from django.contrib import messages
-from django.http import Http404, HttpResponseForbidden
+from django.http import Http404, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
+from django.template.loader import render_to_string
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
@@ -23,7 +24,7 @@ from apps.people.models import Person, Site
 
 from . import services
 from .forms import AssetForm, AssetRequestForm
-from .models import ApprovalDecision, Asset, AssetRequest, Assignment
+from .models import ApprovalDecision, Asset, AssetRequest, Assignment, Category
 from .specs import SPEC_FIELD_PREFIX, spec_rows
 
 
@@ -200,13 +201,15 @@ class SelfView(RoleRequiredMixin, ListView):
         return ctx
 
 
-# Field buckets for the tabbed asset form (assets/asset_form.html). The
-# category-specific ``spec__*`` fields join the "specs" tab automatically;
-# anything not listed here falls into the last tab so a newly added model
-# field is rendered somewhere instead of silently disappearing.
+# Field buckets for the tabbed asset form (assets/asset_form.html). Category
+# leads Basics: the tag auto-assign and the spec fields both depend on it.
+# The "specs" bucket only ever holds the dynamic ``spec__*`` fields and is
+# always kept — the live swap needs its panel present even when empty. Any
+# field not listed falls into the last tab so a newly added model field is
+# rendered somewhere instead of silently disappearing.
 ASSET_FORM_TABS = (
-    ("basics", "asset.tab.basics", ["asset_tag", "status", "condition", "site"]),
-    ("specs", "asset.tab.specs", ["category"]),
+    ("basics", "asset.tab.basics", ["category", "asset_tag", "status", "condition", "site"]),
+    ("specs", "asset.tab.specs", []),
     ("device", "asset.tab.device", ["manufacturer", "model_name", "serial_no", "hostname"]),
     (
         "procurement",
@@ -220,7 +223,8 @@ def build_form_tabs(form):
     """Partition the form's fields into labelled tab panels for the template.
 
     Returns [{key, i18n_key, fields: [BoundField, ...]}, ...]; empty buckets
-    are dropped (e.g. "specs" when the category defines no specification).
+    are dropped except "specs", whose panel must exist for the live swap to
+    fill (an empty specs tab hides itself as soon as the tab script runs).
     """
     buckets = {key: [] for key, _, _ in ASSET_FORM_TABS}
     grouped = set()
@@ -238,7 +242,7 @@ def build_form_tabs(form):
     return [
         {"key": key, "i18n_key": i18n_key, "fields": buckets[key]}
         for key, i18n_key, _ in ASSET_FORM_TABS
-        if buckets[key]
+        if buckets[key] or key == "specs"
     ]
 
 
@@ -400,6 +404,43 @@ def _guard_technician(request) -> HttpResponseForbidden | None:
     if not user_has_role(request.user, "admin", "technician"):
         return HttpResponseForbidden("Technician or admin role required.")
     return None
+
+
+def asset_field_suggest(request):
+    """Spec-field fragment + next asset tag for a chosen category.
+
+    Powers the live field swap on the asset forms: picking a category GETs
+    this endpoint and the page replaces its spec fields (and, on a tagless
+    create, the auto-assigned ``<CODE>-NNNN`` tag) without a reload. Read-only,
+    but gated like the forms that consume it (technician/admin).
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+    denied = _guard_technician(request)
+    if denied:
+        return denied
+    try:
+        category = Category.objects.filter(pk=request.GET.get("category")).first()
+    except (TypeError, ValueError):
+        category = None
+    if category is None:
+        return JsonResponse({"html": "", "next_tag": None}, status=400)
+    form = AssetForm(data={"category": str(category.pk)})
+    fields = [
+        form[name] for name in form.fields if name.startswith(SPEC_FIELD_PREFIX)
+    ]
+    template = (
+        "admin/partials/spec_fields.html"
+        if request.GET.get("surface") == "admin"
+        else "partials/spec_fields.html"
+    )
+    return JsonResponse(
+        {
+            "html": render_to_string(template, {"fields": fields}, request=request),
+            "next_tag": services.next_asset_tag(category),
+            "code": category.code,
+        }
+    )
 
 
 def check_out_view(request, pk):

@@ -1,0 +1,117 @@
+<script>
+/* Category-driven asset form: live spec-field swap + per-category auto tag.
+   Config: #spec-swap-config (inside the form). Container: [data-spec-fields] —
+   a wrapper div on the main app, the panel element itself on the admin form.
+   Values in same-named spec fields survive a category switch; the tag sticks
+   once the user edits it by hand (data-auto). */
+(function () {
+  var cfg = document.getElementById("spec-swap-config");
+  if (!cfg) return;
+  var form = cfg.closest("form");
+  if (!form) return;
+  var cat = form.querySelector('[name="category"]');
+  var tag = form.querySelector('[name="asset_tag"]');
+  var container = form.querySelector("[data-spec-fields]");
+  var tabs = form.querySelector(".ftabs");
+  var surface = cfg.getAttribute("data-surface") || "main";
+  var legend = cfg.getAttribute("data-legend") || "";
+  var creating = cfg.getAttribute("data-new") === "1";
+  if (!cat || !container) return;
+
+  var seq = 0;
+
+  function specInputs(root) {
+    return Array.prototype.slice.call(root.querySelectorAll('[name^="spec__"]'));
+  }
+  function stash() {
+    var vals = {};
+    specInputs(container).forEach(function (el) {
+      if (el.type === "checkbox") { vals[el.name] = el.checked; }
+      else if (el.multiple) {
+        vals[el.name] = Array.prototype.filter
+          .call(el.options, function (o) { return o.selected; })
+          .map(function (o) { return o.value; });
+      } else { vals[el.name] = el.value; }
+    });
+    return vals;
+  }
+  function restore(vals) {
+    specInputs(container).forEach(function (el) {
+      if (!(el.name in vals)) return;
+      if (el.type === "checkbox") { el.checked = !!vals[el.name]; }
+      else if (el.multiple) {
+        Array.prototype.forEach.call(el.options, function (o) {
+          o.selected = vals[el.name].indexOf(o.value) !== -1;
+        });
+      } else { el.value = vals[el.name]; }
+    });
+  }
+  function refreshTabs() {
+    if (!tabs) return;
+    var panel = container.closest(".ftab-panel");
+    if (!panel) return;
+    var key = panel.getAttribute("data-tab-panel");
+    var tab = tabs.querySelector('.ftab[data-tab="' + key + '"]');
+    if (!tab) return;
+    var has = specInputs(container).length > 0;
+    if (!has) {
+      tab.hidden = true;
+      if (!panel.hidden) {                   // active panel emptied → move on
+        var list = tabs.querySelectorAll(".ftab"), next = null;
+        for (var i = 0; i < list.length; i++) {
+          if (list[i] !== tab && !list[i].hidden) { next = list[i]; break; }
+        }
+        if (next) next.click();
+      }
+    } else if (tab.hidden) {
+      tab.hidden = false;
+      tab.classList.add("is-new");           // subtle "fields appeared" flash
+      setTimeout(function () { tab.classList.remove("is-new"); }, 1400);
+    }
+  }
+  function autoTag(nextTag) {
+    if (!tag || !creating || !nextTag) return;
+    if (tag.getAttribute("data-auto") === "1" || !(tag.value || "").trim()) {
+      tag.value = nextTag;
+      tag.setAttribute("data-auto", "1");
+    }
+  }
+  function reload() {
+    var id = cat.value;
+    if (!id) {
+      var mine = ++seq;
+      container.innerHTML = "";
+      refreshTabs();
+      return mine;
+    }
+    var mine = ++seq;
+    fetch(
+      cfg.getAttribute("data-swap-url") +
+        "?category=" + encodeURIComponent(id) +
+        "&surface=" + encodeURIComponent(surface),
+      { headers: { "X-Requested-With": "fetch" }, credentials: "same-origin" }
+    )
+      .then(function (r) { if (!r.ok) throw new Error("suggest " + r.status); return r.json(); })
+      .then(function (json) {
+        if (mine !== seq) return;            // stale: the picker moved on
+        var vals = stash();
+        container.innerHTML = !json.html
+          ? ""
+          : surface === "admin"
+            ? '<fieldset class="module aligned"><h2 class="fieldset-heading">' + legend +
+              "</h2>" + json.html + "</fieldset>"
+            : json.html;
+        restore(vals);
+        refreshTabs();
+        autoTag(json.next_tag);
+      })
+      .catch(function () { /* leave the current fields alone */ });
+  }
+
+  if (tag) tag.addEventListener("input", function () { tag.setAttribute("data-auto", "0"); });
+  cat.addEventListener("change", reload);
+  refreshTabs();
+  // A validation re-render can arrive with a category but no tag yet.
+  if (creating && tag && !(tag.value || "").trim() && cat.value) reload();
+})();
+</script>

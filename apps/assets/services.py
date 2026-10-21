@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
-from apps.assets.models import Asset, Assignment
+from apps.assets.models import Asset, Assignment, Category
 from apps.audit.models import ActivityLog
 from apps.core.roles import user_has_role
 
@@ -84,6 +84,27 @@ class InvalidStatusTransition(AssetError):
 # ---------------------------------------------------------------------------
 # Assignment helpers
 # ---------------------------------------------------------------------------
+
+
+def next_asset_tag(category: Category) -> str:
+    """Next free tag for a category: ``<CODE>-NNNN`` (per-prefix sequence).
+
+    Scans the category's existing tags for the highest numeric suffix and
+    increments it — sparse or out-of-order numbers (seed data mixes global
+    counters into per-code prefixes) never cause a duplicate. The winner is
+    only advisory: ``Asset.asset_tag`` stays unique, so a lost race surfaces
+    as a normal form error rather than bad data.
+    """
+    prefix = f"{category.code}-"
+    highest = 0
+    tags = Asset.objects.filter(asset_tag__startswith=prefix).values_list(
+        "asset_tag", flat=True
+    )
+    for tag in tags:
+        suffix = tag[len(prefix) :]
+        if suffix.isdigit() and int(suffix) > highest:
+            highest = int(suffix)
+    return f"{prefix}{highest + 1:04d}"
 
 
 def active_assignment(asset: Asset) -> Assignment | None:

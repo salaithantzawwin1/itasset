@@ -35,6 +35,7 @@
     {% csrf_token %}
     {% if form.hidden_fields %}{{ form.hidden_fields }}{% endif %}
     {% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
+    <div id="spec-swap-config" hidden data-swap-url="{% url 'asset-field-suggest' %}" data-surface="main"{% if not object %} data-new="1"{% endif %}></div>
     <div class="ftabs" role="tablist" aria-label="{% t 'asset.details' %}">
       {% for tab in form_tabs %}
       <button type="button" class="ftab" id="ftab-{{ tab.key }}" data-tab="{{ tab.key }}"
@@ -47,14 +48,18 @@
     <section class="ftab-panel" id="panel-{{ tab.key }}" data-tab-panel="{{ tab.key }}"
              role="tabpanel" aria-labelledby="ftab-{{ tab.key }}" tabindex="0">
       <h2 class="ftab-title">{% t tab.i18n_key %}</h2>
+      {% if tab.key == "specs" %}
+      <div class="spec-fields" data-spec-fields>{% include "partials/spec_fields.html" with fields=tab.fields %}</div>
+      {% else %}
       {% for field in tab.fields %}
       <p>
         {{ field.errors }}
         <label for="{{ field.id_for_label }}">{{ field.label }}</label>
         {{ field }}
-        {% if field.help_text %}<span class="help muted">{{ field.help_text }}</span>{% endif %}
+      {% if field.help_text %}<span class="help muted">{{ field.help_text }}</span>{% endif %}
       </p>
       {% endfor %}
+      {% endif %}
     </section>
     {% endfor %}
     <div class="ftab-actions">
@@ -126,4 +131,5 @@
   activate(firstErr ? firstErr.getAttribute('data-tab-panel') : tabs[0].getAttribute('data-tab'));
 })();
 </script>
+{% include "partials/spec_swap.html" %}
 {% endblock %}

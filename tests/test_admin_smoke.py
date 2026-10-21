@@ -134,9 +134,10 @@ class AdminSmokeTests(TestCase):
 
         fieldsets = resp.context["adminform"].fieldsets
         titles = [fs[0] for fs in fieldsets]
-        # four sections; the category's spec fields merge into "Category &
-        # specs" instead of appending a fifth fieldset
-        self.assertEqual(titles, ["Basics", "Category & specs", "Device", "Procurement"])
+        # four sections, category first in Basics; the category's spec fields
+        # merge into "Specifications" instead of appending a fifth fieldset
+        self.assertEqual(titles, ["Basics", "Specifications", "Device", "Procurement"])
+        self.assertEqual(fieldsets[0][1]["fields"][0], "category")
         for i in range(len(fieldsets)):
             self.assertContains(resp, f'data-tab-panel="{i}"')
 

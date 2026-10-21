@@ -949,6 +949,24 @@ body.login main { flex: 1; display: flex; align-items: center; justify-content: 
   .results tbody td > * { margin-left: auto; }
   .results tbody td:first-child::before { content: none; }
   .submit-row { position: static; }
+
+  /* Django's responsive.css sizes form rows for a full-bleed page:
+     `.aligned .form-row > div` is calc(100vw - 30px) wide. Our rows live
+     inside a padded card (#content 14px + fieldset border + row padding 20px)
+     so that fixed width overflowed the viewport by ~50px. Let rows fill the
+     card and fields shrink to it instead. */
+  /* `#content` raises specificity: Django loads responsive.css AFTER the
+     extrastyle block, so its equal-specificity calc() rule would win on
+     source order alone. */
+  #content .aligned .form-row > div { width: auto; max-width: 100%; }
+  #content .aligned .form-row > div > .flex-container { max-width: 100%; }
+  #content .aligned .flex-container select,
+  #content .aligned .flex-container textarea,
+  #content .aligned .flex-container input:not([type="checkbox"]):not([type="radio"]) {
+    width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box;
+  }
+  #content .aligned .flex-container .related-widget-wrapper { max-width: 100%; min-width: 0; }
+  #content .aligned .flex-container .related-widget-wrapper select { min-width: 0; flex: 1 1 auto; }
 }
 /* ---------- form field extras: related-widget icons + date shortcuts ----
    Stock Django ships 24 px multicolour icons (yellow pencil, green +, red

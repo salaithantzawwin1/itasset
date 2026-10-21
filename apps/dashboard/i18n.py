@@ -137,7 +137,7 @@ STRINGS = {
     "asset.details": {"en": "Asset details", "my": "ပိုင်ဆိုင်မှု အသေးစိတ်"},
     # tabbed asset form (create/edit) — buckets in apps.assets.views
     "asset.tab.basics": {"en": "Basics", "my": "အခြေခံ"},
-    "asset.tab.specs": {"en": "Category & specs", "my": "အမျိုးအစားနှင့် Specs"},
+    "asset.tab.specs": {"en": "Specifications", "my": "သတ်မှတ်ချက်များ"},
     "asset.tab.device": {"en": "Device", "my": "စက်ပစ္စည်း"},
     "asset.tab.procurement": {"en": "Procurement", "my": "ဝယ်ယူမှု"},
     "asset.serial": {"en": "Serial", "my": "Serial"},
@@ -263,6 +263,8 @@ STRINGS = {
         "en": "Discard unsaved changes?",
         "my": "မသိမ်းရသေးသော ပြင်ဆင်မှုများကို ဖျက်မည်လား?",
     },
+    "modal.keep": {"en": "Keep editing", "my": "ဆက်လက်ပြင်မည်"},
+    "modal.discard_btn": {"en": "Discard", "my": "ဖျက်မည်"},
 }
 
 # fix the two placeholder values properly

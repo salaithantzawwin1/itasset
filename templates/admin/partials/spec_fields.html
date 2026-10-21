@@ -1,0 +1,12 @@
+{% for field in fields %}
+<div class="form-row{% if field.errors %} errors{% endif %} field-{{ field.name }}">
+  {{ field.errors }}
+  <div>
+    <div class="flex-container">
+      {{ field.label_tag }}
+      {{ field }}
+    </div>
+    {% if field.help_text %}<div class="help"><div>{{ field.help_text|safe }}</div></div>{% endif %}
+  </div>
+</div>
+{% endfor %}

@@ -85,11 +85,14 @@ class AssetAdmin(ScopedAdminMixin, admin.ModelAdmin):
     form = AssetForm
     # Tabbed change form (templates/admin/assets/asset/change_form.html turns
     # each fieldset into a tab — same sectioning as the main app's edit page).
-    # The readonly timestamps ride in the last tab to keep their old position
+    # Category leads Basics: the tag auto-assign and the spec fields both
+    # depend on it. "Specifications" starts empty (filled from the category's
+    # schema by get_fieldsets; the live swap fills it client-side on add) and
+    # the readonly timestamps ride in the last tab to keep their old position
     # at the bottom of the form.
     fieldsets = (
-        ("Basics", {"fields": ("asset_tag", "status", "condition", "site")}),
-        ("Category & specs", {"fields": ("category",)}),
+        ("Basics", {"fields": ("category", "asset_tag", "status", "condition", "site")}),
+        ("Specifications", {"fields": ()}),
         ("Device", {"fields": ("manufacturer", "model_name", "serial_no", "hostname")}),
         (
             "Procurement",
@@ -109,7 +112,7 @@ class AssetAdmin(ScopedAdminMixin, admin.ModelAdmin):
     list_filter = ("status", "condition", "site", "category")
 
     def get_fieldsets(self, request, obj=None):
-        """Merge the category's spec fields into the "Category & specs" fieldset.
+        """Merge the category's spec fields into the "Specifications" fieldset.
 
         Admin only renders fields it knows via base_fields ∪ fieldsets, while
         the dynamic spec fields live on the form *instance* (AssetForm.__init__
@@ -131,7 +134,7 @@ class AssetAdmin(ScopedAdminMixin, admin.ModelAdmin):
             names = list(build_spec_form_fields(cat))
             if names:
                 for index, (title, opts) in enumerate(fieldsets):
-                    if title == "Category & specs":
+                    if title == "Specifications":
                         opts["fields"] = tuple(opts.get("fields") or ()) + tuple(names)
                         fieldsets[index] = (title, opts)
                         break

@@ -41,6 +41,19 @@
 @keyframes nb-pop { from { opacity: 0; transform: translateY(8px) scale(.985); } }
 @media (prefers-reduced-motion: reduce) { .nb-modal-bd, .nb-modal-card { animation: none; } }
 body.nb-modal-open { overflow: hidden; }
+/* Styled discard confirm — replaces window.confirm, whose dialog was titled
+   "<origin> says" in the browser chrome. */
+.nb-modal-confirm { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(9, 18, 32, .45); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); animation: nb-fade .14s ease; }
+.nb-modal-confirm[hidden] { display: none; }
+.nb-modal-confirm-card { background: var(--surface, var(--body-bg, #fff)); color: var(--text, var(--body-fg, #1f2d3d)); border: 1px solid var(--border, var(--hairline-color, #e3e8ee)); border-radius: 14px; padding: 20px 22px; width: min(420px, 100%); box-shadow: 0 18px 50px rgba(8, 18, 33, .35); animation: nb-pop .16s cubic-bezier(.2, .9, .3, 1.15); }
+.nb-modal-confirm-card p { margin: 0 0 16px; font-size: 15px; font-weight: 600; line-height: 1.45; }
+.nb-modal-confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.nb-modal-confirm-actions button { padding: 9px 16px; border-radius: 9px; font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; border: 1px solid var(--border, var(--hairline-color, #e3e8ee)); transition: all .15s ease; }
+.nb-modal-confirm-keep { background: var(--surface-2, var(--darkened-bg, #f0f4f8)); color: var(--text, var(--body-fg, #1f2d3d)); }
+.nb-modal-confirm-keep:hover { background: var(--darkened-bg, #f4f6f9); border-color: var(--primary, #0f4c81); }
+.nb-modal-confirm-go { background: var(--danger, var(--delete-button-bg, #c0392b)); border-color: transparent; color: #fff; }
+.nb-modal-confirm-go:hover { filter: brightness(1.1); }
+.nb-modal-confirm-actions button:focus-visible { outline: 2px solid var(--primary, #0f4c81); outline-offset: 2px; }
 @media (max-width: 640px) {
   .nb-modal { padding: 0; }
   .nb-modal-card { width: 100%; height: 100%; max-height: 100%; border-radius: 0; border: 0; }
@@ -57,6 +70,15 @@ body.nb-modal-open { overflow: hidden; }
       <div class="nb-modal-loader" aria-hidden="true"></div>
       <iframe id="nb-modal-frame" name="nb-modal-frame" title=""></iframe>
     </div>
+    <div class="nb-modal-confirm" hidden role="alertdialog" aria-modal="true" aria-labelledby="nb-modal-confirm-text">
+      <div class="nb-modal-confirm-card">
+        <p id="nb-modal-confirm-text">{% t "modal.discard" %}</p>
+        <div class="nb-modal-confirm-actions">
+          <button type="button" class="nb-modal-confirm-keep" data-nb-keep>{% t "modal.keep" %}</button>
+          <button type="button" class="nb-modal-confirm-go" data-nb-discard-go>{% t "modal.discard_btn" %}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 <script>
@@ -69,6 +91,7 @@ body.nb-modal-open { overflow: hidden; }
   var frame = document.getElementById("nb-modal-frame");
   var titleEl = document.getElementById("nb-modal-title");
   var loader = modal.querySelector(".nb-modal-loader");
+  var confirmBox = modal.querySelector(".nb-modal-confirm");
   var lastTrigger = null, startPath = null, dirty = false;
 
   function isTrigger(a) {
@@ -113,6 +136,7 @@ body.nb-modal-open { overflow: hidden; }
   function close(reload) {
     if (modal.hidden) return;
     modal.hidden = true;
+    if (confirmBox) confirmBox.hidden = true;
     startPath = null;
     document.body.classList.remove("nb-modal-open");
     try { frame.src = "about:blank"; } catch (e) {}
@@ -124,7 +148,13 @@ body.nb-modal-open { overflow: hidden; }
 
   function requestClose() {
     if (modal.hidden) return;
-    if (dirty && !window.confirm(modal.getAttribute("data-nb-discard") || "")) return;
+    if (dirty && confirmBox) {
+      /* styled in-modal dialog — no native "<origin> says" alert */
+      confirmBox.hidden = false;
+      var keep = confirmBox.querySelector("[data-nb-keep]");
+      if (keep) keep.focus();
+      return;
+    }
     close(false);
   }
 
@@ -175,7 +205,24 @@ body.nb-modal-open { overflow: hidden; }
   });
 
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape" && !modal.hidden) { e.preventDefault(); requestClose(); }
+    if (e.key === "Escape" && !modal.hidden) {
+      e.preventDefault();
+      if (confirmBox && !confirmBox.hidden) { confirmBox.hidden = true; return; }  // ESC = cancel the confirm
+      requestClose();
+    }
+  });
+
+  if (confirmBox) confirmBox.addEventListener("click", function (e) {
+    var t = e.target;
+    if (!t || !t.hasAttribute) return;
+    if (t.hasAttribute("data-nb-keep")) {
+      confirmBox.hidden = true;
+      var x = modal.querySelector(".nb-modal-x");
+      if (x) x.focus();
+    } else if (t.hasAttribute("data-nb-discard-go")) {
+      confirmBox.hidden = true;
+      close(false);
+    }
   });
 
   modal.addEventListener("click", function (e) {

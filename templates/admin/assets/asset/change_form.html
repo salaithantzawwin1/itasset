@@ -1,6 +1,7 @@
 {% extends "admin/change_form.html" %}
 {# Tabbed sections for the asset form: each admin fieldset becomes one tab (mirrors the main app's edit page). Without JS the strip stays hidden and every fieldset renders stacked under its own heading. #}
 {% block field_sets %}
+<div id="spec-swap-config" hidden data-swap-url="{% url 'asset-field-suggest' %}" data-surface="admin" data-legend="Specifications"{% if not original %} data-new="1"{% endif %}></div>
 <div class="ftabs" role="tablist" aria-label="Form sections">
   {% for fieldset in adminform %}
   <button type="button" class="ftab" id="ftab-{{ forloop.counter0 }}" data-tab="{{ forloop.counter0 }}"
@@ -12,6 +13,7 @@
 </div>
 {% for fieldset in adminform %}
 <section class="ftab-panel" id="panel-{{ forloop.counter0 }}" data-tab-panel="{{ forloop.counter0 }}"
+         {% if fieldset.name == "Specifications" %}data-spec-fields{% endif %}
          role="tabpanel" aria-labelledby="ftab-{{ forloop.counter0 }}" tabindex="0">
   {% include "admin/includes/fieldset.html" with heading_level=2 prefix="fieldset" id_prefix=0 id_suffix=forloop.counter0 %}
 </section>
@@ -82,4 +84,5 @@
   activate(firstErr ? firstErr.getAttribute('data-tab-panel') : tabs[0].getAttribute('data-tab'));
 })();
 </script>
+{% include "partials/spec_swap.html" %}
 {% endblock %}

@@ -40,6 +40,19 @@ class AssetForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["cost"].localize = True
+        # ---- category first + focused: the tag and the spec fields both
+        # depend on it (auto-assign + live swap pick it up from self.data).
+        creating = self.instance is None or not self.instance.pk
+        if creating:
+            self.fields["category"].widget.attrs.setdefault("autofocus", True)
+            if self.is_bound and not (self.data.get("asset_tag") or "").strip():
+                cat = self._resolve_category()
+                if cat is not None:
+                    from . import services
+
+                    data = self.data.copy()  # QueryDict → mutable
+                    data["asset_tag"] = services.next_asset_tag(cat)
+                    self.data = data
         # ---- category-specific specification fields (§5 catalogue) --------
         self._spec_category = self._resolve_category()
         if self._spec_category is not None:

@@ -394,3 +394,69 @@ def test_form_split_into_tabs_renders_every_field(
             assert f'data-tab-panel="{key}"' in html, f"{key} panel missing from {url}"
         for name in form.fields:
             assert f'name="{name}"' in html, f"field {name} missing from {url}"
+
+
+# ------------------------------- category-driven tag auto-assign + live swap
+def test_next_asset_tag_sequences_per_category(asset_factory):
+    """<CODE>-NNNN: highest numeric suffix wins; garbage suffixes ignored."""
+    from apps.assets import services
+    from apps.assets.models import Category
+
+    lap = Category.objects.get(code="IT-HW-LAP")
+    asset_factory(asset_tag="IT-HW-LAP-0003", category=lap)
+    asset_factory(asset_tag="IT-HW-LAP-GHOST", category=lap)
+    assert services.next_asset_tag(lap) == "IT-HW-LAP-0004"
+
+
+def test_create_with_empty_tag_gets_next_category_tag(client, django_user_model, group_setup):
+    """Server-side auto-assign: a tagless create POST picks up the category's
+    next sequence (works without JS, and backs the client-side fill)."""
+    from apps.assets.models import Asset, Category
+
+    _login(client, _user(django_user_model, group_setup, "technician"))
+    cat = Category.objects.get_or_create(code="IT-HW-LAP", defaults={"name": "Laptop"})[0]
+    r = client.post(
+        URLS["asset_create"],
+        {
+            "asset_tag": "",
+            "category": cat.pk,
+            "site": _site().pk,
+            "status": "IN_STOCK",
+            "condition": "GOOD",
+        },
+    )
+    assert r.status_code == 302, r.context["form"].errors
+    assert Asset.objects.latest("pk").asset_tag == "IT-HW-LAP-0001"
+
+
+def test_field_suggest_gates_and_returns_category_fields(client, django_user_model, group_setup):
+    """The live-swap endpoint: gated like the forms (401/403), and the spec
+    fragment really differs between categories (Laptop vs Monitor)."""
+    from apps.assets.models import Category
+
+    url = "/assets/field-suggest/?category={}"
+    assert client.get(url.format(1)).status_code == 401
+
+    _login(client, _user(django_user_model, group_setup, "viewer"))
+    assert client.get(url.format(1)).status_code == 403
+
+    _login(client, _user(django_user_model, group_setup, "technician"))
+    lap = Category.objects.get(code="IT-HW-LAP")
+    mon = Category.objects.get(code="IT-HW-MON")
+
+    j_lap = client.get(url.format(lap.pk)).json()
+    j_mon = client.get(url.format(mon.pk)).json()
+    assert j_lap["next_tag"] == "IT-HW-LAP-0001"
+    assert j_mon["next_tag"] == "IT-HW-MON-0001"
+    assert 'name="spec__' in j_lap["html"] and 'name="spec__' in j_mon["html"]
+    assert j_lap["html"] != j_mon["html"], "different categories → different fields"
+
+    # main-app fragment = <p> rows; admin fragment = fieldset .form-row rows
+    assert j_lap["html"].lstrip().startswith("<p")
+    admin = client.get(url.format(lap.pk) + "&surface=admin").json()
+    assert 'class="form-row' in admin["html"]
+
+    # unknown category → 400, empty fragment
+    bad = client.get(url.format(999999))
+    assert bad.status_code == 400
+    assert bad.json()["html"] == ""

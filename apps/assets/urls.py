@@ -7,6 +7,8 @@ from . import views
 urlpatterns = [
     path("assets/", views.AssetList.as_view(), name="asset-list"),
     path("assets/new/", views.AssetCreate.as_view(), name="asset-create"),
+    # live spec-field swap + per-category tag auto-assign (category picker)
+    path("assets/field-suggest/", views.asset_field_suggest, name="asset-field-suggest"),
     path("assets/<int:pk>/", views.AssetDetail.as_view(), name="asset-detail"),
     path("assets/<int:pk>/edit/", views.AssetUpdate.as_view(), name="asset-update"),
     path("assets/<int:pk>/delete/", views.AssetDelete.as_view(), name="asset-delete"),

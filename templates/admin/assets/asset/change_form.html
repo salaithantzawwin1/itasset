@@ -1,0 +1,85 @@
+{% extends "admin/change_form.html" %}
+{# Tabbed sections for the asset form: each admin fieldset becomes one tab (mirrors the main app's edit page). Without JS the strip stays hidden and every fieldset renders stacked under its own heading. #}
+{% block field_sets %}
+<div class="ftabs" role="tablist" aria-label="Form sections">
+  {% for fieldset in adminform %}
+  <button type="button" class="ftab" id="ftab-{{ forloop.counter0 }}" data-tab="{{ forloop.counter0 }}"
+          role="tab" aria-controls="panel-{{ forloop.counter0 }}"
+          aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+    {% if fieldset.name %}{{ fieldset.name }}{% else %}Details{% endif %}<span class="dot" aria-hidden="true"></span>
+  </button>
+  {% endfor %}
+</div>
+{% for fieldset in adminform %}
+<section class="ftab-panel" id="panel-{{ forloop.counter0 }}" data-tab-panel="{{ forloop.counter0 }}"
+         role="tabpanel" aria-labelledby="ftab-{{ forloop.counter0 }}" tabindex="0">
+  {% include "admin/includes/fieldset.html" with heading_level=2 prefix="fieldset" id_prefix=0 id_suffix=forloop.counter0 %}
+</section>
+{% endfor %}
+<script>
+// Tab switching — progressive enhancement over the server-rendered fieldsets.
+(function () {
+  var main = document.getElementById('content-main');
+  if (!main) return;
+  var strip = main.querySelector('.ftabs');
+  var tabs = Array.prototype.slice.call(main.querySelectorAll('.ftab'));
+  var panels = Array.prototype.slice.call(main.querySelectorAll('.ftab-panel'));
+  var form = main.querySelector('form');
+  if (!strip || !tabs.length || !panels.length || !form) return;
+
+  function activate(key) {
+    tabs.forEach(function (t) {
+      t.setAttribute('aria-selected', t.getAttribute('data-tab') === key ? 'true' : 'false');
+    });
+    panels.forEach(function (p) { p.hidden = p.getAttribute('data-tab-panel') !== key; });
+  }
+  function panelOf(el) {
+    while (el && el !== main) {
+      if (el.nodeType === 1 && el.hasAttribute('data-tab-panel')) return el;
+      el = el.parentNode;
+    }
+    return null;
+  }
+
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { activate(t.getAttribute('data-tab')); });
+    t.addEventListener('keydown', function (e) {
+      var dir = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (!dir) return;
+      e.preventDefault();
+      var next = tabs[(i + dir + tabs.length) % tabs.length];
+      activate(next.getAttribute('data-tab'));
+      next.focus();
+    });
+  });
+
+  // Server-side validation (the admin form is novalidate): open the first
+  // fieldset carrying errors and dot-mark its tab.
+  var firstErr = null;
+  panels.forEach(function (p) {
+    if (!p.querySelector('.errorlist')) return;
+    tabs.forEach(function (t) {
+      if (t.getAttribute('data-tab') === p.getAttribute('data-tab-panel')) t.classList.add('has-errors');
+    });
+    if (!firstErr) firstErr = p;
+  });
+  var outside = form.querySelectorAll(':scope > .errorlist');
+  if (outside.length && !firstErr) firstErr = panels[0];
+
+  // Should HTML5 validation ever kick in, a hidden invalid field would block
+  // submit invisibly ("not focusable") — reveal its panel first.
+  form.addEventListener('invalid', function (e) {
+    var p = panelOf(e.target);
+    if (p && p.hidden) {
+      activate(p.getAttribute('data-tab'));
+      var el = e.target;
+      setTimeout(function () { if (el.reportValidity) el.reportValidity(); }, 0);
+    }
+  }, true);
+
+  main.classList.add('tabs-on');
+  strip.classList.add('on');
+  activate(firstErr ? firstErr.getAttribute('data-tab-panel') : tabs[0].getAttribute('data-tab'));
+})();
+</script>
+{% endblock %}

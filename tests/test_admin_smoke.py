@@ -117,3 +117,29 @@ class AdminSmokeTests(TestCase):
         from apps.assets.models import Category
 
         self.assertEqual(Category._meta.verbose_name_plural, "categories")
+
+    def test_asset_change_form_sections_into_tabs(self):
+        """The long asset form splits into one tab per fieldset — and every
+        field must still render (an unrendered field vanishes from the POST)."""
+        from django.core.management import call_command
+
+        from apps.assets.models import Asset
+
+        self.client.force_login(self.superuser)
+        call_command("seed_demo")
+        asset = Asset.objects.first()
+        resp = self.client.get(reverse("admin:assets_asset_change", args=[asset.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'role="tablist"')
+
+        fieldsets = resp.context["adminform"].fieldsets
+        titles = [fs[0] for fs in fieldsets]
+        # four sections; the category's spec fields merge into "Category &
+        # specs" instead of appending a fifth fieldset
+        self.assertEqual(titles, ["Basics", "Category & specs", "Device", "Procurement"])
+        for i in range(len(fieldsets)):
+            self.assertContains(resp, f'data-tab-panel="{i}"')
+
+        for name in ("asset_tag", "category", "manufacturer", "purchase_date", "cost", "remarks"):
+            self.assertContains(resp, f'name="{name}"')
+        self.assertContains(resp, 'name="spec__')  # merged specs really render

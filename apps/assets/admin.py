@@ -83,19 +83,45 @@ class AssetAdmin(ScopedAdminMixin, admin.ModelAdmin):
     # AssetForm carries the category's dynamic spec fields (§5 catalogue);
     # they render after the common columns and save into Asset.attrs.
     form = AssetForm
+    # Tabbed change form (templates/admin/assets/asset/change_form.html turns
+    # each fieldset into a tab — same sectioning as the main app's edit page).
+    # The readonly timestamps ride in the last tab to keep their old position
+    # at the bottom of the form.
+    fieldsets = (
+        ("Basics", {"fields": ("asset_tag", "status", "condition", "site")}),
+        ("Category & specs", {"fields": ("category",)}),
+        ("Device", {"fields": ("manufacturer", "model_name", "serial_no", "hostname")}),
+        (
+            "Procurement",
+            {
+                "fields": (
+                    "purchase_date",
+                    "cost",
+                    "warranty_end",
+                    "remarks",
+                    "created_at",
+                    "updated_at",
+                )
+            },
+        ),
+    )
     list_display = ("asset_tag", "category", "site", "status", "condition", "warranty_end")
     list_filter = ("status", "condition", "site", "category")
 
     def get_fieldsets(self, request, obj=None):
-        """Append the category's spec fields as their own fieldset.
+        """Merge the category's spec fields into the "Category & specs" fieldset.
 
         Admin only renders fields it knows via base_fields ∪ fieldsets, while
         the dynamic spec fields live on the form *instance* (AssetForm.__init__
         builds them from the category) — so they must be listed here. On a
         POST re-render the posted category is used, so values entered before
         a validation error elsewhere survive.
+
+        The class-level fieldset dicts are copied before extending them —
+        mutating them would leak the first request's spec fields into every
+        later render.
         """
-        fieldsets = list(super().get_fieldsets(request, obj))
+        fieldsets = [(title, dict(opts)) for title, opts in super().get_fieldsets(request, obj)]
         cat = None
         if obj is not None:
             cat = obj.category
@@ -104,7 +130,14 @@ class AssetAdmin(ScopedAdminMixin, admin.ModelAdmin):
         if cat is not None:
             names = list(build_spec_form_fields(cat))
             if names:
-                fieldsets.append(("Specifications", {"fields": names}))
+                for index, (title, opts) in enumerate(fieldsets):
+                    if title == "Category & specs":
+                        opts["fields"] = tuple(opts.get("fields") or ()) + tuple(names)
+                        fieldsets[index] = (title, opts)
+                        break
+                else:
+                    # the fieldset was renamed/removed — keep specs visible
+                    fieldsets.append(("Specifications", {"fields": names}))
         return fieldsets
 
     def get_form(self, request, obj=None, change=False, **kwargs):

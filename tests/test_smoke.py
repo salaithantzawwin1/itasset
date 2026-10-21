@@ -21,6 +21,27 @@ class SmokeTests(TestCase):
         call_command("seed_demo")  # idempotent
         self.assertEqual(Asset.objects.count(), 50)
 
+    def test_html_lang_follows_session_switch(self):
+        """`<html lang>` tracks the ENG/MM session key (default en, like {% t %})."""
+        resp = self.client.get("/accounts/login/")  # standalone template
+        self.assertContains(resp, '<html lang="en"')
+
+        session = self.client.session
+        session["lang"] = "my"
+        session.save()
+        resp = self.client.get("/accounts/login/")
+        self.assertContains(resp, '<html lang="my"')
+
+        resp = self.client.get("/")  # base.html page
+        if resp.status_code == 302:
+            user = get_user_model().objects.create_superuser(
+                "langtest", "lang@example.com", "pass12345!"
+            )
+            self.client.force_login(user)
+            resp = self.client.get("/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, '<html lang="my"')
+
     def test_admin_login_and_asset_crud(self):
         user = get_user_model().objects.create_superuser("admintest", "a@example.com", "pass12345!")
         self.client.force_login(user)

@@ -147,5 +147,38 @@ function setLang(l) { document.getElementById('langval').value = l; document.get
   });
 })();
 </script>
+<script>
+/* Styled tooltips for the form icon buttons: move `title` into `data-tip`
+   (CSS bubble in _theme.css.html) and keep the text as aria-label so
+   screen readers still announce it. DateTimeShortcuts injects its calendar
+   trigger *after* DOMContentLoaded, so a MutationObserver dresses that one
+   too instead of missing it. */
+(function () {
+  var SEL = ".related-widget-wrapper-link[title], .datetimeshortcuts [title]";
+  function dress(el) {
+    if (!el || el.nodeType !== 1 || !el.matches || !el.matches(SEL)) return;
+    var tip = el.getAttribute("title");
+    if (!tip) return;
+    el.setAttribute("data-tip", tip);
+    if (!el.hasAttribute("aria-label")) el.setAttribute("aria-label", tip);
+    el.removeAttribute("title");
+  }
+  function scan(root) {
+    dress(root);
+    if (root.querySelectorAll) root.querySelectorAll(SEL).forEach(dress);
+  }
+  document.addEventListener("DOMContentLoaded", function () {
+    scan(document.body);
+    new MutationObserver(function (muts) {
+      muts.forEach(function (m) {
+        if (m.type === "attributes") { dress(m.target); return; }
+        m.addedNodes.forEach(scan);
+      });
+    }).observe(document.body, {
+      childList: true, subtree: true, attributes: true, attributeFilter: ["title"]
+    });
+  });
+})();
+</script>
 {% include "partials/modal.html" %}
 {% endblock %}

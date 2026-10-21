@@ -1022,4 +1022,92 @@ body.login main { flex: 1; display: flex; align-items: center; justify-content: 
 input.vDateField { width: 150px; }
 input[type="number"] { max-width: 220px; }
 
+/* ---------- themed tooltips for the form icon buttons --------------------- */
+/* stock forms.css clips every .form-row (legacy float clearfix; the floats
+   it contained live in ul.inline/h3 instead) — bubbles would be sliced */
+fieldset.module .form-row { overflow: visible; }
+[data-tip] { position: relative; }
+[data-tip]::before {
+  content: attr(data-tip);
+  position: absolute; left: 50%; bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  background: var(--body-loud-color); color: var(--body-bg);
+  font-size: 11.5px; font-weight: 600; line-height: 1; letter-spacing: .01em;
+  padding: 6px 9px; border-radius: 6px; white-space: nowrap;
+  box-shadow: var(--shadow-lift); z-index: 70;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .15s ease .35s, visibility 0s linear .35s, transform .15s ease .35s;
+}
+[data-tip]::after {
+  content: "";
+  position: absolute; left: 50%; bottom: calc(100% + 3px);
+  transform: translateX(-50%) rotate(45deg);
+  width: 8px; height: 8px; background: var(--body-loud-color);
+  z-index: 70; opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .15s ease .35s, visibility 0s linear .35s;
+}
+[data-tip]:hover::before, [data-tip]:focus-visible::before,
+[data-tip]:hover::after, [data-tip]:focus-visible::after {
+  opacity: 1; visibility: visible;
+  transition-delay: .15s, .15s, .15s;
+}
+
+/* ---------- DateTimeShortcuts popup calendar -----------------------------
+   Stock widgets.css hardcodes `background: white` on the table (a white
+   sheet in dark mode) plus sprite arrows and a solid accent caption —
+   re-skin both themes to the card/ghost-button language above. */
+.calendarbox {
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lift);
+}
+.calendar table { background: var(--body-bg); }
+.calendar caption, .calendarbox h2 {
+  background: var(--surface-2); color: var(--body-fg);
+  padding: 7px 30px; letter-spacing: .02em;
+}
+.calendar th {
+  background: transparent; border-bottom: 1px solid var(--hairline-color);
+  font-size: 10.5px; font-weight: 700; letter-spacing: .06em; padding: 6px 4px;
+}
+.calendar td { border-top: none; }
+.calendar td a, .timelist a {
+  margin: 1px; border-radius: 6px; padding: 5px 0; color: var(--body-fg);
+}
+.calendar td a:hover, .timelist a:hover,
+.calendar td a:focus, .timelist a:focus {
+  background: var(--surface-2); color: var(--accent-strong);
+}
+.calendar td a:active, .timelist a:active { background: var(--selected-row); color: var(--body-fg); }
+.calendar td.selected a { background: var(--accent-strong); color: #fff; font-weight: 700; }
+.calendar td.nonday { background: transparent; }
+.calendar td.today a {
+  font-weight: 800; color: var(--accent-strong);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+/* sprite arrows become ghost icon buttons like the form's related links */
+.calendarbox .calendarnav-previous, .calendarbox .calendarnav-next {
+  top: 7px; width: 24px; height: 24px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; text-indent: 0; padding: 0; margin: 0;
+  font-size: 15px; font-weight: 700; line-height: 1;
+  color: var(--body-quiet-color); border-radius: 7px; text-decoration: none;
+}
+.calendarbox .calendarnav-previous:hover, .calendarbox .calendarnav-next:hover {
+  background: var(--body-bg); color: var(--accent-strong);
+}
+.calendar-shortcuts {
+  background: var(--surface-2); color: var(--body-quiet-color);
+  font-size: 11px; line-height: 1.4; padding: 7px 4px;
+}
+.calendar-shortcuts a { color: var(--body-medium-color); text-decoration: none; }
+.calendar-shortcuts a:hover { color: var(--accent-strong); }
+.calendar-cancel {
+  background: var(--body-bg); color: var(--body-quiet-color);
+  border-top: 1px solid var(--hairline-color); padding: 6px 0;
+}
+.calendar-cancel a { color: var(--body-quiet-color); font-weight: 600; }
+.calendar-cancel:hover, .calendar-cancel a:hover {
+  background: var(--surface-2); color: var(--error-fg);
+}
+
 </style>

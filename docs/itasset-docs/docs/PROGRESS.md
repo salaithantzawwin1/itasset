@@ -186,6 +186,31 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-10-21 (session 23 — admin asset form gets the same tabs)
+- Follow-up to session 22: `/admin/assets/asset/<pk>/change/` now sections the
+  same way as the main app's edit page. `AssetAdmin` declares four named
+  fieldsets (Basics / Category & specs / Device / Procurement — the readonly
+  timestamps ride in the last one, keeping their old bottom-of-form position)
+  and `get_fieldsets` merges the category's dynamic spec fields into
+  "Category & specs" **on a fresh copy** of the class-level dicts (mutating
+  them would leak the first request's spec fields into later renders); a
+  defensive fallback still appends a "Specifications" fieldset if that
+  fieldset is ever renamed.
+- New scoped template `templates/admin/assets/asset/change_form.html`
+  overrides `{% block field_sets %}`: each fieldset becomes a tab (server-
+  rendered strip, arrow-key navigation, error fieldsets auto-open + dot-mark,
+  invalid-in-hidden reveal as a backstop; no-JS → fieldsets stack under their
+  own headings). Applies to the **add form** as well, so the modal New asset
+  gets tabs too. Only asset's change form is affected — other models keep the
+  stock single-scroll layout.
+- Verified in browser both themes (tab switch, spec merge, readonly rows,
+  save round-trip, empty-Category server error auto-opening the non-default
+  tab with its dot, add form). Gates: ruff clean; **338 passed + 85
+  subtests** locally and on the server.
+- Deployed to 192.168.100.142 (sync → server suite → gunicorn restart): live
+  authed GET as `itadmin` shows tablist + 4 panels + 22 merged spec fields on
+  `/admin/assets/asset/6/change/`; `/healthz` ok. Pushed `efc2cea..8ac84ad`.
+
 ### 2026-10-21 (session 22 — tabbed asset form, calendar popup skin, icon tooltips, first authenticated probe)
 - **Tabbed create/edit form** (request: the page was one endless scroll):
   `build_form_tabs()` in `apps/assets/views.py` buckets the form's fields into

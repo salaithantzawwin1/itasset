@@ -135,6 +135,11 @@ STRINGS = {
     "asset.site": {"en": "Site", "my": "စခန်း"},
     "asset.status": {"en": "Status", "my": "အခြေအနေ"},
     "asset.details": {"en": "Asset details", "my": "ပိုင်ဆိုင်မှု အသေးစိတ်"},
+    # tabbed asset form (create/edit) — buckets in apps.assets.views
+    "asset.tab.basics": {"en": "Basics", "my": "အခြေခံ"},
+    "asset.tab.specs": {"en": "Category & specs", "my": "အမျိုးအစားနှင့် Specs"},
+    "asset.tab.device": {"en": "Device", "my": "စက်ပစ္စည်း"},
+    "asset.tab.procurement": {"en": "Procurement", "my": "ဝယ်ယူမှု"},
     "asset.serial": {"en": "Serial", "my": "Serial"},
     "asset.hostname": {"en": "Hostname", "my": "Hostname"},
     "asset.purchase": {"en": "Purchased", "my": "ဝယ်ယူသည်"},

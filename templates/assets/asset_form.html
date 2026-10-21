@@ -1,16 +1,129 @@
 {% extends "base.html" %}
 {% load t %}
 {% block title %}{% if object %}{% t "asset.edit_title" %}{% else %}{% t "asset.new_title" %}{% endif %} — {% t "app.name" %}{% endblock %}
+{% block extra_css %}
+    /* ---------- tabbed form sections (asset create/edit) ---------- */
+    /* Progressive enhancement: without JS the strip stays hidden and every
+       section renders stacked under its own heading — nothing is lost. */
+    #asset-form-card .ftabs { display: none; gap: 2px; flex-wrap: wrap; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+    #asset-form-card .ftabs.on { display: flex; }
+    .ftab { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
+            padding: 9px 13px; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--muted);
+            cursor: pointer; display: inline-flex; align-items: center; gap: 7px; border-radius: 8px 8px 0 0;
+            transition: color .15s ease, background-color .15s ease; }
+    .ftab:hover { color: var(--text); background: color-mix(in srgb, var(--primary) 8%, transparent); }
+    .ftab[aria-selected="true"] { color: var(--primary); border-bottom-color: var(--accent); }
+    .ftab:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+    .ftab .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--danger); display: none; }
+    .ftab.has-errors .dot { display: inline-block; }
+    .ftab-title { grid-column: 1 / -1; font-size: 12.5px; text-transform: uppercase; letter-spacing: .4px;
+                  color: var(--muted); font-weight: 700; margin: 6px 0 -2px; }
+    #asset-form-card.tabs-on .ftab-title { display: none; }
+    .ftab-panel { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 18px; align-items: start; }
+    .ftab-panel[hidden] { display: none; }
+    .ftab-panel p { margin: 12px 0; min-width: 0; }
+    .ftab-panel p:has(textarea) { grid-column: 1 / -1; }
+    .ftab-actions { display: flex; gap: 10px; margin-top: 18px; }
+    #asset-form-card.tabs-on form.frm { max-width: 760px; }
+{% endblock %}
 {% block content %}
 <div class="page-head">
   <div><h1>{% if object %}{% t "asset.edit_title" %}{% else %}{% t "asset.new_title" %}{% endif %}</h1><div class="sub">{% if not object %}{% t "asset.new_sub" %}{% else %}{{ object.asset_tag }}{% endif %}</div></div>
 </div>
-<div class="card">
+<div class="card" id="asset-form-card">
   <form method="post" class="frm">
     {% csrf_token %}
-    {{ form.as_p }}
-    <button class="btn" type="submit">{% t "asset.save" %}</button>
-    <a class="btn secondary" href="{% url 'asset-list' %}">{% t "asset.cancel" %}</a>
+    {% if form.hidden_fields %}{{ form.hidden_fields }}{% endif %}
+    {% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
+    <div class="ftabs" role="tablist" aria-label="{% t 'asset.details' %}">
+      {% for tab in form_tabs %}
+      <button type="button" class="ftab" id="ftab-{{ tab.key }}" data-tab="{{ tab.key }}"
+              role="tab" aria-controls="panel-{{ tab.key }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+        {% t tab.i18n_key %}<span class="dot" aria-hidden="true"></span>
+      </button>
+      {% endfor %}
+    </div>
+    {% for tab in form_tabs %}
+    <section class="ftab-panel" id="panel-{{ tab.key }}" data-tab-panel="{{ tab.key }}"
+             role="tabpanel" aria-labelledby="ftab-{{ tab.key }}" tabindex="0">
+      <h2 class="ftab-title">{% t tab.i18n_key %}</h2>
+      {% for field in tab.fields %}
+      <p>
+        {{ field.errors }}
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<span class="help muted">{{ field.help_text }}</span>{% endif %}
+      </p>
+      {% endfor %}
+    </section>
+    {% endfor %}
+    <div class="ftab-actions">
+      <button class="btn" type="submit">{% t "asset.save" %}</button>
+      <a class="btn secondary" href="{% url 'asset-list' %}">{% t "asset.cancel" %}</a>
+    </div>
   </form>
 </div>
+<script>
+// Tab switching — progressive enhancement over the server-rendered panels.
+(function () {
+  var card = document.getElementById('asset-form-card');
+  if (!card) return;
+  var form = card.querySelector('form');
+  var tabs = Array.prototype.slice.call(card.querySelectorAll('.ftab'));
+  var panels = Array.prototype.slice.call(card.querySelectorAll('.ftab-panel'));
+  if (!form || !tabs.length || !panels.length) return;
+
+  function activate(key) {
+    tabs.forEach(function (t) {
+      t.setAttribute('aria-selected', t.getAttribute('data-tab') === key ? 'true' : 'false');
+    });
+    panels.forEach(function (p) { p.hidden = p.getAttribute('data-tab-panel') !== key; });
+  }
+  function panelOf(el) {
+    while (el && el !== card) {
+      if (el.nodeType === 1 && el.hasAttribute('data-tab-panel')) return el;
+      el = el.parentNode;
+    }
+    return null;
+  }
+
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { activate(t.getAttribute('data-tab')); });
+    t.addEventListener('keydown', function (e) {
+      var dir = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (!dir) return;
+      e.preventDefault();
+      var next = tabs[(i + dir + tabs.length) % tabs.length];
+      activate(next.getAttribute('data-tab'));
+      next.focus();
+    });
+  });
+
+  // Server-side validation: open the first section carrying errors and mark
+  // its tab, so a failed save never lands on a clean-looking page.
+  var firstErr = null;
+  panels.forEach(function (p) {
+    if (!p.querySelector('.errorlist')) return;
+    tabs.forEach(function (t) {
+      if (t.getAttribute('data-tab') === p.getAttribute('data-tab-panel')) t.classList.add('has-errors');
+    });
+    if (!firstErr) firstErr = p;
+  });
+
+  // Native HTML5 validation on a hidden section reports "not focusable" and
+  // blocks the submit invisibly — reveal the section first, then the bubble.
+  form.addEventListener('invalid', function (e) {
+    var p = panelOf(e.target);
+    if (p && p.hidden) {
+      activate(p.getAttribute('data-tab-panel'));
+      var el = e.target;
+      setTimeout(function () { if (el.reportValidity) el.reportValidity(); }, 0);
+    }
+  }, true);
+
+  card.classList.add('tabs-on');
+  card.querySelector('.ftabs').classList.add('on');
+  activate(firstErr ? firstErr.getAttribute('data-tab-panel') : tabs[0].getAttribute('data-tab'));
+})();
+</script>
 {% endblock %}

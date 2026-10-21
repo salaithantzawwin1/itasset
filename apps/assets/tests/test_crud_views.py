@@ -368,3 +368,29 @@ def test_my_requests_show_progress_stages(client, django_user_model, group_setup
     assert p["label_key"] == "prog.rejected"
     assert [s["state"] for s in p["stages"]] == ["done", "failed", "todo", "todo"]
     assert "Rejected at approval" in client.get("/me/").content.decode()
+
+
+# ------------------------------------------- tabbed create/edit form (sections)
+def test_form_split_into_tabs_renders_every_field(
+    client, django_user_model, group_setup, asset_factory
+):
+    """The edit/create page is sectioned into tabs — and a bucketing bug must
+    never silently drop a field (unrendered fields also vanish from POST)."""
+    from apps.assets.forms import AssetForm
+
+    _login(client, _user(django_user_model, group_setup, "admin"))
+    asset = asset_factory()
+
+    # edit carries the instance's category → spec fields; create has no
+    # category chosen yet → only the base fields (specs attach on POST).
+    cases = (
+        (f"/assets/{asset.pk}/edit/", AssetForm(instance=asset)),
+        ("/assets/new/", AssetForm()),
+    )
+    for url, form in cases:
+        html = client.get(url).content.decode()
+        assert 'role="tablist"' in html, url
+        for key in ("basics", "specs", "device", "procurement"):
+            assert f'data-tab-panel="{key}"' in html, f"{key} panel missing from {url}"
+        for name in form.fields:
+            assert f'name="{name}"' in html, f"field {name} missing from {url}"

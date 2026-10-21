@@ -24,7 +24,7 @@ from apps.people.models import Person, Site
 from . import services
 from .forms import AssetForm, AssetRequestForm
 from .models import ApprovalDecision, Asset, AssetRequest, Assignment
-from .specs import spec_rows
+from .specs import SPEC_FIELD_PREFIX, spec_rows
 
 
 class AssetList(RoleRequiredMixin, ListView):
@@ -200,7 +200,59 @@ class SelfView(RoleRequiredMixin, ListView):
         return ctx
 
 
-class AssetCreate(RoleRequiredMixin, CreateView):
+# Field buckets for the tabbed asset form (assets/asset_form.html). The
+# category-specific ``spec__*`` fields join the "specs" tab automatically;
+# anything not listed here falls into the last tab so a newly added model
+# field is rendered somewhere instead of silently disappearing.
+ASSET_FORM_TABS = (
+    ("basics", "asset.tab.basics", ["asset_tag", "status", "condition", "site"]),
+    ("specs", "asset.tab.specs", ["category"]),
+    ("device", "asset.tab.device", ["manufacturer", "model_name", "serial_no", "hostname"]),
+    (
+        "procurement",
+        "asset.tab.procurement",
+        ["purchase_date", "cost", "warranty_end", "remarks"],
+    ),
+)
+
+
+def build_form_tabs(form):
+    """Partition the form's fields into labelled tab panels for the template.
+
+    Returns [{key, i18n_key, fields: [BoundField, ...]}, ...]; empty buckets
+    are dropped (e.g. "specs" when the category defines no specification).
+    """
+    buckets = {key: [] for key, _, _ in ASSET_FORM_TABS}
+    grouped = set()
+    for key, _, names in ASSET_FORM_TABS:
+        for name in names:
+            if name in form.fields:
+                buckets[key].append(form[name])
+                grouped.add(name)
+    last_key = ASSET_FORM_TABS[-1][0]
+    for name in form.fields:
+        if name in grouped:
+            continue
+        target = "specs" if name.startswith(SPEC_FIELD_PREFIX) else last_key
+        buckets[target].append(form[name])
+    return [
+        {"key": key, "i18n_key": i18n_key, "fields": buckets[key]}
+        for key, i18n_key, _ in ASSET_FORM_TABS
+        if buckets[key]
+    ]
+
+
+class FormTabsMixin:
+    """Expose build_form_tabs() as ``form_tabs`` for asset_form.html."""
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        if ctx.get("form") is not None:
+            ctx["form_tabs"] = build_form_tabs(ctx["form"])
+        return ctx
+
+
+class AssetCreate(FormTabsMixin, RoleRequiredMixin, CreateView):
     roles_required = ("admin", "technician")
     model = Asset
     form_class = AssetForm
@@ -313,7 +365,7 @@ class OverdueLoans(RoleRequiredMixin, ListView):
         return ctx
 
 
-class AssetUpdate(ScopeGuardMixin, RoleRequiredMixin, UpdateView):
+class AssetUpdate(FormTabsMixin, ScopeGuardMixin, RoleRequiredMixin, UpdateView):
     roles_required = ("admin", "technician")
     scope_action = "asset_update"
     model = Asset

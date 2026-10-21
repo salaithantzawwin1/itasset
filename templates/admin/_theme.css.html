@@ -441,7 +441,7 @@ fieldset.module .form-row label { display: block; margin-bottom: 0; }
   fieldset.module .form-row > div > .flex-container:not(.form-multiline):not(.checkbox-row) > label {
     text-align: right; padding-top: 9px;
   }
-  fieldset.module .form-row > div > .flex-container:not(.form-multiline):not(.checkbox-row) > input:not([type="checkbox"]),
+  fieldset.module .form-row > div > .flex-container:not(.form-multiline):not(.checkbox-row) > input:not([type="checkbox"]):not([type="number"]),
   fieldset.module .form-row > div > .flex-container:not(.form-multiline):not(.checkbox-row) > select,
   fieldset.module .form-row > div > .flex-container:not(.form-multiline):not(.checkbox-row) > .related-widget-wrapper {
     max-width: 560px;
@@ -950,4 +950,76 @@ body.login main { flex: 1; display: flex; align-items: center; justify-content: 
   .results tbody td:first-child::before { content: none; }
   .submit-row { position: static; }
 }
+/* ---------- form field extras: related-widget icons + date shortcuts ----
+   Stock Django ships 24 px multicolour icons (yellow pencil, green +, red
+   X, blue eye, blue calendar) that fight every theme. Redraw them as
+   monochrome currentColor masks inside a tidy ghost-button group, order
+   them with the destructive action last, and give the DateTimeShortcuts
+   "Today | calendar" pair the same treatment. */
+.related-widget-wrapper { gap: 4px; }
+.related-widget-wrapper .change-related { order: 1; }
+.related-widget-wrapper .add-related { order: 2; }
+.related-widget-wrapper .view-related { order: 3; }
+.related-widget-wrapper .delete-related { order: 4; }
+
+.related-widget-wrapper-link,
+.datetimeshortcuts a[id^="calendarlink"] {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: none; width: 28px; height: 28px;
+  border-radius: 7px; text-decoration: none;
+  transition: color .15s ease, background-color .15s ease;
+}
+/* beats admin `a:link` (0,1,1) — quiet icons, not blue links */
+.related-widget-wrapper .related-widget-wrapper-link { color: var(--body-quiet-color); }
+.datetimeshortcuts a[id^="calendarlink"] { color: var(--body-quiet-color); }
+.related-widget-wrapper-link img { display: none; }
+.related-widget-wrapper-link::after,
+.datetimeshortcuts .date-icon::after {
+  content: ""; display: block; width: 16px; height: 16px;
+  background: currentColor;
+  -webkit-mask: var(--field-icon) center / contain no-repeat;
+          mask: var(--field-icon) center / contain no-repeat;
+}
+.related-widget-wrapper-link.change-related {
+  --field-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z'/%3E%3Cpath d='m15 5 4 4'/%3E%3C/svg%3E");
+}
+.related-widget-wrapper-link.add-related {
+  --field-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14'/%3E%3Cpath d='M12 5v14'/%3E%3C/svg%3E");
+}
+.related-widget-wrapper-link.delete-related {
+  --field-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6 6 18'/%3E%3Cpath d='m6 6 12 12'/%3E%3C/svg%3E");
+}
+.related-widget-wrapper-link.view-related {
+  --field-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E");
+}
+.related-widget-wrapper .related-widget-wrapper-link:hover,
+.datetimeshortcuts a[id^="calendarlink"]:hover {
+  color: var(--accent-strong); background: var(--surface-2);
+}
+.related-widget-wrapper .related-widget-wrapper-link.delete-related:hover { color: var(--error-fg); }
+.related-widget-wrapper .related-widget-wrapper-link:focus-visible,
+.datetimeshortcuts a[id^="calendarlink"]:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
+
+/* DateTimeShortcuts: "Today | [calendar]" — quiet pill + ghost icon button */
+.datetimeshortcuts {
+  margin-left: 8px; white-space: nowrap;
+  font-size: 12px; color: var(--body-quiet-color);
+}
+.datetimeshortcuts > a:not([id]) {  /* "Today" quick-set link */
+  padding: 3px 8px; border-radius: 6px;
+  color: var(--body-medium-color); background: var(--surface-2);
+  text-decoration: none;
+  transition: color .15s ease, background-color .15s ease;
+}
+.datetimeshortcuts > a:not([id]):hover { color: var(--accent-strong); }
+.datetimeshortcuts .date-icon {
+  background: none; display: block; width: 16px; height: 16px;
+}
+
+/* tidy field widths: dates share one size; currency never stretches full-column */
+input.vDateField { width: 150px; }
+input[type="number"] { max-width: 220px; }
+
 </style>

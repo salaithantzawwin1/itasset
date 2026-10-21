@@ -13,9 +13,9 @@
 |---|---|
 | Current milestone | M8 — Go-live |
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
-| Last updated | 2026-10-20 |
+| Last updated | 2026-10-21 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **335 passed + 85 subtests** (2026-10-19, local, 249 s, exit 0; server: see session log) |
+| Test suite | **341 passed + 85 subtests** (2026-10-21, local 252 s + server 110 s, exit 0) |
 
 ---
 
@@ -185,6 +185,49 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-21 (session 24 — category drives the tag and the fields; modal confirm, mobile forms)
+- **Category auto-assigns the asset tag** (request): `services.next_asset_tag(category)`
+  scans the category's existing tags for the highest numeric suffix and returns
+  `<CODE>-NNNN` (`IT-HW-LAP-0050`). Advisory by design — `Asset.asset_tag` stays
+  unique, so a lost race surfaces as a normal form error. On create the tag field
+  is filled for the picked category and marked `data-auto="1"`; typing in the field
+  clears the flag and the manual value then survives every later category switch.
+  The form's server side (`AssetForm.__init__`) back-fills the tag on a bound
+  create POST with an empty tag, so a no-JS submit still gets the auto tag.
+- **Live spec-field swap** (request: Laptop vs Monitor should show different
+  fields): new read-only `GET /assets/field-suggest/?category=&surface=`
+  (`views.asset_field_suggest`, technician-gated like the forms) returns the
+  category's spec fields as an HTML fragment plus `next_tag`. `spec_swap.html`
+  (shared by both surfaces) swaps the panel contents on every category change,
+  preserves same-named values across a switch (stashes and restores them), hides
+  the Specifications tab while the category is empty, and flashes the tab when
+  fields appear. Verified in browser: Laptop 23 spec fields, Monitor 13.
+- **Category leads Basics** (request): moved to the front of the first tab on the
+  main app and in `AssetAdmin`'s fieldsets (where "Category & specs" becomes an
+  always-present "Specifications" fieldset the dynamic fields merge into), and
+  the create form autofocuses it — the two behaviours above both key off it.
+- **Modal close uses a styled confirm** (request: no more "192.168.100.142 says"):
+  `templates/partials/modal.html` replaces the dirty-form `window.confirm` with an
+  in-dialog alertdialog (Keep editing / Discard, ESC cancels the confirm not the
+  modal). One native confirm remains on `audit/session_detail.html` (session-close
+  submit guard — a different flow, left as-is).
+- **Responsive fix found by the audit** (request: check the whole system): admin
+  change forms overflowed ~53 px horizontally at ≤767 px — Django's
+  `responsive.css` sizes `.aligned .form-row > div` at `calc(100vw - 30px)` for
+  full-bleed pages, which overshoots inside our padded card. Overridden in
+  `_theme.css.html` scoped to `#content` (specificity, not source order —
+  responsive.css loads after the extrastyle block) with fields set to fill and
+  shrink. Audited 390 / 820 / 1440 px, light + dark, main app + admin: zero
+  horizontal overflow anywhere.
+- Gates: ruff clean; **341 passed + 85 subtests** locally (252 s) and on the
+  server (110 s). Browser-verified both surfaces end-to-end: category swap,
+  tag auto-assign + manual stickiness, modal dirty-close confirm (Keep/Discard,
+  scroll-lock release), mobile/tablet/desktop overflow probes.
+- Deployed to 192.168.100.142 (LF archive sync → server suite → gunicorn
+  restart): probe gate **18 ok / 0 failed** incl. the throttle phase (429 +
+  Retry-After 300), `/healthz` ok, live files carry the new fieldsets, the
+  field-suggest route and the styled-confirm markup. Pushed `eca4621..7dd9d21`.
 
 ### 2026-10-21 (session 23 — admin asset form gets the same tabs)
 - Follow-up to session 22: `/admin/assets/asset/<pk>/change/` now sections the

@@ -186,6 +186,21 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-10-21 (session 20 — `<html lang>` follows the ENG/MM switch)
+- `base.html` and `registration/login.html` hardcoded `<html lang="my">` while
+  `{% t %}` (and session 18's `SessionLocaleMiddleware`, which sets
+  `request.LANGUAGE_CODE`) default to English — every default-English page announced
+  itself as Burmese to assistive tech. Both now emit
+  `{{ request.LANGUAGE_CODE|default:'en' }}`, so the attribute tracks the same
+  session key as the strings, admin chrome and `Content-Language`; guarded by a new
+  smoke test (EN default → MM after the switch, standalone login + a base.html page).
+- Gates: ruff clean; **336 passed + 85 subtests** locally (the host desktop session
+  restart had killed the embedded Postgres — `scripts/start-pg.ps1` brought it back,
+  crash-recovery checkpoint clean).
+- Deployed to 192.168.100.142 (templates-only: no migrate/collectstatic): LF archive
+  sync → `systemctl --user restart itasset-gunicorn` → `/accounts/login/` and `/`
+  render `lang="en"`, `/healthz` `{"status":"ok","db":"ok"}`. Code commit `529275c`.
+
 ### 2026-10-20 (session 19 — UI/UX fine-tune + create-in-modal)
 - **Create-in-modal** (`templates/partials/modal.html`, included from `base.html` +
   `admin/base_site.html`): admin object-tools **Add** links, dashboard **Add** chips and

@@ -15,7 +15,7 @@
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
 | Last updated | 2026-10-22 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **341 passed + 85 subtests** (2026-10-22, local 241 s + server 111 s, exit 0) |
+| Test suite | **341 passed + 90 subtests** (2026-10-22, local 264 s + server 108 s, exit 0) |
 
 ---
 
@@ -185,6 +185,36 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-22 (session 27 — create-modal content sizing + component categories)
+- **Modal fine-tune** (request, with screenshots: empty wall under the form,
+  doubled scrollbars, content flush to the frame edge): the New-asset dialog
+  carried a fixed `height: min(88vh, 880px)` card, so a short Basics form sat
+  in ~300 px of dead space while a tall Specifications form scrolled twice
+  over. The card is now content-sized — `fit()` measures the framed page
+  (`body.scrollHeight`; documentElement is the canvas and would round-trip
+  the old height) and a ResizeObserver re-fits on tab switches and the live
+  spec swap — capped at 88vh (full height ≤640 px) so tall forms scroll
+  exactly once, inside the frame. The skin also stopped zeroing the main
+  app's `.page` padding: `12px 16px` of breathing room instead of content
+  flush against the border. Verified: Basics 347→371 px hug, Specs grows to
+  the cap with a single inner scrollbar, no h-scroll at any width checked,
+  dirty-close confirm still guards.
+- **Component categories** (request: "HDD, RAM, Keyboard, Mouse စသဖြင့်"): five
+  §6 entries added to `CATALOGUE` — `IT-HW-HDD` (5 fields), `IT-HW-SSD` (4),
+  `IT-HW-RAM` (5), `IT-HW-KBD` (4), `IT-HW-MSE` (4) — all optional, with
+  units/examples riding the new tooltip tips. Seeded by
+  `assets.0010_seed_component_categories` scoped to those five codes with
+  0008's create/fill-empty contract (an operator's deleted category stays
+  deleted; a custom schema is never clobbered).
+- Gates: ruff clean; **341 passed + 90 subtests** locally (264 s) and on the
+  server (108 s) — the five new catalogue entries add five structural
+  subtests. Browser-verified: dropdown lists all 23, Keyboard swap renders
+  its 4 fields with auto-tag `IT-HW-KBD-0001`.
+- Deployed to 192.168.100.142 (LF archive sync → `migrate` applied
+  `assets.0010` → server suite → gunicorn restart): probe gate **18 ok /
+  0 failed** incl. throttle phase; `/healthz` ok; prod Category count 23 with
+  all five codes. Pushed `504e168..3416a6a`.
 
 ### 2026-10-22 (session 26 — field hints become label tooltips)
 - **Help text → tooltip** (request: "e.g. Intel Core Ultra 5", (GB), (inches),

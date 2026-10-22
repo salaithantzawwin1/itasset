@@ -186,6 +186,32 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-10-22 (session 28 — responsive pass for big screens, laptop, tablet)
+- **Wide-screen gutters fixed** (request, with screenshots: ~370px of dead
+  space down both sides of every page on a 1920px display; laptop was fine):
+  the layout used two fixed caps — main app `.page { max-width: 1180px }`
+  (`base.html`) and admin `#content { max-width: 1240px }`
+  (`_theme.css.html`) — so a large monitor never grew the content, it just
+  centered the same column and left the surplus as margin. Added one
+  breakpoint, `min-width: 1440px`, that lifts the caps to `.page → 1560px`
+  (padding 28→36) and `#content → 1620px` (padding 30→40). One tier rather
+  than fluid `vw` math: tables and charts use the screen, line lengths stay
+  readable, and every rule below 1440px (1024/900/767/640) is untouched —
+  laptop and tablet behavior is byte-for-byte what it was.
+- Verified across all three requested sizes in the browser. **Desktop big
+  (1920×1080):** container measures 1560px (gutters even at ~172px), all six
+  KPI cards fit one row (was 5+1), dashboard/assets/admin/changelist fill the
+  screen, `scrollWidth 1903 ≤ 1920` — no horizontal overflow. **Laptop
+  (1366×768):** unchanged, the 1240px tier still applies (no regression).
+  **Tablet (768×1024):** KPIs 2-col, topbar wraps, filters stack, assets and
+  admin tables fit, no overflow.
+- Gates: **341 passed + 90 subtests** locally (247 s), exit 0. Templates-only
+  change — deployed to 192.168.100.142 (LF `git archive` sync of the two
+  template files → gunicorn restart, no migrate/collectstatic): probe gate
+  **18 ok / 0 failed** incl. throttle phase, `/healthz` ok, and both live
+  pages serve the new rule (`/` → `.page` 1560, `/admin/login/` → `#content`
+  1620). Pushed `492745d..0b31ecb`.
+
 ### 2026-10-22 (session 27 — create-modal content sizing + component categories)
 - **Modal fine-tune** (request, with screenshots: empty wall under the form,
   doubled scrollbars, content flush to the frame edge): the New-asset dialog

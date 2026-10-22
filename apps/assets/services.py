@@ -151,7 +151,12 @@ def check_out(
     if not isinstance(person, Person):
         raise TypeError("person must be a Person instance")
 
-    if asset.status != Asset.Status.AVAILABLE:
+    # AVAILABLE is the normal precondition. ASSIGNED is accepted only to
+    # recover an *orphan* — status says ASSIGNED but no open assignment row
+    # exists (a seed/import artifact; the dept report flags these as
+    # "Not assigned"). check_out is the documented repair path for that
+    # state; the guard below still refuses a real double check-out.
+    if asset.status not in (Asset.Status.AVAILABLE, Asset.Status.ASSIGNED):
         raise AssetNotAvailable(asset)
 
     if active_assignment(asset) is not None:

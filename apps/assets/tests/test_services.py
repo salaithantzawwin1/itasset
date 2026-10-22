@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from apps.assets.models import Asset, Assignment
 from apps.assets.services import (
+    AssetAlreadyAssigned,
     AssetNotAssigned,
     AssetNotAvailable,
     CheckInResult,
@@ -174,6 +175,26 @@ class TestCheckOut:
         assert a.status == Asset.Status.ASSIGNED
         assert result.assignment.to_person_id == q.id
         assert result.assignment.in_at is None
+
+    def test_recovers_orphan_state(self, db, asset_factory, person_factory, user):
+        # status says ASSIGNED but no open row exists (seed/import artifact
+        # — the dept report flags these as "Not assigned"): check_out is the
+        # documented repair path and must accept that state.
+        a = asset_factory(status=Asset.Status.ASSIGNED)
+        p = person_factory(employee_no="E009", name="Repair Holder")
+        result = check_out(a, p, actor=user)
+        assert result.assignment.in_at is None
+        assert result.assignment.to_person_id == p.id
+        assert a.status == Asset.Status.ASSIGNED
+
+    def test_refuses_double_check_out_on_assigned(self, db, asset_factory, person_factory, user):
+        # ASSIGNED *with* an open row is still a hard refusal — only the
+        # orphan variant is recoverable.
+        a, p = _make_ready(asset_factory, person_factory)
+        check_out(a, p, actor=user)
+        q = person_factory(employee_no="E010", name="Second")
+        with pytest.raises(AssetAlreadyAssigned):
+            check_out(a, q, actor=user)
 
     def test_accepts_due_at(self, db, asset_factory, person_factory, user):
         a, p = _make_ready(asset_factory, person_factory)

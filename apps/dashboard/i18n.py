@@ -156,6 +156,10 @@ STRINGS = {
     "asset.parent": {"en": "Parent asset", "my": "မူလ ပစ္စည်း (Parent)"},
     "asset.components": {"en": "Components", "my": "အစိတ်အပိုင်းများ"},
     "asset.no_components": {"en": "No components linked.", "my": "ချိတ်ဆက်ထားသော အစိတ်အပိုင်း မရှိပါ။"},
+    "asset.orphan_hint": {
+        "en": "Status says Assigned but no holder is recorded — checking out repairs the record.",
+        "my": "Assigned အခြေအနေ ဖြစ်နေပေမယ့် လက်ခံသူ မှတ်တမ်း မရှိပါ — check-out လုပ်ခြင်းဖြင့် ပြင်ဆင်နိုင်ပါသည်။",
+    },
     "asset.out_at": {"en": "Out", "my": "ထွက်သည်"},
     "asset.in_at": {"en": "In", "my": "ပြန်ရသည်"},
     "asset.cond_out_in": {"en": "Cond. (out/in)", "my": "အခြေအနေ (ထွက်/ပြန်)"},

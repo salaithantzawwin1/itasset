@@ -8,6 +8,10 @@
     own holder, and a parent loop is refused.
 (c) the assets-by-department report groups active holders by the holder's
     department, and flags ASSIGNED assets with no open assignment.
+(d) orphan recovery: an asset whose status says ASSIGNED with no open row
+    (the "Assigned assets cannot be checked out" dead-end) can be repaired
+    from the form and the detail page, and the form refuses a reverse orphan
+    (open row + a non-Assigned status with the holder untouched).
 """
 
 import pytest
@@ -215,3 +219,50 @@ def test_report_requires_login(client, asset_factory, site):
     resp = client.get("/reports/assets-by-department.csv")
     assert resp.status_code == 302  # redirected to login
     assert Department.objects.count() >= 0  # smoke: report app loads
+
+
+# (d) orphan recovery ---------------------------------------------------------
+
+
+def test_form_repairs_orphan_assignment(client, tech_user, asset_factory, person_factory):
+    # status ASSIGNED + no open row — the state behind
+    # "Assigned assets cannot be checked out from this form"
+    asset = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-ORPH-0001")
+    person = person_factory(name="Repair Picker")
+    client.force_login(tech_user)
+    resp = client.post(f"/assets/{asset.pk}/edit/", _post(asset, assigned_to=person.pk))
+    assert resp.status_code == 302
+    asset.refresh_from_db()
+    assert asset.status == Asset.Status.ASSIGNED
+    active = Assignment.objects.filter(asset=asset, in_at__isnull=True).get()
+    assert active.to_person == person
+
+
+def test_status_keeps_holder_refused(client, tech_user, asset_factory, person_factory):
+    # reverse orphan: an open row + a non-Assigned status while the holder
+    # field is untouched — clear the picker instead (check_in sets status)
+    person = person_factory(name="Stays Held")
+    asset = asset_factory(status=Asset.Status.ASSIGNED)
+    Assignment.objects.create(asset=asset, to_person=person)
+    client.force_login(tech_user)
+    resp = client.post(
+        f"/assets/{asset.pk}/edit/",
+        _post(asset, status=Asset.Status.AVAILABLE, assigned_to=person.pk),
+    )
+    assert resp.status_code == 200
+    assert b"id_status_error" in resp.content
+    asset.refresh_from_db()
+    assert asset.status == Asset.Status.ASSIGNED  # row untouched
+
+
+def test_detail_orphan_offers_checkout(client, tech_user, asset_factory, person_factory):
+    orphan = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-ORPH-0002")
+    client.force_login(tech_user)
+    body = client.get(f"/assets/{orphan.pk}/").content.decode()
+    assert 'name="to_person"' in body  # check-out picker, not check-in
+    assert "no holder is recorded" in body  # the repair hint
+
+    held = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-ORPH-0003")
+    Assignment.objects.create(asset=held, to_person=person_factory(name="Held"))
+    body2 = client.get(f"/assets/{held.pk}/").content.decode()
+    assert 'name="condition_in"' in body2  # proper holder → check-in stays

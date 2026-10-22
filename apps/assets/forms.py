@@ -161,6 +161,9 @@ class AssetForm(forms.ModelForm):
         if active is None and status not in (
             Asset.Status.AVAILABLE,
             Asset.Status.IN_STOCK,
+            # orphan recovery: ASSIGNED with no open row is check-out-able
+            # (services.check_out accepts it; the dept report flags these)
+            Asset.Status.ASSIGNED,
         ):
             raise ValidationError(
                 f"{self.instance.get_status_display()} assets cannot be checked "
@@ -199,6 +202,29 @@ class AssetForm(forms.ModelForm):
                     else:
                         self.add_error(None, message)
             cleaned["specs"] = None
+        # Status and holder must agree: the assignment drives the status, so
+        # "still checked out + a non-Assigned status" would silently open a
+        # reverse orphan (an open row on an Available asset). Clearing the
+        # picker is the documented way to return it — check_in sets the
+        # status itself.
+        if self.instance is not None and self.instance.pk:
+            from . import services as _services
+
+            active = _services.active_assignment(self.instance)
+            holder = cleaned.get("assigned_to")
+            posted = cleaned.get("status")
+            if (
+                active is not None
+                and holder is not None
+                and getattr(holder, "pk", None) == active.to_person_id
+                and posted
+                and posted != Asset.Status.ASSIGNED
+            ):
+                self.add_error(
+                    "status",
+                    "This asset is checked out — clear \u201cAssigned to\u201d to return it "
+                    "(the status follows the assignment).",
+                )
         return cleaned
 
     def save(self, commit=True):

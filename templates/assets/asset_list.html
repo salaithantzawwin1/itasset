@@ -26,7 +26,7 @@
   {% endif %}
 </form>
 <table class="data">
-  <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "asset.category" %}</th><th>{% t "asset.model" %}</th><th>{% t "asset.site" %}</th><th>{% t "asset.status" %}</th><th></th></tr></thead>
+  <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "asset.category" %}</th><th>{% t "asset.model" %}</th><th>{% t "asset.site" %}</th><th>{% t "asset.status" %}</th><th>{% t "asset.holder" %}</th><th></th></tr></thead>
   <tbody>
   {% for a in object_list %}
     <tr>
@@ -35,10 +35,11 @@
       <td>{{ a.model_name|default:"—" }}</td>
       <td>{{ a.site.code }}</td>
       <td><span class="pill pill-{{ a.status }}">{{ a.get_status_display }}</span></td>
+      <td>{% with h=a.active_assignments.0 %}{% if h %}{{ h.to_person.name|default:"—" }}{% if h.to_person.department %} <span class="muted">({{ h.to_person.department.name }})</span>{% endif %}{% else %}<span class="muted">—</span>{% endif %}{% endwith %}</td>
       <td><a class="btn secondary sm" href="{% url 'asset-update' a.pk %}">{% t "asset.edit" %}</a></td>
     </tr>
   {% empty %}
-    <tr class="empty-row"><td colspan="6">{% t "common.empty" %}</td></tr>
+    <tr class="empty-row"><td colspan="7">{% t "common.empty" %}</td></tr>
   {% endfor %}
   </tbody>
 </table>

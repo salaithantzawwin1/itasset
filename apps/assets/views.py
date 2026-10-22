@@ -5,6 +5,7 @@ Detail page shows full assignment history (§3 handover trail).
 """
 
 from django.contrib import messages
+from django.db.models import Prefetch
 from django.http import Http404, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.template.loader import render_to_string
@@ -72,6 +73,17 @@ class AssetList(RoleRequiredMixin, ListView):
                 assignments__in_at__isnull=True,
                 assignments__due_at__lt=timezone.now(),
             ).distinct()
+        # holder column: one prefetch of the active assignment per row (§17
+        # no-N+1) so "who has this" is visible without opening each asset
+        qs = qs.prefetch_related(
+            Prefetch(
+                "assignments",
+                queryset=Assignment.objects.filter(in_at__isnull=True).select_related(
+                    "to_person", "to_person__department"
+                ),
+                to_attr="active_assignments",
+            )
+        )
         return scope_list(self.request.user, qs, action="asset_list", path=self.request.path)
 
     def get_context_data(self, **kwargs):
@@ -88,10 +100,29 @@ class AssetDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
+        active = (
+            Assignment.objects.filter(asset=self.object, in_at__isnull=True)
+            .select_related("to_person", "to_person__department", "to_person__site")
+            .first()
+        )
+        ctx["current_holder"] = active.to_person if active else None
         ctx["history"] = (
             Assignment.objects.filter(asset=self.object)
             .select_related("to_person", "assigned_by")
             .order_by("-out_at")
+        )
+        # §6.1 component relationship: peripherals linked to this asset, each
+        # with its own (possibly different) holder — one batched query
+        ctx["components"] = list(
+            self.object.components.select_related("category").prefetch_related(
+                Prefetch(
+                    "assignments",
+                    queryset=Assignment.objects.filter(in_at__isnull=True).select_related(
+                        "to_person"
+                    ),
+                    to_attr="active_assignments",
+                )
+            )
         )
         # category-specific specification values (§5 catalogue → Asset.attrs)
         ctx["spec_rows"] = spec_rows(self.object.category, self.object.attrs)
@@ -208,7 +239,11 @@ class SelfView(RoleRequiredMixin, ListView):
 # field not listed falls into the last tab so a newly added model field is
 # rendered somewhere instead of silently disappearing.
 ASSET_FORM_TABS = (
-    ("basics", "asset.tab.basics", ["category", "asset_tag", "status", "condition", "site"]),
+    (
+        "basics",
+        "asset.tab.basics",
+        ["category", "asset_tag", "status", "condition", "site", "assigned_to", "parent_asset"],
+    ),
     ("specs", "asset.tab.specs", []),
     ("device", "asset.tab.device", ["manufacturer", "model_name", "serial_no", "hostname"]),
     (
@@ -263,6 +298,11 @@ class AssetCreate(FormTabsMixin, RoleRequiredMixin, CreateView):
     template_name = "assets/asset_form.html"
     success_url = reverse_lazy("asset-list")
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["request"] = self.request  # picker scope + the assignment's actor
+        return kwargs
+
     def form_valid(self, form):
         form.instance.status = Asset.Status.IN_STOCK  # §3 stage ④: receive & tag
         try:
@@ -274,7 +314,10 @@ class AssetCreate(FormTabsMixin, RoleRequiredMixin, CreateView):
             )
         except OutOfScope:
             return HttpResponseForbidden("That site is outside your scope.")
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        if getattr(form, "assignment_warning", None):
+            messages.warning(self.request, form.assignment_warning)
+        return response
 
 
 def _requestable_site_ids(user) -> set:
@@ -377,6 +420,11 @@ class AssetUpdate(FormTabsMixin, ScopeGuardMixin, RoleRequiredMixin, UpdateView)
     template_name = "assets/asset_form.html"
     success_url = reverse_lazy("asset-list")
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["request"] = self.request  # picker scope + the assignment's actor
+        return kwargs
+
     def form_valid(self, form):
         try:
             check_scope(
@@ -387,7 +435,10 @@ class AssetUpdate(FormTabsMixin, ScopeGuardMixin, RoleRequiredMixin, UpdateView)
             )
         except OutOfScope:
             return HttpResponseForbidden("That site is outside your scope.")
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        if getattr(form, "assignment_warning", None):
+            messages.warning(self.request, form.assignment_warning)
+        return response
 
 
 class AssetDelete(ScopeGuardMixin, RoleRequiredMixin, DeleteView):
@@ -426,9 +477,7 @@ def asset_field_suggest(request):
     if category is None:
         return JsonResponse({"html": "", "next_tag": None}, status=400)
     form = AssetForm(data={"category": str(category.pk)})
-    fields = [
-        form[name] for name in form.fields if name.startswith(SPEC_FIELD_PREFIX)
-    ]
+    fields = [form[name] for name in form.fields if name.startswith(SPEC_FIELD_PREFIX)]
     template = (
         "admin/partials/spec_fields.html"
         if request.GET.get("surface") == "admin"

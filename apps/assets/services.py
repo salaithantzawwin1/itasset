@@ -97,9 +97,7 @@ def next_asset_tag(category: Category) -> str:
     """
     prefix = f"{category.code}-"
     highest = 0
-    tags = Asset.objects.filter(asset_tag__startswith=prefix).values_list(
-        "asset_tag", flat=True
-    )
+    tags = Asset.objects.filter(asset_tag__startswith=prefix).values_list("asset_tag", flat=True)
     for tag in tags:
         suffix = tag[len(prefix) :]
         if suffix.isdigit() and int(suffix) > highest:

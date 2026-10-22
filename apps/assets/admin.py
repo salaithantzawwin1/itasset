@@ -91,7 +91,20 @@ class AssetAdmin(ScopedAdminMixin, admin.ModelAdmin):
     # the readonly timestamps ride in the last tab to keep their old position
     # at the bottom of the form.
     fieldsets = (
-        ("Basics", {"fields": ("category", "asset_tag", "status", "condition", "site")}),
+        (
+            "Basics",
+            {
+                "fields": (
+                    "category",
+                    "asset_tag",
+                    "status",
+                    "condition",
+                    "site",
+                    "assigned_to",
+                    "parent_asset",
+                )
+            },
+        ),
         ("Specifications", {"fields": ()}),
         ("Device", {"fields": ("manufacturer", "model_name", "serial_no", "hostname")}),
         (

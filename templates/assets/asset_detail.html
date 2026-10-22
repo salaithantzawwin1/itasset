@@ -21,6 +21,8 @@
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.serial" %}</th><td>{{ object.serial_no|default:"—" }}</td></tr>
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.hostname" %}</th><td>{{ object.hostname|default:"—" }}</td></tr>
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.site" %}</th><td>{{ object.site }}</td></tr>
+      <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.assigned_to" %}</th><td>{% if current_holder %}{{ current_holder.name }} ({{ current_holder.employee_no }}){% if current_holder.department %} — {{ current_holder.department.name }}{% endif %}{% else %}—{% endif %}</td></tr>
+      <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.parent" %}</th><td>{% if object.parent_asset_id %}<a href="{% url 'asset-detail' object.parent_asset_id %}">{{ object.parent_asset }}</a>{% else %}—{% endif %}</td></tr>
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.purchase" %}</th><td>{{ object.purchase_date|default:"—" }} · {% t "asset.cost" %} {{ object.cost|default:"—" }}</td></tr>
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.warranty" %}</th><td>{{ object.warranty_end|default:"—" }}</td></tr>
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.condition" %}</th><td>{{ object.get_condition_display }}</td></tr>
@@ -38,6 +40,30 @@
     {% endfor %}
     </tbody>
   </table>
+</div>
+{% endif %}
+
+{% if object.parent_asset_id or components %}
+<div class="card">
+  <h2>{% t "asset.components" %}</h2>
+  {% if object.parent_asset_id %}
+  <p class="muted">{% t "asset.parent" %}: <a href="{% url 'asset-detail' object.parent_asset_id %}">{{ object.parent_asset }}</a></p>
+  {% endif %}
+  {% if components %}
+  <table class="data">
+    <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "asset.category" %}</th><th>{% t "asset.status" %}</th><th>{% t "asset.holder" %}</th></tr></thead>
+    <tbody>
+    {% for c in components %}
+      <tr>
+        <td><a href="{% url 'asset-detail' c.pk %}">{{ c.asset_tag }}</a></td>
+        <td>{{ c.category.code }}</td>
+        <td><span class="pill pill-{{ c.status }}">{{ c.get_status_display }}</span></td>
+        <td>{% with h=c.active_assignments.0 %}{% if h %}{{ h.to_person.name|default:"—" }}{% else %}<span class="muted">—</span>{% endif %}{% endwith %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">{% t "asset.no_components" %}</p>{% endif %}
 </div>
 {% endif %}
 

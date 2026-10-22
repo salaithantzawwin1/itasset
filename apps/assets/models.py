@@ -65,6 +65,20 @@ class Asset(models.Model):
     attrs = models.JSONField(default=dict, blank=True)  # per-category fields (§2)
     remarks = models.TextField(blank=True)
 
+    # Component ↔ parent link (§6.1 "Recommended relationship"): a Monitor /
+    # UPS / Keyboard / Mouse records which workstation it sits on, while each
+    # keeps its own tag, serial, warranty and independent assignment (§6:
+    # "a component should become a separate record"). Optional — a standalone
+    # asset simply leaves it blank. SET_NULL: deleting the parent never
+    # cascades to its separately-tracked components (§6).
+    parent_asset = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="components",
+    )
+
     # Optimistic lock (Spec A §10.1, gap §3.5): every state mutation bumps it;
     # an API update carrying a stale version answers 409 instead of silently
     # overwriting a concurrent change.

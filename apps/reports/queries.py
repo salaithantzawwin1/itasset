@@ -159,6 +159,58 @@ def orphan_assets(request=None):
     return headers, rows
 
 
+def assets_by_department(request=None):
+    """Who holds what, grouped by the holder's department (Person.department).
+
+    One row per active assignment (in_at IS NULL) — the department/employee
+    come from the Person record, so a department move needs no asset edit.
+    Assets whose status says ASSIGNED but have no open assignment land in a
+    "Not assigned" bucket: a cheap completeness check (§13 data quality)
+    instead of a silently misleading blank.
+    """
+    from apps.assets.models import Asset, Assignment
+
+    headers = ["Department", "Employee", "Asset tag", "Category", "Site", "Status", "Out"]
+    rows = []
+    assigned_ids: set[int] = set()
+    open_asgs = (
+        Assignment.objects.filter(in_at__isnull=True)
+        .select_related(
+            "to_person",
+            "to_person__department",
+            "asset",
+            "asset__category",
+            "asset__site",
+        )
+        .order_by("to_person__department__name", "to_person__name", "asset__asset_tag")
+    )
+    for asg in open_asgs:
+        person = asg.to_person
+        dept = person.department.name if person and person.department_id else "(no department)"
+        who = person.name if person else "(no holder)"
+        assigned_ids.add(asg.asset_id)
+        rows.append(
+            [
+                dept,
+                who,
+                asg.asset.asset_tag,
+                asg.asset.category.code,
+                asg.asset.site.code,
+                asg.asset.status,
+                asg.out_at.date().isoformat(),
+            ]
+        )
+    # completeness: ASSIGNED assets without an open assignment row
+    for a in (
+        Asset.objects.filter(status=Asset.Status.ASSIGNED)
+        .exclude(pk__in=assigned_ids)
+        .select_related("category", "site")
+        .order_by("asset_tag")
+    ):
+        rows.append(["Not assigned", "", a.asset_tag, a.category.code, a.site.code, a.status, ""])
+    return headers, rows
+
+
 def check_activity(request=None, days=30):
     from apps.assets.models import Assignment
     from apps.audit.models import ActivityLog
@@ -307,6 +359,14 @@ def _register_all():
     register(Report("license-compliance", "License compliance", license_compliance, ("xlsx",)))
     register(Report("contract-renewals", "Contract renewals (90d)", contract_renewals, ("csv",)))
     register(Report("orphan-assets", "Orphan assets", orphan_assets, ("csv",)))
+    register(
+        Report(
+            "assets-by-department",
+            "Assets by department (holder)",
+            assets_by_department,
+            ("csv", "xlsx"),
+        )
+    )
     register(Report("check-activity", "Check-out/in activity", check_activity, ("csv", "xlsx")))
     register(Report("damage-writeoff", "Damage & write-off log", damage_writeoff_log, ("pdf",)))
     register(Report("disposal-log", "Disposal & sanitization log", disposal_log, ("pdf",)))

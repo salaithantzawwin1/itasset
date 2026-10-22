@@ -23,6 +23,12 @@
     .ftab-panel[hidden] { display: none; }
     .ftab-panel p { margin: 12px 0; min-width: 0; }
     .ftab-panel p:has(textarea) { grid-column: 1 / -1; }
+    /* Spec fields ride in a wrapper div (the live swap owns it), which stacks
+       them into one long column — give the wrapper the same column grid so
+       related fields share a row (CPU ×3, RAM ×3, storage ×3 …). */
+    .ftab-panel .spec-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 18px; align-items: start; }
+    /* "CODE — Name" category options need the room; the tag keeps one column. */
+    .ftab-panel p:has(select[name="category"]) { grid-column: span 2; }
     .ftab-actions { display: flex; gap: 10px; margin-top: 18px; }
     #asset-form-card.tabs-on form.frm { max-width: 760px; }
 {% endblock %}

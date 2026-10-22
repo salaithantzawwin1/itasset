@@ -1147,4 +1147,20 @@ fieldset.module .form-row { overflow: visible; }
 .ftab-panel .fieldset-heading { margin: 0 0 8px; }
 .tabs-on .ftab-panel .fieldset-heading { display: none; }  /* the strip carries the label */
 
+/* ---------- Specifications: two-across spec rows on wide screens ------------
+   A category carries 15–22 spec fields; one full-width row each made this the
+   longest scroll in the admin. Grid the dynamic fieldset two-across (the same
+   density the main app's edit grid gives them), with the existing hairline
+   borders doing double duty as row/column rules. Below 1360px everything
+   falls back to the classic single column. */
+@media (min-width: 1360px) {
+  .ftab-panel[data-spec-fields] > fieldset.module { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ftab-panel[data-spec-fields] > fieldset.module > .fieldset-heading,
+  .ftab-panel[data-spec-fields] > fieldset.module > .description { grid-column: 1 / -1; }
+  .ftab-panel[data-spec-fields] > fieldset.module > .form-row:nth-of-type(even) { border-left: 1px solid var(--hairline-color); }
+  /* With an even field count the final visual row's left cell would keep its
+     bottom rule while the right cell drops it (:last-of-type) — close both. */
+  .ftab-panel[data-spec-fields] > fieldset.module > .form-row:nth-last-child(2):nth-of-type(odd) { border-bottom: 0; }
+}
+
 </style>

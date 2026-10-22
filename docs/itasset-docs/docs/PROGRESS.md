@@ -232,8 +232,24 @@ authenticated user; no company/branch scoping exists.
   **18 ok / 0 failed** incl. throttle phase; live checks on the server
   (test client with the real host — prod ALLOWED_HOSTS correctly rejects
   `testserver`): `/reports/` 200 with the new card, CSV 200 with correct
-  headers, admin add form 200 with `assigned_to` + `parent_asset`.
+  headers,  admin add form 200 with `assigned_to` + `parent_asset`.
   Pushed `aa3a8f7..2c1e6d6`.
+- **Follow-up fix the same day** (user hit "Assigned assets cannot be
+  checked out from this form — use the lifecycle flow" on the orphan
+  IT-HW-DSK-0014): the guard was right but its advice was a dead-end — the
+  detail page showed *check-in* for an ASSIGNED asset, which fails silently
+  when no row exists to close. `services.check_out` now also accepts the
+  orphan state (ASSIGNED + no open row) as its documented repair path — a
+  real double check-out still refuses via the active-assignment guard — the
+  form's picker repairs orphans, and a new `clean()` cross-guard refuses the
+  *reverse* orphan (open row + non-Assigned status with the holder
+  untouched: "clear Assigned to to return it"). The detail page picks its
+  action by **holder presence** instead of raw status, so an orphan gets the
+  check-out picker plus a bilingual repair hint. Verified on the real dev
+  orphan: before ASSIGNED/0 open rows → detail offers check-out → after
+  holder recorded. **357 passed + 90 subtests** (+5 tests) locally and on
+  the server; deployed (LF sync → suite → restart, no migrate): probe
+  **18 ok / 0 failed**; prod orphan count 0. Pushed `682eed6..f1e76ba`.
 
 ### 2026-10-22 (session 28 — responsive pass for big screens, laptop, tablet)
 - **Wide-screen gutters fixed** (request, with screenshots: ~370px of dead

@@ -13,9 +13,9 @@
 |---|---|
 | Current milestone | M8 — Go-live |
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
-| Last updated | 2026-10-21 |
+| Last updated | 2026-10-22 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **341 passed + 85 subtests** (2026-10-21, local 252 s + server 110 s, exit 0) |
+| Test suite | **341 passed + 85 subtests** (2026-10-22, local 235 s + server 108 s, exit 0) |
 
 ---
 
@@ -185,6 +185,31 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-22 (session 25 — spec fields share rows on both edit surfaces)
+- **Spec fields laid out in rows** (request: CPU Manufacturer stretched the
+  full width on `/assets/6/edit/`): the Specifications panel wrapped its
+  dynamic fields in the `[data-spec-fields]` div, which collapsed the panel's
+  column grid — every spec field stacked one-per-line while Basics read
+  3-across. The wrapper now carries the same `auto-fit minmax(240px, 1fr)`
+  grid, so CPU ×3, RAM ×3 and storage ×3 share a row; the long "CODE — Name"
+  category select spans two columns instead of truncating.
+- **Admin change-form parity** (request: should both URLs look the same?):
+  structure and behaviour are already identical by design — same four tabs,
+  same field order, same live swap + tag auto-assign — while the chrome
+  intentionally differs (admin keeps label-left rows, History/Delete and the
+  related-widget links). Density now matches too: the admin Specifications
+  fieldset grids two-across at ≥1360 px (existing hairline borders double as
+  the row/column rules; the cell before an even-count last row drops its stray
+  half-rule), classic single column below.
+- Gates: **341 passed + 85 subtests** locally (235 s) and on the server
+  (108 s). Browser-verified: main app edit + create (3-col grid, category
+  swap keeps the grid, auto-tag intact, 640 px falls back to 2-col), admin
+  change form (2-col after a live swap; 20- and 23-field schemas both close
+  their final row cleanly).
+- Deployed to 192.168.100.142 (LF archive sync → server suite → gunicorn
+  restart): probe gate **18 ok / 0 failed** incl. the throttle phase (429 +
+  Retry-After 300); `/healthz` ok. Pushed `1f73874..0631ea2`.
 
 ### 2026-10-21 (session 24 — category drives the tag and the fields; modal confirm, mobile forms)
 - **Category auto-assigns the asset tag** (request): `services.next_asset_tag(category)`

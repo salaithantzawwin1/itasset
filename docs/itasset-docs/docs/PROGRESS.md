@@ -186,6 +186,55 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-10-22 (session 29 — employees & workstations link to assets: form-driven assignment, component parents, department report)
+- **Person ↔ Asset is not User ↔ Asset** (question answered from the models):
+  `Person` is the employee register (`employee_no`, department, optional
+  `user`/`ldap_uid` link) — login accounts and employees are deliberately
+  separate, so 100 staff need not mean 100 logins. Assignment itself already
+  existed (`Assignment.to_person` via `services.check_out/check_in/handover`);
+  what was missing were the three surfaces the request named.
+- **(a) “Assigned to” picker on the asset form** (create + edit, main app
+  *and* admin — `AssetAdmin` shares `AssetForm`): a declared non-model field
+  that on save drives the existing services — new holder on IN_STOCK →
+  `receive_asset(to_person=…)`, on AVAILABLE → `check_out`, holder change →
+  `handover`, cleared → `check_in` — so status and the append-only trail
+  stay single-sourced (one write path, §3 “state transitions happen only in
+  services.py”); same-holder saves are a no-op. `clean_assigned_to`
+  pre-validates feasibility (IN_REPAIR/RETIRED/DISPOSED/IN_TRANSIT refused
+  with a “use the lifecycle flow” message) and any service failure surfaces
+  as a form warning instead of a half-saved row. Detail page gained an
+  “Assigned to” row (employee no + department) and the asset list a Holder
+  column (one `Prefetch` of the open assignment per page, §17 no-N+1).
+- **(b) `Asset.parent_asset` self-FK** (migration `assets.0011`, §6.1
+  “recommended relationship”): a Monitor/UPS/Keyboard/Mouse records which
+  workstation it sits on while keeping its own tag, warranty and independent
+  holder; `SET_NULL` so deleting a parent never cascades components. Form
+  guards refuse self-parent and parent loops (chain walk); the detail page
+  lists Components with each component’s own holder, and a child links back
+  to its parent. Both fields live in the Basics tab / admin fieldsets.
+- **(c) Report `assets-by-department`** (“Assets by department (holder)”,
+  CSV+XLSX): one row per open assignment grouped by the holder’s department
+  (Person.department — a department move needs no asset edit), plus a
+  completeness bucket: assets whose status says ASSIGNED with no open
+  assignment row render as “Not assigned” (the seed data actually has one —
+  IT-HW-DSK-0014 — which the report immediately surfaced).
+- Gates: **352 passed + 90 subtests** locally (255 s) and on the server
+  (109 s) — +11 new tests in `apps/assets/tests/test_form_assignment.py`
+  (create/edit/handover/clear/forbidden transitions, component listing +
+  loop refusal, report incl. the orphan bucket); ruff check + format clean,
+  `makemigrations --check` clean, `check` clean. Verified in browser then by
+  shell-rendered GETs (the preview panel was flaky): list Holder column,
+  picker render + save → ASSIGNED with trail remark, components section
+  both directions, admin change/add forms carry both fields with the
+  picker prefilled.
+- Deployed to 192.168.100.142 (LF archive sync → `migrate` applied
+  `assets.0011` → server suite 352+90 → gunicorn restart): probe gate
+  **18 ok / 0 failed** incl. throttle phase; live checks on the server
+  (test client with the real host — prod ALLOWED_HOSTS correctly rejects
+  `testserver`): `/reports/` 200 with the new card, CSV 200 with correct
+  headers, admin add form 200 with `assigned_to` + `parent_asset`.
+  Pushed `aa3a8f7..2c1e6d6`.
+
 ### 2026-10-22 (session 28 — responsive pass for big screens, laptop, tablet)
 - **Wide-screen gutters fixed** (request, with screenshots: ~370px of dead
   space down both sides of every page on a 1920px display; laptop was fine):

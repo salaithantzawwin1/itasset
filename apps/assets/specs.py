@@ -655,6 +655,123 @@ CATALOGUE = {
         # common columns only rather than speculative fields.
         "schema": {"version": 1, "fields": []},
     },
+    # -----------------------------------------------------------------------
+    # §6 components & accessories — separately tracked parts/peripherals
+    # (request: HDD / RAM / Keyboard / Mouse …). Codes extend IT-HW-*.
+    # -----------------------------------------------------------------------
+    "IT-HW-HDD": {
+        "name": "Hard Disk Drive",
+        "schema": {
+            "version": 1,
+            "fields": [
+                _f("capacity_gb", "Capacity", "integer", unit="GB", min=1, level="recommended"),
+                _f(
+                    "interface",
+                    "Interface",
+                    "choice",
+                    choices=["SATA", "SAS", "SCSI", "Other"],
+                ),
+                _f("form_factor", "Form Factor", "choice", choices=['2.5"', '3.5"', "Other"]),
+                _f(
+                    "spindle_speed_rpm",
+                    "Spindle Speed",
+                    "integer",
+                    unit="RPM",
+                    min=1000,
+                    help="e.g. 7200",
+                ),
+                _f("hot_swappable", "Hot-swappable", "boolean"),
+            ],
+        },
+    },
+    "IT-HW-SSD": {
+        "name": "Solid State Drive",
+        "schema": {
+            "version": 1,
+            "fields": [
+                _f("capacity_gb", "Capacity", "integer", unit="GB", min=1, level="recommended"),
+                _f("interface", "Interface", "choice", choices=["SATA", "NVMe", "SAS", "Other"]),
+                _f(
+                    "form_factor",
+                    "Form Factor",
+                    "choice",
+                    choices=['2.5"', "M.2 2280", "M.2 2230", "Other"],
+                ),
+                _f(
+                    "endurance_tbw",
+                    "Endurance",
+                    "integer",
+                    unit="TBW",
+                    min=1,
+                    help="Terabytes written, e.g. 600",
+                ),
+            ],
+        },
+    },
+    "IT-HW-RAM": {
+        "name": "RAM / Memory Module",
+        "schema": {
+            "version": 1,
+            "fields": [
+                _f("capacity_gb", "Capacity", "integer", unit="GB", min=1, level="recommended"),
+                _f(
+                    "memory_type",
+                    "Memory Type",
+                    "choice",
+                    choices=["DDR3", "DDR4", "DDR5", "LPDDR", "Other"],
+                ),
+                _f("speed_mhz", "Speed", "integer", unit="MHz", min=1, help="e.g. 3200"),
+                _f(
+                    "module_type",
+                    "Module Type",
+                    "choice",
+                    choices=["DIMM", "SO-DIMM", "Other"],
+                ),
+                _f("ecc", "ECC Memory", "boolean"),
+            ],
+        },
+    },
+    "IT-HW-KBD": {
+        "name": "Keyboard",
+        "schema": {
+            "version": 1,
+            "fields": [
+                _f(
+                    "connection",
+                    "Connection",
+                    "choice",
+                    choices=["Wired", "Wireless 2.4GHz", "Bluetooth", "Other"],
+                    level="recommended",
+                ),
+                _f("layout", "Layout", "choice", choices=["US English", "Myanmar", "Other"]),
+                _f(
+                    "form_factor",
+                    "Form Factor",
+                    "choice",
+                    choices=["Standard", "Compact", "Other"],
+                ),
+                _f("backlight", "Backlight", "boolean"),
+            ],
+        },
+    },
+    "IT-HW-MSE": {
+        "name": "Mouse",
+        "schema": {
+            "version": 1,
+            "fields": [
+                _f(
+                    "connection",
+                    "Connection",
+                    "choice",
+                    choices=["Wired", "Wireless 2.4GHz", "Bluetooth", "Other"],
+                    level="recommended",
+                ),
+                _f("sensor", "Sensor", "choice", choices=["Optical", "Laser", "Other"]),
+                _f("max_dpi", "Max DPI", "integer", min=100, help="e.g. 16000"),
+                _f("buttons", "Buttons", "integer", min=1),
+            ],
+        },
+    },
 }
 
 

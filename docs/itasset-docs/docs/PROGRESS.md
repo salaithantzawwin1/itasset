@@ -186,6 +186,44 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-10-22 (session 30 — holder workflows: person holdings, orphan queue, bulk attach, list filters)
+- **Person detail becomes a holder page** (`people/person_detail.html`):
+  "Currently held" (open rows with category/site/status pill + count) and a
+  capped 20-row history card, both `select_related` — the old page rendered
+  every assignment raw with a per-row asset query. People list already
+  linked there via the name.
+- **Orphan fix-up queue** (`/assets/repair/`, technician-only,
+  scope-narrowed): every ASSIGNED asset with no open row gets a row with a
+  holder picker; POST repairs through `services.check_out` (session 29's
+  orphan-recovery path) so the fix is a normal check-out event with trail,
+  not row surgery. Linked from the assets list (technicians only). Dev has
+  15 such orphans (seed artifacts), prod **3** — both now one page away.
+- **Bulk component attach** (`/assets/<pk>/attach/`): tick any number of
+  same-site, unparented assets (category filter narrows) → one POST sets
+  `parent_asset` on each + a single batched `component_attach` ActivityLog
+  event. Candidates are re-derived server-side before writing, so a crafted
+  pk (other site / already linked / the workstation itself) is dropped;
+  the asset detail's Components card gained an "Attach components" button.
+- **List filters**: department (holder's department, open assignment only)
+  and an "assigned to me" checkbox — no linked Person → empty list, never
+  everyone; Clear-filters link covers both.
+- **Query gotcha found the hard way**: `exclude(assignments__in_at__isnull=
+  True)` compiles over-broad for this pattern — 0 of 20 rows survived in
+  dev. The queue (and the prod orphan count, which earlier reported a
+  false 0) now use `.exclude(pk__in=Assignment.objects.filter(in_at__isnull
+  =True).values("asset_id"))`.
+- Gates: **368 passed + 90 subtests** locally (272 s) and on the server
+  (115 s) — +11 tests in `apps/assets/tests/test_holder_flows.py`
+  (held-now/history split + empty state, queue list/repair/role gates,
+  attach same-site/foreign/crafted-pk/self + ActivityLog + role gates,
+  department/mine/empty-mine filters). One flaky-by-coincidence test fixed
+  en route (an Assignment pk compared against asset ids — only passed when
+  the two sequences happened to line up). ruff check + format clean.
+- Deployed to 192.168.100.142 (LF archive sync → server suite → gunicorn
+  restart, no migrate): probe **18 ok / 0 failed**; live shell checks —
+  `/assets/repair/` 200 with 3 rows, person page 200 with held rows,
+  attach page 200. Pushed `5df2a77..31785b0`.
+
 ### 2026-10-22 (session 29 — employees & workstations link to assets: form-driven assignment, component parents, department report)
 - **Person ↔ Asset is not User ↔ Asset** (question answered from the models):
   `Person` is the employee register (`employee_no`, department, optional

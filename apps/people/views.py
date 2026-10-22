@@ -96,6 +96,23 @@ class PersonDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
     model = Person
     template_name = "people/person_detail.html"
 
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        from apps.assets.models import Assignment
+
+        # Held now: open rows only, one select_related so the table never
+        # N+1s per asset (§17); history keeps the full in/out trail but is
+        # capped — the register, not this page, is where full archives live.
+        ctx["held_now"] = Assignment.objects.filter(
+            to_person=self.object, in_at__isnull=True
+        ).select_related("asset", "asset__category", "asset__site")
+        ctx["history_recent"] = (
+            Assignment.objects.filter(to_person=self.object, in_at__isnull=False)
+            .select_related("asset", "asset__category")
+            .order_by("-out_at")[:20]
+        )
+        return ctx
+
 
 class PersonCreate(RoleRequiredMixin, CreateView):
     roles_required = ("admin",)

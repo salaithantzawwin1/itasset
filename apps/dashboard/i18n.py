@@ -160,6 +160,39 @@ STRINGS = {
         "en": "Status says Assigned but no holder is recorded — checking out repairs the record.",
         "my": "Assigned အခြေအနေ ဖြစ်နေပေမယ့် လက်ခံသူ မှတ်တမ်း မရှိပါ — check-out လုပ်ခြင်းဖြင့် ပြင်ဆင်နိုင်ပါသည်။",
     },
+    "asset.all_depts": {"en": "All departments", "my": "ဌာန အားလုံး"},
+    "asset.all_categories": {"en": "All categories", "my": "အမျိုးအစား အားလုံး"},
+    "asset.assigned_mine": {"en": "Assigned to me", "my": "ကျွန်တော့်ဆီ ပေးထားသော"},
+    "orphan.title": {"en": "Repair assignments", "my": "ပေးအပ်မှု ပြင်ဆင်ရန်"},
+    "orphan.sub": {
+        "en": (
+            "These assets are marked Assigned but the register has no holder "
+            "recorded — pick the employee who holds each one."
+        ),
+        "my": "ဤ asset များသည် Assigned အဖြစ် မှတ်ထားပေမယ့် လက်ခံသူ မှတ်တမ်း မရှိပါ — ကိုင်ဆောင်နေသူ ဝန်ထမ်းကို ရွေးပါ။",
+    },
+    "orphan.repair": {"en": "Repair", "my": "ပြင်ဆင်မည်"},
+    "orphan.empty": {
+        "en": "No orphan assignments — every Assigned asset has a holder.",
+        "my": "ပေးအပ်မှု ပျောက်နေသည် မရှိပါ — Assigned asset အားလုံးတွင် လက်ခံသူ ရှိပါသည်။",
+    },
+    "attach.title": {"en": "Attach components", "my": "အစိတ်အပိုင်းများ ချိတ်ဆက်ရန်"},
+    "attach.sub": {
+        "en": "Tick the components that belong to this workstation",
+        "my": "ဤ workstation နဲ့ သက်ဆိုင်သော အစိတ်အပိုင်းများကို ရွေးပါ",
+    },
+    "attach.hint": {
+        "en": "{n} unlinked assets at this site",
+        "my": "ဤ site တွင် မချိတ်ရသေးသော asset {n} ခု",
+    },
+    "attach.empty": {
+        "en": (
+            "No unlinked assets left here — attach the workstation first, "
+            "or clear the category filter."
+        ),
+        "my": "ဤနေရာတွင် မချိတ်ရသေးသော asset မရှိတော့ပါ — workstation အရင်ချိတ်ပါ သို့မဟုတ် category စစ်ထုတ်မှု ဖျက်ပါ။",
+    },
+    "attach.selected": {"en": "Attach selected", "my": "ရွေးထားသည်များ ချိတ်မည်"},
     "asset.out_at": {"en": "Out", "my": "ထွက်သည်"},
     "asset.in_at": {"en": "In", "my": "ပြန်ရသည်"},
     "asset.cond_out_in": {"en": "Cond. (out/in)", "my": "အခြေအနေ (ထွက်/ပြန်)"},
@@ -190,6 +223,11 @@ STRINGS = {
     "person.dept": {"en": "Department", "my": "ဌာန"},
     "person.detail_title": {"en": "Person", "my": "လုပ်သား"},
     "person.held": {"en": "Assets held", "my": "ထိန်းသိမ်းခဲ့သော ပိုင်ဆိုင်မှုများ"},
+    "person.held_now": {"en": "Currently held", "my": "လက်ရှိ ကိုင်ဆောင်ထားသော"},
+    "person.no_held": {
+        "en": "No assets currently held.",
+        "my": "လက်ရှိ ကိုင်ဆောင်ထားသော asset မရှိပါ။",
+    },
     "person.new_title": {"en": "New person", "my": "လုပ်သား အသစ်"},
     "person.edit_title": {"en": "Edit person", "my": "လုပ်သား ပြင်ရန်"},
     # sites

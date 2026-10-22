@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% load t %}
+{% block title %}{% t "attach.title" %} — {% t "app.name" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{% t "attach.title" %} <span class="muted" style="font-weight:400;">— {{ parent.asset_tag }}</span></h1>
+    <div class="sub">{% t "attach.sub" %} ({{ parent.site.name }})</div>
+  </div>
+  <div class="actions">
+    <a class="btn secondary" href="{% url 'asset-detail' parent.pk %}">{% t "asset.details" %}</a>
+  </div>
+</div>
+<form method="get" class="filterbar">
+  <select name="category" onchange="this.form.submit()">
+    <option value="">{% t "asset.all_categories" %}</option>
+    {% for c in categories %}
+    <option value="{{ c.pk }}" {% if request.GET.category == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.code }} — {{ c.name }}</option>
+    {% endfor %}
+  </select>
+  <span class="muted">{% t "attach.hint" n=candidates|length %}</span>
+</form>
+<form method="post">
+  {% csrf_token %}
+  <table class="data">
+    <thead>
+      <tr>
+        <th style="width:36px;"></th>
+        <th>{% t "asset.tag" %}</th>
+        <th>{% t "asset.category" %}</th>
+        <th>{% t "asset.model" %}</th>
+        <th>{% t "asset.serial" %}</th>
+        <th>{% t "asset.status" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for c in candidates %}
+      <tr>
+        <td><input type="checkbox" name="assets" value="{{ c.pk }}" style="width:auto;padding:0;"></td>
+        <td><a href="{% url 'asset-detail' c.pk %}">{{ c.asset_tag }}</a></td>
+        <td>{{ c.category.code }}</td>
+        <td>{{ c.model_name|default:"—" }}</td>
+        <td>{{ c.serial_no|default:"—" }}</td>
+        <td><span class="pill pill-{{ c.status }}">{{ c.get_status_display }}</span></td>
+      </tr>
+    {% empty %}
+      <tr class="empty-row"><td colspan="6">{% t "attach.empty" %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if candidates %}
+  <div class="ftab-actions" style="display:flex;gap:10px;margin-top:18px;">
+    <button class="btn" type="submit">{% t "attach.selected" %}</button>
+    <a class="btn secondary" href="{% url 'asset-detail' parent.pk %}">{% t "asset.cancel" %}</a>
+  </div>
+  {% endif %}
+</form>
+{% endblock %}

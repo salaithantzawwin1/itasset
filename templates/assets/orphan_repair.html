@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% load t %}
+{% block title %}{% t "orphan.title" %} — {% t "app.name" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{% t "orphan.title" %}</h1>
+    <div class="sub">{% t "orphan.sub" %}</div>
+  </div>
+</div>
+<div class="card">
+  <table class="data">
+    <thead>
+      <tr>
+        <th>{% t "asset.tag" %}</th>
+        <th>{% t "asset.category" %}</th>
+        <th>{% t "asset.site" %}</th>
+        <th>{% t "asset.status" %}</th>
+        <th>{% t "asset.assigned_to" %}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for a in orphans %}
+      <tr>
+        <td><a href="{% url 'asset-detail' a.pk %}">{{ a.asset_tag }}</a></td>
+        <td>{{ a.category.code }}</td>
+        <td>{{ a.site.code }}</td>
+        <td><span class="pill pill-{{ a.status }}">{{ a.get_status_display }}</span></td>
+        <td colspan="2">
+          <form method="post" action="" class="inline-form">
+            {% csrf_token %}
+            <input type="hidden" name="asset" value="{{ a.pk }}">
+            <select name="to_person" required>
+              <option value="">{% t "asset.pick_holder" %}</option>
+              {% for p in people %}<option value="{{ p.pk }}">{{ p.name }} ({{ p.employee_no }})</option>{% endfor %}
+            </select>
+            <button class="btn sm" type="submit">{% t "orphan.repair" %}</button>
+          </form>
+        </td>
+      </tr>
+    {% empty %}
+      <tr class="empty-row"><td colspan="6">{% t "orphan.empty" %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

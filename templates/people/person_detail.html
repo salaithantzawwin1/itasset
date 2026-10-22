@@ -3,15 +3,36 @@
 {% block title %}{{ object.name }} — {% t "app.name" %}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>{{ object.name }} <span class="muted">({{ object.employee_no }})</span></h1><div class="sub">{{ object.site }} · {{ object.department|default:"—" }} {% if object.email %}· {{ object.email }}{% endif %}</div></div>
-  <a class="btn secondary" href="{% url 'person-update' object.pk %}">{% t "asset.edit" %}</a>
+  <div><h1>{{ object.name }} <span class="muted">({{ object.employee_no }})</span></h1><div class="sub">{{ object.site }} · {{ object.department|default:"—" }}{% if object.email %} · {{ object.email }}{% endif %}</div></div>
+  <div class="actions">
+    <a class="btn secondary" href="{% url 'person-update' object.pk %}">{% t "asset.edit" %}</a>
+  </div>
 </div>
 <div class="card">
-  <h2>{% t "person.held" %}</h2>
+  <h2>{% t "person.held_now" %} <span class="muted" style="font-weight:400;">({{ held_now|length }})</span></h2>
+  <table class="data">
+    <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "asset.category" %}</th><th>{% t "asset.site" %}</th><th>{% t "asset.status" %}</th><th>{% t "asset.out_at" %}</th></tr></thead>
+    <tbody>
+    {% for a in held_now %}
+      <tr>
+        <td><a href="{% url 'asset-detail' a.asset_id %}">{{ a.asset.asset_tag }}</a></td>
+        <td>{{ a.asset.category.code }}</td>
+        <td>{{ a.asset.site.code }}</td>
+        <td><span class="pill pill-{{ a.asset.status }}">{{ a.asset.get_status_display }}</span></td>
+        <td>{{ a.out_at|date:"Y-m-d" }}</td>
+      </tr>
+    {% empty %}
+      <tr class="empty-row"><td colspan="5">{% t "person.no_held" %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="card">
+  <h2>{% t "asset.history" %}</h2>
   <table class="data">
     <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "asset.out_at" %}</th><th>{% t "asset.in_at" %}</th></tr></thead>
     <tbody>
-    {% for a in object.assignments.all %}
+    {% for a in history_recent %}
       <tr>
         <td><a href="{% url 'asset-detail' a.asset_id %}">{{ a.asset.asset_tag }}</a></td>
         <td>{{ a.out_at|date:"Y-m-d" }}</td>

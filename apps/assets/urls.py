@@ -9,7 +9,11 @@ urlpatterns = [
     path("assets/new/", views.AssetCreate.as_view(), name="asset-create"),
     # live spec-field swap + per-category tag auto-assign (category picker)
     path("assets/field-suggest/", views.asset_field_suggest, name="asset-field-suggest"),
+    # orphan fix-up queue (status ASSIGNED, no open assignment row)
+    path("assets/repair/", views.orphan_repair, name="orphan-repair"),
     path("assets/<int:pk>/", views.AssetDetail.as_view(), name="asset-detail"),
+    # bulk component ↔ workstation linking (§6.1 parent_asset)
+    path("assets/<int:pk>/attach/", views.attach_components, name="asset-attach"),
     path("assets/<int:pk>/edit/", views.AssetUpdate.as_view(), name="asset-update"),
     path("assets/<int:pk>/delete/", views.AssetDelete.as_view(), name="asset-delete"),
     path("assets/<int:pk>/check-out/", views.check_out_view, name="asset-check-out"),

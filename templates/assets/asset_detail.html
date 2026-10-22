@@ -43,9 +43,12 @@
 </div>
 {% endif %}
 
-{% if object.parent_asset_id or components %}
+{% if object.parent_asset_id or components or can_lifecycle %}
 <div class="card">
-  <h2>{% t "asset.components" %}</h2>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+    <h2 style="margin:0;">{% t "asset.components" %}</h2>
+    {% if can_lifecycle %}<a class="btn secondary sm" href="{% url 'asset-attach' object.pk %}">{% t "attach.title" %}</a>{% endif %}
+  </div>
   {% if object.parent_asset_id %}
   <p class="muted">{% t "asset.parent" %}: <a href="{% url 'asset-detail' object.parent_asset_id %}">{{ object.parent_asset }}</a></p>
   {% endif %}

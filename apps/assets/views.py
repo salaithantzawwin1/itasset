@@ -7,7 +7,7 @@ Detail page shows full assignment history (§3 handover trail).
 from django.contrib import messages
 from django.db.models import Prefetch
 from django.http import Http404, HttpResponseForbidden, JsonResponse
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -21,7 +21,7 @@ from apps.core.scopes import (
     linked_person,
     scope_list,
 )
-from apps.people.models import Person, Site
+from apps.people.models import Department, Person, Site
 
 from . import services
 from .forms import AssetForm, AssetRequestForm
@@ -67,6 +67,23 @@ class AssetList(RoleRequiredMixin, ListView):
             )
         if self.request.GET.get("missing_serial"):
             qs = qs.filter(serial_no="")
+        # department filter: the holder's department (open assignment only)
+        department = self.request.GET.get("department", "")
+        if department.isdigit():
+            qs = qs.filter(
+                assignments__in_at__isnull=True,
+                assignments__to_person__department_id=int(department),
+            ).distinct()
+        # "assigned to me": assets held by the caller's linked Person
+        if self.request.GET.get("mine"):
+            person = linked_person(self.request.user)
+            if person is None:
+                qs = qs.none()  # no Person link → the filter answers nothing
+            else:
+                qs = qs.filter(
+                    assignments__in_at__isnull=True,
+                    assignments__to_person_id=person.pk,
+                ).distinct()
         if self.request.GET.get("overdue"):
             # assets still out whose loan due-date has passed (§14 scan_loans)
             qs = qs.filter(
@@ -89,6 +106,9 @@ class AssetList(RoleRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["statuses"] = Asset.Status.choices
+        ctx["departments"] = Department.objects.select_related("site").order_by("name")
+        # the orphan fix-up queue is technician-only — hide the link otherwise
+        ctx["can_repair"] = is_technician_or_admin(self.request.user)
         return ctx
 
 
@@ -455,6 +475,134 @@ def _guard_technician(request) -> HttpResponseForbidden | None:
     if not user_has_role(request.user, "admin", "technician"):
         return HttpResponseForbidden("Technician or admin role required.")
     return None
+
+
+def orphan_repair(request):
+    """Fix-up queue for orphan assignments (status ASSIGNED, no open row).
+
+    Seed/import artifacts where the register says "assigned" but the trail
+    has no holder. One row per orphan with a holder picker; a POST repairs
+    through `services.check_out` — the documented orphan-recovery path — so
+    the repair lands as a normal check-out event (activity trail included),
+    not as direct row surgery. Technician-gated and scope-narrowed like the
+    forms that write the same data.
+    """
+    if not request.user.is_authenticated:
+        return redirect("login")
+    denied = _guard_technician(request)
+    if denied:
+        return denied
+    # pk__in subquery, not exclude(assignments__in_at__isnull=True): the
+    # multi-valued exclude compiles over-broad here (drops assets with no
+    # assignment rows at all — verified: 0 of 20 survived).
+    orphans = scope_list(
+        request.user,
+        Asset.objects.filter(status=Asset.Status.ASSIGNED)
+        .exclude(pk__in=Assignment.objects.filter(in_at__isnull=True).values("asset_id"))
+        .select_related("category", "site"),
+        action="orphan_repair",
+        path=request.path,
+    )
+    people_qs = scope_list(
+        request.user,
+        Person.objects.filter(is_active=True).select_related("site", "department"),
+        action="orphan_repair_people",
+        path=request.path,
+    )
+    if request.method == "POST":
+        asset = get_object_or_404(orphans, pk=request.POST.get("asset"))
+        try:
+            person = Person.objects.get(pk=request.POST.get("to_person"))
+        except (Person.DoesNotExist, ValueError, TypeError):
+            messages.error(request, "Pick an employee to record as the holder.")
+            return redirect("orphan-repair")
+        try:
+            check_scope(request.user, asset, action="orphan_repair", path=request.path)
+        except OutOfScope:
+            raise Http404("Asset not found") from None
+        try:
+            services.check_out(
+                asset, person, actor=request.user, remarks="Orphan assignment repaired"
+            )
+            messages.success(request, f"{asset.asset_tag} → {person.name}")
+        except services.AssetError as exc:
+            messages.warning(request, str(exc))
+        return redirect("orphan-repair")
+    return render(
+        request,
+        "assets/orphan_repair.html",
+        {"orphans": orphans, "people": people_qs},
+    )
+
+
+def attach_components(request, pk):
+    """Bulk-link components to a workstation (§6.1 parent_asset).
+
+    Candidates: same site as the workstation, not yet a child, not the
+    workstation itself — optionally narrowed by `?category=`. A POST sets
+    `parent_asset` for each ticked asset (structural metadata, not a
+    lifecycle transition: direct write + one batched ActivityLog event) and
+    re-derives the candidate set before writing, so a crafted POST cannot
+    attach another site's asset.
+    """
+    if not request.user.is_authenticated:
+        return redirect("login")
+    denied = _guard_technician(request)
+    if denied:
+        return denied
+    parent = get_object_or_404(Asset, pk=pk)
+    try:
+        check_scope(request.user, parent, action="asset_attach", path=request.path)
+    except OutOfScope:
+        raise Http404("Asset not found") from None
+
+    def candidates():
+        qs = (
+            Asset.objects.filter(site=parent.site, parent_asset__isnull=True)
+            .exclude(pk=parent.pk)
+            .select_related("category")
+            .order_by("asset_tag")
+        )
+        cat = request.GET.get("category", "")
+        if cat.isdigit():
+            qs = qs.filter(category_id=int(cat))
+        return qs
+
+    if request.method == "POST":
+        chosen = list(candidates().filter(pk__in=request.POST.getlist("assets")))
+        for component in chosen:
+            component.parent_asset = parent
+        Asset.objects.bulk_update(chosen, ["parent_asset"])
+        if chosen:
+            from apps.audit.models import ActivityLog
+
+            ActivityLog.record(
+                actor=request.user,
+                action="component_attach",
+                obj=parent,
+                details={"components": [c.pk for c in chosen]},
+            )
+            messages.success(
+                request,
+                f"{len(chosen)} component(s) attached to {parent.asset_tag}.",
+            )
+        else:
+            messages.warning(request, "Nothing selected — tick the components to attach.")
+        return redirect("asset-detail", pk=parent.pk)
+
+    candidates_qs = candidates()
+    category_ids = Asset.objects.filter(site=parent.site, parent_asset__isnull=True).values_list(
+        "category_id", flat=True
+    )
+    return render(
+        request,
+        "assets/attach_components.html",
+        {
+            "parent": parent,
+            "candidates": candidates_qs,
+            "categories": Category.objects.filter(pk__in=set(category_ids)).order_by("code"),
+        },
+    )
 
 
 def asset_field_suggest(request):

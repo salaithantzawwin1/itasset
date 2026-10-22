@@ -1063,11 +1063,28 @@ fieldset.module .form-row { overflow: visible; }
   width: 8px; height: 8px; background: var(--body-loud-color);
   z-index: 70; opacity: 0; visibility: hidden; pointer-events: none;
   transition: opacity .15s ease .35s, visibility 0s linear .35s;
-}
-[data-tip]:hover::before, [data-tip]:focus-visible::before,
+}[data-tip]:hover::before, [data-tip]:focus-visible::before,
 [data-tip]:hover::after, [data-tip]:focus-visible::after {
-  opacity: 1; visibility: visible;
-  transition-delay: .15s, .15s, .15s;
+  opacity: 1; visibility: visible; transition-delay: .15s, .15s, .15s;
+}
+
+/* Field help hints ((GB), e.g. Intel Core i5-14500 …) ride as a focusable
+   tip inside the field's label — the row-height .help div broke up the
+   two-across spec grid. change_form.html converts the initial render;
+   the swap fragment (admin/partials/spec_fields.html) serves it directly. */
+.help-tip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; margin-left: 5px; border-radius: 50%;
+  border: 1px solid currentColor; font-size: 9.5px; font-weight: 700;
+  font-style: normal; line-height: 1; opacity: .5; cursor: help;
+  vertical-align: 1px; transition: opacity .15s ease;
+}
+.help-tip:hover, .help-tip:focus, .help-tip:focus-visible { opacity: 1; }
+.help-tip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* the global [data-tip] bubble keys off :focus-visible; a span tip should
+   also open on plain focus — tap-to-show on touch, no modality heuristics */
+.help-tip:focus::before, .help-tip:focus::after {
+  opacity: 1; visibility: visible; transition-delay: .15s, .15s;
 }
 
 /* ---------- DateTimeShortcuts popup calendar -----------------------------

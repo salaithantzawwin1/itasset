@@ -3,10 +3,9 @@
   {{ field.errors }}
   <div>
     <div class="flex-container">
-      {{ field.label_tag }}
+      <label for="{{ field.id_for_label }}">{{ field.label }}:{% if field.help_text %}<span class="help-tip" data-tip="{{ field.help_text }}" aria-label="{{ field.help_text }}" tabindex="0">i</span>{% endif %}</label>
       {{ field }}
     </div>
-    {% if field.help_text %}<div class="help"><div>{{ field.help_text|safe }}</div></div>{% endif %}
   </div>
 </div>
 {% endfor %}

@@ -84,5 +84,31 @@
   activate(firstErr ? firstErr.getAttribute('data-tab-panel') : tabs[0].getAttribute('data-tab'));
 })();
 </script>
+<script>
+/* Help text → tooltip: spec rows render a `.help` div under the widget,
+   which doubles the height of every second row in the two-across spec
+   grid. Fold it into a focusable tip inside the field's label — the swap
+   fragment (admin/partials/spec_fields.html) serves the same markup
+   server-side, so initial render and category swap stay identical. */
+(function () {
+  var main = document.getElementById('content-main');
+  if (!main) return;
+  main.querySelectorAll('[data-spec-fields] .form-row').forEach(function (row) {
+    var help = row.querySelector('.help');
+    var label = row.querySelector('.flex-container > label');
+    if (!help || !label) return;
+    var text = help.textContent.trim();
+    if (!text) return;
+    var tip = document.createElement('span');
+    tip.className = 'help-tip';
+    tip.setAttribute('data-tip', text);
+    tip.setAttribute('aria-label', text);
+    tip.setAttribute('tabindex', '0');
+    tip.textContent = 'i';
+    label.appendChild(tip);
+    help.remove();
+  });
+})();
+</script>
 {% include "partials/spec_swap.html" %}
 {% endblock %}

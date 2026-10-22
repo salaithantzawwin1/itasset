@@ -29,6 +29,32 @@
     .ftab-panel .spec-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 18px; align-items: start; }
     /* "CODE — Name" category options need the room; the tag keeps one column. */
     .ftab-panel p:has(select[name="category"]) { grid-column: span 2; }
+    /* Field help hints ((GB), e.g. Intel Core i5-14500 …) ride as a focusable
+       tip in the field's label instead of a line under every input. */
+    .help-tip { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px;
+                margin-left: 5px; border-radius: 50%; border: 1px solid currentColor; font-size: 9.5px;
+                font-weight: 700; font-style: normal; line-height: 1; opacity: .5; cursor: help;
+                vertical-align: 1px; transition: opacity .15s ease; }
+    .help-tip:hover, .help-tip:focus-visible { opacity: 1; }
+    .help-tip:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+    [data-tip] { position: relative; }
+    [data-tip]::before {
+      content: attr(data-tip); position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%);
+      background: var(--text); color: var(--surface); font-size: 11.5px; font-weight: 600; line-height: 1.35;
+      text-transform: none; letter-spacing: 0;
+      padding: 6px 9px; border-radius: 6px; width: max-content; max-width: 240px;
+      box-shadow: var(--shadow); z-index: 70; opacity: 0; visibility: hidden; pointer-events: none;
+      transition: opacity .15s ease .35s, visibility 0s linear .35s;
+    }
+    [data-tip]::after {
+      content: ""; position: absolute; left: 50%; bottom: calc(100% + 3px); transform: translateX(-50%) rotate(45deg);
+      width: 8px; height: 8px; background: var(--text); z-index: 70; opacity: 0; visibility: hidden;
+      pointer-events: none; transition: opacity .15s ease .35s, visibility 0s linear .35s;
+    }
+    [data-tip]:hover::before, [data-tip]:focus::before, [data-tip]:focus-visible::before,
+    [data-tip]:hover::after, [data-tip]:focus::after, [data-tip]:focus-visible::after {
+      opacity: 1; visibility: visible; transition-delay: .15s, .15s;
+    }
     .ftab-actions { display: flex; gap: 10px; margin-top: 18px; }
     #asset-form-card.tabs-on form.frm { max-width: 760px; }
 {% endblock %}
@@ -60,9 +86,8 @@
       {% for field in tab.fields %}
       <p>
         {{ field.errors }}
-        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.help_text %}<span class="help-tip" data-tip="{{ field.help_text }}" aria-label="{{ field.help_text }}" tabindex="0">i</span>{% endif %}</label>
         {{ field }}
-      {% if field.help_text %}<span class="help muted">{{ field.help_text }}</span>{% endif %}
       </p>
       {% endfor %}
       {% endif %}

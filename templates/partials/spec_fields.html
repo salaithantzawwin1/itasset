@@ -1,8 +1,7 @@
 {% for field in fields %}
 <p>
   {{ field.errors }}
-  <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+  <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.help_text %}<span class="help-tip" data-tip="{{ field.help_text }}" aria-label="{{ field.help_text }}" tabindex="0">i</span>{% endif %}</label>
   {{ field }}
-  {% if field.help_text %}<span class="help muted">{{ field.help_text }}</span>{% endif %}
 </p>
 {% endfor %}

@@ -307,6 +307,9 @@ a.brand:hover { color: #fff; }
   max-width: 1240px; margin: 0 auto;
   padding: 26px 30px 52px;
 }
+/* Big desktops (>=1440px): widen the admin shell to match the main app's
+   big-screen tier so changelists/filters/dashboards fill a 1920px display. */
+@media (min-width: 1440px) { #content { max-width: 1620px; padding-left: 40px; padding-right: 40px; } }
 .dashboard #content { width: auto; }  /* stock base.css pins the dashboard to 600px */
 
 /* ---------- page header ------------------------------------------------ */

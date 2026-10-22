@@ -55,6 +55,10 @@
 
     /* ---------- page body ---------- */
     .page { max-width: 1180px; margin: 28px auto 60px; padding: 0 28px; }
+    /* Big desktops (>=1440px): scale the container up so tables/charts use the
+       screen instead of leaving ~370px dead gutters on each side (1920px).
+       Laptop/tablet/mobile breakpoints below still govern below 1440px. */
+    @media (min-width: 1440px) { .page { max-width: 1560px; padding: 0 36px; } }
     .page-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; }
     .page-head h1 { margin: 0; font-size: 22px; font-weight: 700; }
     .page-head .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }

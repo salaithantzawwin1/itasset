@@ -15,7 +15,7 @@
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
 | Last updated | 2026-10-22 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **341 passed + 85 subtests** (2026-10-22, local 235 s + server 108 s, exit 0) |
+| Test suite | **341 passed + 85 subtests** (2026-10-22, local 241 s + server 111 s, exit 0) |
 
 ---
 
@@ -185,6 +185,32 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-22 (session 26 — field hints become label tooltips)
+- **Help text → tooltip** (request: "e.g. Intel Core Ultra 5", (GB), (inches),
+  "e.g. 1920x1080" should show as tooltips): every unit/example hint used to
+  render as its own line under the input, which doubled the row height in
+  session 25's column grids. Each hint now rides as a focusable ⓘ span inside
+  the field's label; hover / focus / tap opens the themed `data-tip` bubble.
+  The main app gained the bubble CSS (previously admin-only, session 22) with
+  `text-transform: none` so the uppercase field labels stop leaking into the
+  bubble text; the admin's global rules gained a `.help-tip:focus` override
+  (plain `:focus-visible` on a span proved unreliable under automation and
+  misses touch taps).
+- Surface wiring: main app serves the tip from `partials/spec_fields.html`
+  (server render **and** swap — one file) plus the generic field loop;
+  the admin swap fragment (`admin/partials/spec_fields.html`) renders the
+  same markup server-side, while the initial server-rendered fieldset keeps
+  Django's stock `admin/includes/fieldset.html` and a 10-line pass in
+  `change_form.html` folds each row's `.help` div into its label (no
+  version-coupled template copy; no-JS keeps the inline help).
+- Gates: **341 passed + 85 subtests** locally (241 s) and on the server
+  (111 s). Browser-verified both surfaces × both themes: clean label rows,
+  bubble content/case, keyboard focus, category swap serving tips
+  server-side (Laptop 9 tips), zero leftover `.help` lines.
+- Deployed to 192.168.100.142 (LF archive sync → server suite → gunicorn
+  restart): probe gate **18 ok / 0 failed** incl. throttle phase; `/healthz`
+  ok. Pushed `db41b39..b9dc5ec`.
 
 ### 2026-10-22 (session 25 — spec fields share rows on both edit surfaces)
 - **Spec fields laid out in rows** (request: CPU Manufacturer stretched the

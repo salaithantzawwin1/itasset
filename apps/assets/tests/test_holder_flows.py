@@ -10,6 +10,8 @@
    is dropped by re-deriving candidates server-side; one ActivityLog event.
 4. Asset list filters: by the holder's department (open assignment only)
    and "assigned to me" (linked Person; no link → empty list, not everyone).
+5. Filter-bar fine-tune (session 33): active controls tinted + selects
+   auto-submit; the width:100% cascade override stays off `.filterbar select`.
 """
 
 import pytest
@@ -245,3 +247,29 @@ def test_mine_filter_empty_without_person_link(client, tech_user, asset_factory,
     client.force_login(tech_user)
     resp = client.get("/assets/?mine=1")
     assert list(resp.context["object_list"]) == []
+
+
+def test_filter_bar_active_state_and_cascade(client, tech_user, site):
+    """Session 33's fine-tune: active controls are tinted + auto-apply, and
+    the width:100% override that stacked every filterbar select onto its
+    own row stays out of the shared form rule (the cascade bug: same
+    specificity, later in the sheet than `.filterbar select`'s width:auto)."""
+    from apps.people.models import Department
+
+    dept = Department.objects.create(name="FinTune", site=site)
+    client.force_login(tech_user)
+    body = client.get(f"/assets/?status=ASSIGNED&department={dept.pk}&mine=1").content.decode()
+    # active select is tinted and applies immediately
+    assert 'name="status" class="on" onchange="this.form.submit()"' in body
+    assert 'name="department" class="on" onchange="this.form.submit()"' in body
+    # inactive select carries neither tint nor class
+    assert 'name="warranty_days" class="on"' not in body
+    assert 'name="warranty_days"' in body
+    # checkbox container tints when ticked
+    assert 'class="chk on"' in body
+    # the cascade pin: width:100% is scoped to frm/inline controls only
+    assert (
+        "form.frm input, form.frm select, form.frm textarea, form.inline-form "
+        "select { width: 100%; }" in body
+    )
+    assert ".filterbar input, .filterbar select { width: 100%;" not in body

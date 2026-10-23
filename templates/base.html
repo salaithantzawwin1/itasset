@@ -86,11 +86,24 @@
     .bar-row .bn { width: 42px; text-align: right; font-size: 13px; font-weight: 700; }
 
     /* ---------- filter bar ---------- */
-    .filterbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+    /* One toolbar strip (shared by the assets list, audit log and attach
+       pages): search + selects + checkboxes + actions grouped on a surface
+       panel instead of floating loose on the page background. */
+    .filterbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 11px 14px; }
     .filterbar input[type=text] { flex: 1 1 260px; max-width: 380px; }
-    .filterbar select { width: auto; min-width: 170px; }
-    .filterbar label.chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+    /* selects stay content-width — the width note on the shared form rule
+       below explains why this used to lose and stack every dropdown */
+    .filterbar select { width: auto; min-width: 170px; max-width: 100%; }
+    .filterbar label.chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; cursor: pointer; }
     .filterbar input[type=checkbox] { width: auto; padding: 0; }
+    /* applied filter: tint the control that is narrowing the list, so an
+       active filter is visible without re-opening the dropdown */
+    .filterbar select.on { border-color: var(--accent); font-weight: 600;
+      background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+    .filterbar label.chk.on { color: var(--accent); font-weight: 600; }
+    .filterbar .btn { margin-left: auto; }  /* Search + Clear hug the right edge */
     .filterbar .clear-link { font-size: 13px; text-decoration: none; }
     .filterbar .clear-link:hover { text-decoration: underline; }
 
@@ -143,9 +156,15 @@
     form.frm p { margin: 14px 0; }
     form.frm label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .3px; }
     form.frm input, form.frm select, form.frm textarea, .filterbar input, .filterbar select, form.inline-form select {
-      width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); font-size: 14px; color: var(--text);
+      padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); font-size: 14px; color: var(--text);
     }
-    form.frm input:focus, form.frm select:focus, form.frm textarea:focus, .filterbar input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 14%, transparent); }
+    /* width: 100% only where controls must fill their column. It used to
+       ride along in the shared rule above — same specificity, later in the
+       sheet than the filter bar's `width: auto` — so every filterbar select
+       rendered full-width and wrapped onto its own row (the stacked
+       dropdowns). The filter bar is flex; it sizes its own controls. */
+    form.frm input, form.frm select, form.frm textarea, form.inline-form select { width: 100%; }
+    form.frm input:focus, form.frm select:focus, form.frm textarea:focus, .filterbar input:focus, .filterbar select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 14%, transparent); }
     form.inline-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     form.inline-form select { width: auto; min-width: 210px; }
     .filterbar .btn { width: auto; }

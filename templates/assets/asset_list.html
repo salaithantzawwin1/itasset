@@ -12,23 +12,25 @@
 {# inputs live INSIDE the form so submitting actually sends q/status/… (was an empty form) #}
 <form id="filterform" class="filterbar" method="get">
   <input type="text" name="q" placeholder="{% t "asset.search_ph" %}" value="{{ request.GET.q }}">
-  <select name="status">
+  {# selects apply immediately (same onchange pattern as attach_components);
+     every other control in the form rides along in the GET #}
+  <select name="status" {% if request.GET.status %}class="on"{% endif %} onchange="this.form.submit()">
     <option value="">{% t "asset.all_statuses" %}</option>
     {% for val, label in statuses %}<option value="{{ val }}" {% if request.GET.status == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
   </select>
-  <select name="warranty_days">
+  <select name="warranty_days" {% if request.GET.warranty_days %}class="on"{% endif %} onchange="this.form.submit()">
     <option value="">{% t "asset.all_warranties" %}</option>
     <option value="7" {% if request.GET.warranty_days == "7" %}selected{% endif %}>{% t "asset.warranty_le" n=7 %}</option>
     <option value="30" {% if request.GET.warranty_days == "30" %}selected{% endif %}>{% t "asset.warranty_le" n=30 %}</option>
     <option value="90" {% if request.GET.warranty_days == "90" %}selected{% endif %}>{% t "asset.warranty_le" n=90 %}</option>
   </select>
-  <select name="department">
+  <select name="department" {% if request.GET.department %}class="on"{% endif %} onchange="this.form.submit()">
     <option value="">{% t "asset.all_depts" %}</option>
     {% for d in departments %}<option value="{{ d.pk }}" {% if request.GET.department == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.name }} ({{ d.site.code }})</option>{% endfor %}
   </select>
-  <label class="chk"><input type="checkbox" name="mine" value="1" {% if request.GET.mine %}checked{% endif %}> {% t "asset.assigned_mine" %}</label>
-  <label class="chk"><input type="checkbox" name="missing_serial" value="1" {% if request.GET.missing_serial %}checked{% endif %}> {% t "asset.missing_serial" %}</label>
-  <button class="btn secondary" type="submit">{% t "asset.search_btn" %}</button>
+  <label class="chk{% if request.GET.mine %} on{% endif %}"><input type="checkbox" name="mine" value="1" {% if request.GET.mine %}checked{% endif %}> {% t "asset.assigned_mine" %}</label>
+  <label class="chk{% if request.GET.missing_serial %} on{% endif %}"><input type="checkbox" name="missing_serial" value="1" {% if request.GET.missing_serial %}checked{% endif %}> {% t "asset.missing_serial" %}</label>
+  <button class="btn" type="submit">{% t "asset.search_btn" %}</button>
   {% if request.GET.q or request.GET.status or request.GET.warranty_days or request.GET.department or request.GET.mine or request.GET.missing_serial %}
   <a class="muted clear-link" href="{% url 'asset-list' %}">{% t "asset.clear" %}</a>
   {% endif %}

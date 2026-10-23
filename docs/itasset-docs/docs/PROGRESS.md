@@ -15,7 +15,7 @@
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
 | Last updated | 2026-10-23 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **385 passed + 90 subtests** (2026-10-23, local 259 s + server 122 s, exit 0) |
+| Test suite | **392 passed + 90 subtests** (2026-10-23, local 269 s + server 122 s, exit 0) |
 
 ---
 
@@ -185,6 +185,37 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-23 (session 32 — department detail page: head + department-held inventory)
+- **`/departments/<pk>/`** (`DepartmentDetail` in `apps/people/views.py`,
+  `people/department_detail.html`): the landing page for a department-held
+  fleet — the head (တာဝန်ခံ) in the subtitle with a person link, a
+  department-held card (open `to_dept` rows with tag/category/site/status
+  pill/out date — the person page's held-now/history split and
+  `select_related` reused), a capped 20-row history card, and the member
+  list. Read-only for any authenticated user, scope-guarded like
+  Site/Person detail (anonymous → login, out-of-scope → 404 under
+  enforcement).
+- **`Department.head`** — new nullable `Person` FK (`SET_NULL`, migration
+  `people.0006`), editable in the admin (list display + searchable by head
+  name/staff no); a department without one shows "No head assigned."
+  Verified against prod's two dept-held assets — IT-NET-SW-0001 /
+  IT-NET-FW-0001 render on IT (yangon)'s page.
+- **Entry links**: department names on the people list, person detail, the
+  site detail people card and the asset detail (current-holder row +
+  history) now link to the dept page; the page header links back to the
+  asset list with its `?department=` filter applied.
+- Gates: **392 passed + 90 subtests** locally (269 s) and on the server
+  (122 s, `SCOPE_ENFORCEMENT_ENABLED=1`) — +7 tests in
+  `apps/assets/tests/test_dept_detail.py` (head/members/held-history split
+  with the member-held asset excluded, empty states, anonymous redirect,
+  out-of-scope 404 under enforcement, the entry links + list back-link).
+  ruff check + format clean, `makemigrations --check` clean both sides.
+- Deployed to 192.168.100.142 (LF archive sync → server suite → migrate
+  `people.0006` → collectstatic (154 unmodified) → gunicorn restart): probe
+  **18 ok / 0 failed**; live checks via the prod test client — dept page
+  200 with head/held/members cards, anonymous 302 → login, person list and
+  dept-held asset detail both link the dept, dept-held rows render.
 
 ### 2026-10-23 (session 31 — department-held assets, report summaries, big/phone screens)
 - **Department as a first-class holder** (`Assignment.to_dept` +

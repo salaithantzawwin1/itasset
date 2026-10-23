@@ -15,7 +15,7 @@
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
 | Last updated | 2026-10-23 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **404 passed + 90 subtests** (2026-10-23, local 269 s + server 122 s, exit 0) |
+| Test suite | **409 passed + 90 subtests** (2026-10-23, local 271 s + server 124 s, exit 0) |
 
 ---
 
@@ -185,6 +185,43 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-23 (session 37 — departments list + main-app dept edit + nav link + prod heads)
+- **`/departments/`** (`DepartmentList`): every department with site, head
+  and a **dept-held asset count** — one annotated query over open `to_dept`
+  rows (`Count("assignments", filter=… in_at__isnull=True)`, no N+1),
+  scope-narrowed on both axes (`site` + `pk` so department-scoped users
+  see their own). The count deep-links into the asset list's department
+  filter; rows link to the detail page and the edit form. Read-only for
+  any authenticated user, anonymous → login.
+- **`/departments/<pk>/edit/`** (`DepartmentUpdate`, admin, scope-checked
+  against the target site like PersonUpdate): `DepartmentForm`
+  (name/site/head) so the တာဝန်ခံ changes from the main app instead of the
+  Django admin; edit button added to the dept detail header. Success lands
+  on the list, where the head column shows the change immediately.
+- **Nav**: topbar gains "Departments" between People and Sites (ENG/MM,
+  active-state on all `department-*` urls; the admin sidebar already had
+  the model under People & Places).
+- **Prod heads set** (the data half of the ask): 4 departments with active
+  members got the member with the lowest employee-no — Engineering →
+  Kaung Htet Zaw (EMP04), Finance (yangon) → Moah Moah Myint Lwin (EMP03),
+  Finance (ChanYin) → May Zin (EMP06), IT (yangon) → Salai Thant Zaw Win
+  (EMP02). The 7 member-less depts (Finance/IT/Operations at mandalay/
+  naypyitaw) stay unset and show "No head assigned." — provisional picks,
+  changeable in admin or the new edit form.
+- Gates: **409 passed + 90 subtests** locally (271 s) and on the server
+  (124 s, `SCOPE_ENFORCEMENT_ENABLED=1`) — +5 tests in
+  `apps/assets/tests/test_dept_detail.py` (list count split — closed +
+  member-personal rows excluded, head render + count deep-link + nav link,
+  no-head fallback, anon redirect; edit form round-trip with head change
+  verified on the detail page, technician 403 on GET+POST). ruff check +
+  format clean, `makemigrations --check` clean both sides.
+- Deployed to 192.168.100.142 (LF archive sync → server suite →
+  collectstatic → gunicorn restart, no migrate): probe **18 ok / 0
+  failed**; live checks — list 200 with 11 rows (IT (yangon) count **2**
+  matches its dept-held assets), edit form 200 with the head preselected,
+  nav link present across pages, **all 11 dept pages render their head (4)
+  or the no-head fallback (7)**. Pushed `14ecc15..b948111` (+ this log).
 
 ### 2026-10-23 (session 36 — bulk department check-out)
 - **`/assets/bulk-checkout/`** (`bulk_dept_checkout`, technician-gated):

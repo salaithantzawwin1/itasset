@@ -15,7 +15,7 @@
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
 | Last updated | 2026-10-23 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **409 passed + 90 subtests** (2026-10-23, local 271 s + server 124 s, exit 0) |
+| Test suite | **410 passed + 90 subtests** (2026-10-23, local 271 s, exit 0; server green at 409+90 in session 37 — session 38 deploy blocked, host offline) |
 
 ---
 
@@ -185,6 +185,32 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-23 (session 38 — literal template comment on the assets filter bar)
+- **Bug** (screenshot): the session-33 filter toolbar printed its own
+  source comment as page text above the status dropdown —
+  `{# selects apply immediately … #}`. **Cause**: the comment spanned TWO
+  lines, and Django only matches `{# … #}` within a single line (the lexer
+  is non-DOTALL), so it never parsed and shipped verbatim (the newline
+  collapsed to a space, so it looked like one line of UI text). A
+  repo-wide scan found exactly one such comment — this one.
+- **Fix**: joined to one line
+  (`{# selects auto-submit (attach_components pattern); other controls
+  ride along in the GET #}`) in `templates/assets/asset_list.html`.
+- **Guard**: `test_template_comments_never_span_lines` (tests/test_smoke.py)
+  scans every template for `{#`…`#}` crossing a newline or unterminated —
+  this bug class now fails CI (partials/topbar.html already documented the
+  single-line rule; nothing enforced it).
+- Gates: **410 passed + 90 subtests** locally (271 s), ruff check +
+  format clean, `makemigrations --check` clean. Committed `9617666` and
+  **pushed** `c9af0c8..9617666`.
+- **Deploy BLOCKED (owed)**: 192.168.100.142 went offline mid-session —
+  ping 100% loss + SSH connect timeouts from 15:16 onward; its own shared
+  terminal had just run `apt update` (13 upgrades + new LTS release
+  offered), so likely a reboot/upgrade. A background waiter retried for
+  ~12.5 min and exited `HOST-STILL-DOWN`. Prod still serves session 37's
+  code; this one-line template fix (and this log) ship on the next deploy
+  once the host is back.
 
 ### 2026-10-23 (session 37 — departments list + main-app dept edit + nav link + prod heads)
 - **`/departments/`** (`DepartmentList`): every department with site, head

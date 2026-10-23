@@ -14,7 +14,9 @@ and the member list. Coverage:
    detail's department holder all link to the new page.
 5. Departments list (session 37): head + annotated dept-held asset count
    (open rows only — closed and member-personal assets excluded), count
-   links into the asset-list filter, nav link, anonymous redirect.
+   links into the asset-list filter, nav link, anonymous redirect; the
+   member count column (people in the department) — both counts are
+   `distinct=True` so the two multi-valued joins never multiply.
 6. Department edit (session 37): admin changes the head through the main
    app form; technicians are refused (admin-only like Site/Person).
 """
@@ -211,6 +213,32 @@ def test_department_list_shows_head_and_dept_held_count(
     assert ">1</a>" in body
     # nav carries the page
     assert 'href="/departments/"' in body
+
+
+def test_department_list_shows_member_count(
+    client, tech_user, asset_factory, person_factory, dept_factory
+):
+    dept = dept_factory(name="Membered Dept")
+    for n in ("Member One", "Member Two"):
+        p = person_factory(name=n)
+        p.department = dept
+        p.save(update_fields=["department"])
+    # members × held assets fan out the joined rows (2×2) — the two
+    # counts must stay exact, which is what distinct=True guarantees
+    for tag in ("IT-MC-8001", "IT-MC-8002"):
+        a = asset_factory(status=Asset.Status.ASSIGNED, asset_tag=tag)
+        Assignment.objects.create(asset=a, to_dept=dept)
+    dept_factory(name="Lonely Dept")  # no members, no held assets
+
+    client.force_login(tech_user)
+    resp = client.get("/departments/")
+    assert resp.status_code == 200
+    rows = {d.name: d for d in resp.context["object_list"]}
+    assert rows["Membered Dept"].member_count == 2  # not 2×2
+    assert rows["Membered Dept"].asset_count == 2  # not 2×2
+    assert rows["Lonely Dept"].member_count == 0
+    body = resp.content.decode()
+    assert "Department members" in body  # column header renders (i18n key dept.members)
 
 
 def test_department_list_without_head_shows_dash(client, tech_user, dept_factory):

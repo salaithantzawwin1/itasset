@@ -15,7 +15,7 @@
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
 | Last updated | 2026-10-23 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **394 passed + 90 subtests** (2026-10-23, local 271 s + server 122 s, exit 0) |
+| Test suite | **395 passed + 90 subtests** (2026-10-23, local 268 s + server 120 s, exit 0) |
 
 ---
 
@@ -185,6 +185,38 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-23 (session 35 — admin changelist sticky header floated over the first rows)
+- **Bug** (reported with a screenshot of `/admin/people/person/`): the
+  session-31 sticky column header rendered ~58px BELOW its natural place,
+  covering the second data row, and never pinned while scrolling. **Root
+  cause**: Django's `#changelist-form .results { overflow-x: auto }`
+  (changelists.css) coerces the visible overflow-y to auto — `.results`
+  becomes the sticky `th`'s scroll container. At scrollTop 0 the
+  `top: var(--topbar-h)` pin therefore shifts the header straight DOWN
+  over the rows with no scrolling at all, and because that inner box has
+  no height to scroll, the header never pins on a page scroll either.
+  Proven by measurement in a minimal browser repro: auto → 58px displaced
+  at rest and off-screen (thTop −559) at scroll 800; clip → 0 at rest,
+  pins at exactly 58px.
+- **Fix** (`templates/admin/_theme.css.html`):
+  `#changelist #changelist-form .results { overflow-x: clip; }` — clip is
+  not a scrollport, so the sticky rule resolves against the viewport just
+  like the main app's `table.data` (which session 31 already fixed the
+  same way with `overflow: clip`); 2-id specificity beats Django's 1-id
+  rule regardless of stylesheet order; cells already wrap
+  (`overflow-wrap: anywhere`), so no meaningful horizontal scrolling is
+  lost. Safari <16 ignores clip → keeps Django's auto → header simply
+  doesn't pin there (the same stance as table.data's clip/hidden pair).
+- Gates: **395 passed + 90 subtests** locally (268 s) and on the server
+  (120 s, `SCOPE_ENFORCEMENT_ENABLED=1`) — +1 test
+  (`test_changelist_sticky_header_has_no_inner_scrollport`) pinning the
+  override on the rendered changelist. ruff clean, `makemigrations
+  --check` clean both sides.
+- Deployed to 192.168.100.142 (LF archive sync → server suite →
+  collectstatic → gunicorn restart, no migrate): probe **18 ok / 0
+  failed**; live `/admin/people/person/` — clip override rendered, sticky
+  rule intact. Pushed `d52fa36..fe6ea01` (+ this session log).
 
 ### 2026-10-23 (session 34 — "New person" entry point on the People list)
 - **`/people/` gains its create button**: the list page rendered the table

@@ -15,7 +15,7 @@
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
 | Last updated | 2026-10-23 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **395 passed + 90 subtests** (2026-10-23, local 268 s + server 120 s, exit 0) |
+| Test suite | **404 passed + 90 subtests** (2026-10-23, local 269 s + server 122 s, exit 0) |
 
 ---
 
@@ -185,6 +185,38 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-23 (session 36 — bulk department check-out)
+- **`/assets/bulk-checkout/`** (`bulk_dept_checkout`, technician-gated):
+  tick any number of AVAILABLE assets and assign them all to one
+  department in a single POST — the bulk-attach contract from session 30,
+  applied to the session-31 dept holder. Candidates are scope-narrowed and
+  **re-derived server-side before writing** (crafted pks — wrong status,
+  out of scope, already assigned — are simply not in the set and get
+  dropped); each chosen asset runs through `services.check_out`, so status
+  sync and the per-asset `check_out` ActivityLog trail are the normal
+  lifecycle path, not row surgery. Orphans (ASSIGNED, no row) stay with
+  the repair queue — candidates are AVAILABLE only.
+- Page: site/category/query filters (auto-submit selects, session-33
+  toolbar style), a scope-narrowed department picker in the actions row,
+  and a submit guard requiring both a dept and ≥1 tick. Filter options
+  derive from the unfiltered candidate set, so picking a category doesn't
+  collapse its own list. Entry: "Bulk check-out" button in the assets
+  list header (technician/admin only, beside Repair assignments).
+- Gates: **404 passed + 90 subtests** locally (269 s) and on the server
+  (122 s, `SCOPE_ENFORCEMENT_ENABLED=1`) — +9 tests in
+  `apps/assets/tests/test_bulk_checkout.py` (AVAILABLE-only listing,
+  site/category/query filters, bulk assign with status sync + 2 events,
+  crafted-pk drop, no-dept/no-tick refusal, viewer 403, anon redirect,
+  technician-only entry button). ruff check + format clean,
+  `makemigrations --check` clean both sides.
+- Deployed to 192.168.100.142 (LF archive sync → server suite →
+  collectstatic → gunicorn restart, no migrate): probe **18 ok / 0
+  failed**; live read-only checks — page 200 with picker + hint, q-filter
+  empties the list, entry button present, anon 302 → login. Prod currently
+  has **0 AVAILABLE** assets, so the tick list shows the empty state until
+  assets are checked in (or in-stock ones received) — expected, not a bug.
+  Pushed `4ea925d..2f5b4c6` (+ this session log).
 
 ### 2026-10-23 (session 35 — admin changelist sticky header floated over the first rows)
 - **Bug** (reported with a screenshot of `/admin/people/person/`): the

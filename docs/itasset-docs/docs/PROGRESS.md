@@ -15,7 +15,7 @@
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
 | Last updated | 2026-10-23 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **392 passed + 90 subtests** (2026-10-23, local 269 s + server 122 s, exit 0) |
+| Test suite | **393 passed + 90 subtests** (2026-10-23, local 279 s + server 120 s, exit 0) |
 
 ---
 
@@ -185,6 +185,33 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-23 (session 33 — asset search filter UI/UX fine-tune)
+- **Root cause of the stacked dropdowns** (`templates/base.html`): the
+  shared forms rule `.filterbar input, .filterbar select { width: 100%; … }`
+  sits later in the sheet than `.filterbar select { width: auto }` at equal
+  specificity, so it won — every filterbar select rendered full-width and
+  each dropdown wrapped onto its own row (assets list, audit log, attach
+  page all affected). `width: 100%` now rides only with the `form.frm`
+  controls that need it; the shared rule keeps the visuals (padding/border/
+  background/font) and the filter bar sizes its own controls with flex.
+- **Toolbar polish**: the filter bar is now a surface panel (border +
+  radius + shadow, like the cards) so search/filters/actions read as one
+  strip; selects and checkboxes tint with the accent border when a filter
+  is active (`class="on"`), the three dropdowns auto-submit on change (the
+  `attach_components` pattern — q/checkboxes ride along in the GET), the
+  Search button is the solid primary and hugs the right edge with Clear
+  (`margin-left: auto`), select focus rings added, checkbox labels get a
+  pointer cursor. ≤480px keeps session 31's full-width stacked layout.
+- Gates: **393 passed + 90 subtests** locally (279 s) — +1 test
+  (`test_filter_bar_active_state_and_cascade` pins the active-state markup
+  and the cascade split, so re-adding `.filterbar select` to the width rule
+  fails CI). ruff check + format clean.
+- Deployed to 192.168.100.142 (LF archive sync → server suite →
+  collectstatic → gunicorn restart, no migrate): probe **18 ok / 0 failed**;
+  live `/assets/` markup — single-row toolbar, `class="on"` tint on active
+  filters, auto-submit handlers, cascade pin present in the rendered CSS.
+  Pushed `8d88e48..6a45201` (+ this session log).
 
 ### 2026-10-23 (session 32 — department detail page: head + department-held inventory)
 - **`/departments/<pk>/`** (`DepartmentDetail` in `apps/people/views.py`,

@@ -5,8 +5,9 @@ the department head (တာဝန်ခံ, `Department.head`), the department-h
 inventory (open Assignment rows with `to_dept` set), a capped history card
 and the member list. Coverage:
 
-1. Head + members + held/history split render; member-held assets stay on
-   the person pages (they are NOT department-held).
+1. Head + members + held/history split render; member-held assets surface
+   in their own "Held by department members" card while staying OUT of
+   the department-held list (held_now is still to_dept only).
 2. Empty states (no head, nothing held).
 3. Anonymous → login redirect; out-of-scope department → 404 under
    enforcement (same policy as Site/Person detail).
@@ -99,7 +100,10 @@ def test_dept_detail_shows_head_members_and_held_assets(
     assert f"/people/{head.pk}/" in body
     assert "Staff Member" in body and f"/people/{member.pk}/" in body
     assert "IT-DEPT-5001" in body and "IT-DEPT-DONE" in body
-    assert "IT-PERS-5001" not in body  # member-held, not dept-held
+    # member-held rows surface in their own card (session ask) — but the
+    # department-held context above still excludes them
+    assert "IT-PERS-5001" in body
+    assert [a.asset_id for a in resp.context["member_held"]] == [personal.pk]
 
 
 def test_dept_detail_empty_state(client, tech_user, dept_factory):
@@ -108,6 +112,43 @@ def test_dept_detail_empty_state(client, tech_user, dept_factory):
     body = client.get(f"/departments/{dept.pk}/").content.decode()
     assert "No head assigned." in body
     assert "No assets held by this department." in body
+    assert "No assets held by department members." in body
+
+
+def test_dept_detail_member_held_card(
+    client, tech_user, asset_factory, person_factory, dept_factory
+):
+    dept = dept_factory(name="Members Dept")
+    m1 = person_factory(name="Holder One")
+    m1.department = dept
+    m1.save(update_fields=["department"])
+    m2 = person_factory(name="Holder Two")
+    m2.department = dept
+    m2.save(update_fields=["department"])
+
+    open_a = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-MH-9001")
+    Assignment.objects.create(asset=open_a, to_person=m1)
+    # closed member rows stay out (open-only card, like held_now)
+    closed = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-MH-9002")
+    Assignment.objects.create(asset=closed, to_person=m2, in_at=closed.updated_at)
+    # a person OUTSIDE this department must never surface here
+    outsider = person_factory(name="Outsider Person")
+    out_a = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-MH-9003")
+    Assignment.objects.create(asset=out_a, to_person=outsider)
+
+    client.force_login(tech_user)
+    resp = client.get(f"/departments/{dept.pk}/")
+    assert resp.status_code == 200
+    assert [a.asset_id for a in resp.context["member_held"]] == [open_a.pk]
+    body = resp.content.decode()
+    assert "Held by department members" in body  # card heading (i18n)
+    assert "IT-MH-9001" in body
+    # holder rendered as a link to the person page, next to the asset
+    assert "Holder One" in body and f"/people/{m1.pk}/" in body
+    assert "IT-MH-9002" not in body  # closed row
+    assert "IT-MH-9003" not in body  # other department's member
+    # and the department-held card is untouched by member rows
+    assert [a.asset_id for a in resp.context["held_now"]] == []
 
 
 # 2. access gates --------------------------------------------------------------

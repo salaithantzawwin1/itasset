@@ -168,6 +168,14 @@ STRINGS = {
         "my": "ဤဌာနထံ ပေးအပ်ထားသော ပစ္စည်း မရှိပါ။",
     },
     "dept.members": {"en": "Department members", "my": "ဌာနဝင်များ"},
+    "dept.held_by_members": {
+        "en": "Held by department members",
+        "my": "ဌာနဝင်များ ကိုင်ဆောင်ထားသော ပိုင်ဆိုင်မှုများ",
+    },
+    "dept.no_member_held": {
+        "en": "No assets held by department members.",
+        "my": "ဌာနဝင်များ ကိုင်ဆောင်ထားသော ပိုင်ဆိုင်မှု မရှိပါ။",
+    },
     "dept.view_assets": {"en": "View assets in list", "my": "ပစ္စည်းစာရင်းတွင် ကြည့်မည်"},
     "nav.departments": {"en": "Departments", "my": "ဌာနများ"},
     "dept.title": {"en": "Departments", "my": "ဌာနများ"},

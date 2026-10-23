@@ -213,13 +213,21 @@ class DepartmentList(RoleRequiredMixin, ListView):
 
 
 class DepartmentDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
-    """One department: its head, its department-held assets, its members.
+    """One department: its head, its held assets, its members.
 
     Read-only (roles_required = ()) like Site/Person detail, scope-guarded
     on the department row (site + department both recognized by
-    `_org_ids_of`). "Department-held" means an open Assignment with
-    `to_dept` set — assets held by individual members live on their own
-    person pages, matching the department report's split.
+    `_org_ids_of`). Two asset cards, deliberately kept apart:
+
+    - "Department-held" — open Assignment with `to_dept` set: the asset's
+      accountability (and check-in) sits with the department.
+    - "Held by department members" — open rows with `to_person` whose
+      person belongs to this department: the same people as the members
+      card, surfaced here so the department's whole footprint is visible
+      without visiting every person page (their history stays there);
+      matches the report's per-person buckets.
+
+    Both cards are open-only, one select_related query each (no N+1, §17).
     """
 
     roles_required = ()
@@ -243,6 +251,13 @@ class DepartmentDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
             Assignment.objects.filter(to_dept=self.object, in_at__isnull=True)
             .select_related("asset", "asset__category", "asset__site")
             .order_by("asset__asset_tag")
+        )
+        # the members' own open rows (card #2): filtered through the
+        # person's department, so membership == the members card above
+        ctx["member_held"] = (
+            Assignment.objects.filter(to_person__department=self.object, in_at__isnull=True)
+            .select_related("asset", "asset__category", "asset__site", "to_person")
+            .order_by("to_person__name", "asset__asset_tag")
         )
         ctx["history_recent"] = (
             Assignment.objects.filter(to_dept=self.object, in_at__isnull=False)

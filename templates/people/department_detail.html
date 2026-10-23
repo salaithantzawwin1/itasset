@@ -32,6 +32,26 @@
   </table>
 </div>
 <div class="card">
+  <h2>{% t "dept.held_by_members" %} <span class="muted" style="font-weight:400;">({{ member_held|length }})</span></h2>
+  <table class="data">
+    <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "person.name" %}</th><th>{% t "asset.category" %}</th><th>{% t "asset.site" %}</th><th>{% t "asset.status" %}</th><th>{% t "asset.out_at" %}</th></tr></thead>
+    <tbody>
+    {% for a in member_held %}
+      <tr>
+        <td><a href="{% url 'asset-detail' a.asset_id %}">{{ a.asset.asset_tag }}</a></td>
+        <td><a href="{% url 'person-detail' a.to_person_id %}">{{ a.to_person.name }}</a></td>
+        <td>{{ a.asset.category.code }}</td>
+        <td>{{ a.asset.site.code }}</td>
+        <td><span class="pill pill-{{ a.asset.status }}">{{ a.asset.get_status_display }}</span></td>
+        <td>{{ a.out_at|date:"Y-m-d" }}</td>
+      </tr>
+    {% empty %}
+      <tr class="empty-row"><td colspan="6">{% t "dept.no_member_held" %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="card">
   <h2>{% t "asset.history" %}</h2>
   <table class="data">
     <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "asset.out_at" %}</th><th>{% t "asset.in_at" %}</th></tr></thead>

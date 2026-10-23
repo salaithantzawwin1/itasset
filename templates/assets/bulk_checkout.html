@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load t %}
+{% block title %}{% t "bulk.title" %} — {% t "app.name" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% t "bulk.title" %}</h1><div class="sub">{% t "bulk.sub" %}</div></div>
+  <div class="actions">
+    <a class="btn secondary" href="{% url 'asset-list' %}">{% t "asset.title" %}</a>
+  </div>
+</div>
+<form method="get" class="filterbar">
+  <input type="text" name="q" placeholder="{% t "asset.search_ph" %}" value="{{ request.GET.q }}">
+  <select name="site" onchange="this.form.submit()">
+    <option value="">{% t "asset.all_sites" %}</option>
+    {% for s in sites %}<option value="{{ s.pk }}" {% if request.GET.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+  </select>
+  <select name="category" onchange="this.form.submit()">
+    <option value="">{% t "asset.all_categories" %}</option>
+    {% for c in categories %}<option value="{{ c.pk }}" {% if request.GET.category == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.code }} — {{ c.name }}</option>{% endfor %}
+  </select>
+  <button class="btn secondary" type="submit">{% t "asset.search_btn" %}</button>
+  <span class="muted">{% t "bulk.hint" n=candidates|length %}</span>
+</form>
+<form method="post" onsubmit="if(!this.to_dept.value || !this.querySelector('input[name=assets]:checked')){alert('{% t "bulk.pick_one" %}');return false;}">
+  {% csrf_token %}
+  <table class="data">
+    <thead>
+      <tr>
+        <th style="width:36px;"></th>
+        <th>{% t "asset.tag" %}</th>
+        <th>{% t "asset.category" %}</th>
+        <th>{% t "asset.model" %}</th>
+        <th>{% t "asset.site" %}</th>
+        <th>{% t "asset.status" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for a in candidates %}
+      <tr>
+        <td><input type="checkbox" name="assets" value="{{ a.pk }}" style="width:auto;padding:0;"></td>
+        <td><a href="{% url 'asset-detail' a.pk %}">{{ a.asset_tag }}</a></td>
+        <td>{{ a.category.code }}</td>
+        <td>{{ a.model_name|default:"—" }}</td>
+        <td>{{ a.site.code }}</td>
+        <td><span class="pill pill-{{ a.status }}">{{ a.get_status_display }}</span></td>
+      </tr>
+    {% empty %}
+      <tr class="empty-row"><td colspan="6">{% t "bulk.empty" %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if candidates %}
+  <div class="filterbar" style="margin-top:18px;margin-bottom:0;">
+    <select name="to_dept">
+      <option value="">{% t "asset.pick_dept" %}</option>
+      {% for d in departments %}<option value="{{ d.pk }}">{{ d.name }} ({{ d.site.code }})</option>{% endfor %}
+    </select>
+    <button class="btn" type="submit">{% t "bulk.selected" %}</button>
+    <a class="btn secondary" href="{% url 'asset-list' %}">{% t "asset.cancel" %}</a>
+  </div>
+  {% endif %}
+</form>
+{% endblock %}

@@ -113,6 +113,8 @@ class AssetList(RoleRequiredMixin, ListView):
         ctx["departments"] = Department.objects.select_related("site").order_by("name")
         # the orphan fix-up queue is technician-only — hide the link otherwise
         ctx["can_repair"] = is_technician_or_admin(self.request.user)
+        # bulk dept check-out entry (same gate — both are technician writes)
+        ctx["can_bulk"] = is_technician_or_admin(self.request.user)
         return ctx
 
 
@@ -636,6 +638,107 @@ def attach_components(request, pk):
             "parent": parent,
             "candidates": candidates_qs,
             "categories": Category.objects.filter(pk__in=set(category_ids)).order_by("code"),
+        },
+    )
+
+
+def bulk_dept_checkout(request):
+    """Bulk check-out: tick many AVAILABLE assets → one department (session 36).
+
+    Same shape as `attach_components`: technician-gated, scope-narrowed, and
+    candidates are re-derived server-side before writing — a crafted POST pk
+    (wrong status, other site/out of scope, already assigned) simply isn't
+    in the candidate set and gets dropped. Each chosen asset runs through
+    `services.check_out`, so status sync + the per-asset ActivityLog trail
+    are the normal lifecycle path, not row surgery. Orphans (ASSIGNED with
+    no row) stay with the repair queue — candidates are AVAILABLE only.
+    """
+    from django.db.models import Q
+
+    if not request.user.is_authenticated:
+        return redirect("login")
+    denied = _guard_technician(request)
+    if denied:
+        return denied
+
+    # scope once per request (the flag-aware helper logs a would-deny event
+    # eagerly, so building it inside the filter helper would double-log)
+    scoped = scope_list(
+        request.user,
+        Asset.objects.filter(status=Asset.Status.AVAILABLE),
+        action="bulk_checkout",
+        path=request.path,
+    )
+
+    def candidates():
+        qs = scoped.select_related("category", "site").order_by("asset_tag")
+        site = request.GET.get("site", "")
+        if site.isdigit():
+            qs = qs.filter(site_id=int(site))
+        cat = request.GET.get("category", "")
+        if cat.isdigit():
+            qs = qs.filter(category_id=int(cat))
+        q = request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(
+                Q(asset_tag__icontains=q) | Q(serial_no__icontains=q) | Q(model_name__icontains=q)
+            )
+        return qs
+
+    if request.method == "POST":
+        try:
+            dept = Department.objects.get(pk=request.POST.get("to_dept"))
+        except (Department.DoesNotExist, TypeError, ValueError):
+            messages.error(request, "Pick a department to assign the assets to.")
+            return redirect("asset-bulk-checkout")
+        try:
+            check_scope(request.user, dept, action="bulk_checkout", path=request.path)
+        except OutOfScope:
+            raise Http404("Department not found") from None
+        chosen = list(candidates().filter(pk__in=request.POST.getlist("assets")))
+        if not chosen:
+            messages.warning(request, "Nothing selected — tick the assets to assign.")
+            return redirect("asset-bulk-checkout")
+        done: list[str] = []
+        failed: list[str] = []
+        for asset in chosen:
+            try:
+                services.check_out(
+                    asset,
+                    actor=request.user,
+                    department=dept,
+                    remarks="Bulk department check-out",
+                )
+                done.append(asset.asset_tag)
+            except services.AssetError as exc:
+                failed.append(str(exc))
+        if done:
+            messages.success(request, f"{len(done)} asset(s) checked out → {dept.name}.")
+        if failed:
+            shown = "; ".join(failed[:3])
+            if len(failed) > 3:
+                shown += f" (+{len(failed) - 3} more)"
+            messages.warning(request, shown)
+        return redirect("asset-bulk-checkout")
+
+    rows = candidates()
+    # filter options derive from the unfiltered candidate set (status +
+    # scope only), so picking a category doesn't collapse its own list
+    category_ids = scoped.values_list("category_id", flat=True)
+    site_ids = scoped.values_list("site_id", flat=True)
+    return render(
+        request,
+        "assets/bulk_checkout.html",
+        {
+            "candidates": rows,
+            "categories": Category.objects.filter(pk__in=category_ids).order_by("code"),
+            "sites": Site.objects.filter(pk__in=site_ids).order_by("name"),
+            "departments": scope_list(
+                request.user,
+                Department.objects.select_related("site"),
+                action="bulk_checkout_departments",
+                path=request.path,
+            ),
         },
     )
 

@@ -169,6 +169,23 @@ STRINGS = {
     },
     "dept.members": {"en": "Department members", "my": "ဌာနဝင်များ"},
     "dept.view_assets": {"en": "View assets in list", "my": "ပစ္စည်းစာရင်းတွင် ကြည့်မည်"},
+    # bulk department check-out (session 36)
+    "bulk.title": {"en": "Bulk check-out", "my": "အစုလိုက် ပေးအပ်မည်"},
+    "bulk.sub": {
+        "en": "Tick the available assets and assign them all to one department",
+        "my": "ရရှိနိုင်သော asset များကို ရွေးပြီး တစ်ခါတည်း ဌာနတစ်ခုထံ ပေးအပ်မည်",
+    },
+    "bulk.hint": {"en": "{n} available assets", "my": "ရရှိနိုင်သော asset {n} ခု"},
+    "bulk.empty": {
+        "en": "No available assets here — assigned and in-stock assets are excluded.",
+        "my": "ဤနေရာတွင် ရရှိနိုင်သော asset မရှိပါ — assigned နှင့် in-stock asset များ မပါဝင်ပါ။",
+    },
+    "bulk.selected": {"en": "Check out selected", "my": "ရွေးထားသည်များ ထုတ်ပေးမည်"},
+    "bulk.pick_one": {
+        "en": "Pick a department and tick at least one asset.",
+        "my": "ဌာနတစ်ခု ရွေးပြီး အနည်းဆုံး asset တစ်ခု ရွေးပါ။",
+    },
+    "asset.all_sites": {"en": "All sites", "my": "စခန်း အားလုံး"},
     "asset.history": {"en": "Assignment history", "my": "ပေးအပ်မှု မှတ်တမ်း (Assignments)"},
     "asset.holder": {"en": "Holder", "my": "လက်ခံသူ"},
     "asset.assigned_to": {"en": "Assigned to", "my": "တာဝန်ပေးထားသူ"},

@@ -6,6 +6,7 @@
   <div><h1>{% t "asset.title" %}</h1><div class="sub">{% t "asset.count" n=paginator.count %}</div></div>
   <div class="actions">
     {% if can_repair %}<a class="btn secondary" href="{% url 'orphan-repair' %}">{% t "orphan.title" %}</a>{% endif %}
+    {% if can_bulk %}<a class="btn secondary" href="{% url 'asset-bulk-checkout' %}">{% t "bulk.title" %}</a>{% endif %}
     <a class="btn" href="{% url 'asset-create' %}" data-modal>{% t "asset.new" %}</a>
   </div>
 </div>

@@ -11,6 +11,8 @@ urlpatterns = [
     path("assets/field-suggest/", views.asset_field_suggest, name="asset-field-suggest"),
     # orphan fix-up queue (status ASSIGNED, no open assignment row)
     path("assets/repair/", views.orphan_repair, name="orphan-repair"),
+    # bulk check-out: many AVAILABLE assets → one department (session 36)
+    path("assets/bulk-checkout/", views.bulk_dept_checkout, name="asset-bulk-checkout"),
     path("assets/<int:pk>/", views.AssetDetail.as_view(), name="asset-detail"),
     # bulk component ↔ workstation linking (§6.1 parent_asset)
     path("assets/<int:pk>/attach/", views.attach_components, name="asset-attach"),

@@ -12,7 +12,7 @@ from apps.core.roles import RoleRequiredMixin
 from apps.core.scopes import OutOfScope, ScopeGuardMixin, check_scope, scope_list
 
 from .forms import PersonForm, SiteForm
-from .models import Person, Site
+from .models import Department, Person, Site
 
 # ----------------------------------------------------------------------------
 # Site CRUD (manage = admin only)
@@ -162,3 +162,49 @@ class PersonDelete(ScopeGuardMixin, RoleRequiredMixin, DeleteView):
     template_name = "people/confirm_delete.html"
     success_url = reverse_lazy("person-list")
     cancel_url = "person-list"
+
+
+# ---------------------------------------------------------------------------
+# Department detail (session 32) — the landing page for a department-held
+# asset fleet: head (တာဝန်ခံ), department-held inventory, members.
+# ---------------------------------------------------------------------------
+
+
+class DepartmentDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
+    """One department: its head, its department-held assets, its members.
+
+    Read-only (roles_required = ()) like Site/Person detail, scope-guarded
+    on the department row (site + department both recognized by
+    `_org_ids_of`). "Department-held" means an open Assignment with
+    `to_dept` set — assets held by individual members live on their own
+    person pages, matching the department report's split.
+    """
+
+    roles_required = ()
+    scope_action = "department_detail"
+    model = Department
+    template_name = "people/department_detail.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        from apps.assets.models import Assignment
+
+        ctx["head"] = (
+            Person.objects.filter(pk=self.object.head_id)
+            .select_related("site", "department")
+            .first()
+        )
+        ctx["members"] = self.object.people.all()
+        # same split as the person page: open rows now, capped history after
+        # (select_related so the table never N+1s, §17)
+        ctx["held_now"] = (
+            Assignment.objects.filter(to_dept=self.object, in_at__isnull=True)
+            .select_related("asset", "asset__category", "asset__site")
+            .order_by("asset__asset_tag")
+        )
+        ctx["history_recent"] = (
+            Assignment.objects.filter(to_dept=self.object, in_at__isnull=False)
+            .select_related("asset")
+            .order_by("-out_at")[:20]
+        )
+        return ctx

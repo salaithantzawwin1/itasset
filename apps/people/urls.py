@@ -17,4 +17,6 @@ urlpatterns = [
     path("people/<int:pk>/", views.PersonDetail.as_view(), name="person-detail"),
     path("people/<int:pk>/edit/", views.PersonUpdate.as_view(), name="person-update"),
     path("people/<int:pk>/delete/", views.PersonDelete.as_view(), name="person-delete"),
+    # Department detail (head + department-held assets + members)
+    path("departments/<int:pk>/", views.DepartmentDetail.as_view(), name="department-detail"),
 ]

@@ -21,7 +21,7 @@
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.serial" %}</th><td>{{ object.serial_no|default:"—" }}</td></tr>
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.hostname" %}</th><td>{{ object.hostname|default:"—" }}</td></tr>
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.site" %}</th><td>{{ object.site }}</td></tr>
-      <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.assigned_to" %}</th><td>{% if current_holder %}{{ current_holder.name }} ({{ current_holder.employee_no }}){% if current_holder.department %} — {{ current_holder.department.name }}{% endif %}{% elif current_dept %}{{ current_dept.name }} <span class="pill pill-ASSIGNED">{% t "asset.dept_holder" %}</span>{% else %}—{% endif %}</td></tr>
+      <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.assigned_to" %}</th><td>{% if current_holder %}{{ current_holder.name }} ({{ current_holder.employee_no }}){% if current_holder.department %} — {{ current_holder.department.name }}{% endif %}{% elif current_dept %}<a href="{% url 'department-detail' current_dept.pk %}">{{ current_dept.name }}</a> <span class="pill pill-ASSIGNED">{% t "asset.dept_holder" %}</span>{% else %}—{% endif %}</td></tr>
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.parent" %}</th><td>{% if object.parent_asset_id %}<a href="{% url 'asset-detail' object.parent_asset_id %}">{{ object.parent_asset }}</a>{% else %}—{% endif %}</td></tr>
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.purchase" %}</th><td>{{ object.purchase_date|default:"—" }} · {% t "asset.cost" %} {{ object.cost|default:"—" }}</td></tr>
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.warranty" %}</th><td>{{ object.warranty_end|default:"—" }}</td></tr>
@@ -111,7 +111,7 @@
     <tbody>
     {% for h in history %}
       <tr>
-        <td>{% if h.to_person %}<a href="{% url 'person-detail' h.to_person_id %}">{{ h.to_person.name }}</a>{% elif h.to_dept %}{{ h.to_dept.name }} <span class="muted">({% t "asset.dept_abbr" %})</span>{% else %}—{% endif %}</td>
+        <td>{% if h.to_person %}<a href="{% url 'person-detail' h.to_person_id %}">{{ h.to_person.name }}</a>{% elif h.to_dept %}<a href="{% url 'department-detail' h.to_dept_id %}">{{ h.to_dept.name }}</a> <span class="muted">({% t "asset.dept_abbr" %})</span>{% else %}—{% endif %}</td>
         <td>{{ h.out_at|date:"Y-m-d H:i" }}</td>
         <td>{{ h.in_at|date:"Y-m-d H:i"|default:"—" }}</td>
         <td>{{ h.get_condition_out_display }} / {{ h.get_condition_in_display }}</td>

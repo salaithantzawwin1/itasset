@@ -159,6 +159,16 @@ STRINGS = {
     },
     "asset.dept_holder": {"en": "Department", "my": "ဌာန"},
     "asset.dept_abbr": {"en": "dept", "my": "ဌာန"},
+    # department detail page (head + department-held assets + members)
+    "dept.head": {"en": "Head of department", "my": "ဌာနတာဝန်ခံ"},
+    "dept.no_head": {"en": "No head assigned.", "my": "ဌာနတာဝန်ခံ မသတ်မှတ်ရသေးပါ။"},
+    "dept.held_now": {"en": "Department-held assets", "my": "ဌာနပိုင် ပစ္စည်းများ"},
+    "dept.no_held": {
+        "en": "No assets held by this department.",
+        "my": "ဤဌာနထံ ပေးအပ်ထားသော ပစ္စည်း မရှိပါ။",
+    },
+    "dept.members": {"en": "Department members", "my": "ဌာနဝင်များ"},
+    "dept.view_assets": {"en": "View assets in list", "my": "ပစ္စည်းစာရင်းတွင် ကြည့်မည်"},
     "asset.history": {"en": "Assignment history", "my": "ပေးအပ်မှု မှတ်တမ်း (Assignments)"},
     "asset.holder": {"en": "Holder", "my": "လက်ခံသူ"},
     "asset.assigned_to": {"en": "Assigned to", "my": "တာဝန်ပေးထားသူ"},

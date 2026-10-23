@@ -26,6 +26,16 @@ class Site(models.Model):
 class Department(models.Model):
     name = models.CharField(max_length=120)
     site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name="departments")
+    # Department head (တာဝန်ခံ): the person accountable for this department's
+    # assets — shown on the dept detail page next to the department-held
+    # inventory. SET_NULL keeps the department intact when the person goes.
+    head = models.ForeignKey(
+        "Person",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="heading",
+    )
 
     class Meta:
         ordering = ["name"]

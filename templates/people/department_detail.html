@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load t %}
+{% block title %}{{ object.name }} — {% t "app.name" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ object.name }} <span class="muted">({{ object.site.code }})</span></h1>
+    <div class="sub">{% t "dept.head" %}: {% if head %}<a href="{% url 'person-detail' head.pk %}">{{ head.name }}</a> <span class="muted">({{ head.employee_no }})</span>{% else %}<span class="muted">{% t "dept.no_head" %}</span>{% endif %}</div>
+  </div>
+  <div class="actions">
+    <a class="btn secondary" href="{% url 'asset-list' %}?department={{ object.pk }}">{% t "dept.view_assets" %}</a>
+  </div>
+</div>
+<div class="card">
+  <h2>{% t "dept.held_now" %} <span class="muted" style="font-weight:400;">({{ held_now|length }})</span></h2>
+  <table class="data">
+    <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "asset.category" %}</th><th>{% t "asset.site" %}</th><th>{% t "asset.status" %}</th><th>{% t "asset.out_at" %}</th></tr></thead>
+    <tbody>
+    {% for a in held_now %}
+      <tr>
+        <td><a href="{% url 'asset-detail' a.asset_id %}">{{ a.asset.asset_tag }}</a></td>
+        <td>{{ a.asset.category.code }}</td>
+        <td>{{ a.asset.site.code }}</td>
+        <td><span class="pill pill-{{ a.asset.status }}">{{ a.asset.get_status_display }}</span></td>
+        <td>{{ a.out_at|date:"Y-m-d" }}</td>
+      </tr>
+    {% empty %}
+      <tr class="empty-row"><td colspan="5">{% t "dept.no_held" %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="card">
+  <h2>{% t "asset.history" %}</h2>
+  <table class="data">
+    <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "asset.out_at" %}</th><th>{% t "asset.in_at" %}</th></tr></thead>
+    <tbody>
+    {% for a in history_recent %}
+      <tr>
+        <td><a href="{% url 'asset-detail' a.asset_id %}">{{ a.asset.asset_tag }}</a></td>
+        <td>{{ a.out_at|date:"Y-m-d" }}</td>
+        <td>{{ a.in_at|date:"Y-m-d"|default:"—" }}</td>
+      </tr>
+    {% empty %}
+      <tr class="empty-row"><td colspan="3">{% t "asset.none_yet" %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="card">
+  <h2>{% t "dept.members" %} <span class="muted" style="font-weight:400;">({{ members|length }})</span></h2>
+  <table class="data">
+    <thead><tr><th>{% t "person.staff_no" %}</th><th>{% t "person.name" %}</th><th>{% t "asset.site" %}</th></tr></thead>
+    <tbody>
+    {% for p in members %}
+      <tr><td>{{ p.employee_no }}</td><td><a href="{% url 'person-detail' p.pk %}">{{ p.name }}</a></td><td>{{ p.site.code }}</td></tr>
+    {% empty %}
+      <tr class="empty-row"><td colspan="3">{% t "common.empty" %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

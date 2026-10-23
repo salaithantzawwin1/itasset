@@ -12,7 +12,7 @@
     <thead><tr><th>{% t "person.staff_no" %}</th><th>{% t "person.name" %}</th><th>{% t "person.dept" %}</th></tr></thead>
     <tbody>
     {% for p in object.people.all %}
-      <tr><td>{{ p.employee_no }}</td><td><a href="{% url 'person-detail' p.pk %}">{{ p.name }}</a></td><td>{{ p.department|default:"—" }}</td></tr>
+      <tr><td>{{ p.employee_no }}</td><td><a href="{% url 'person-detail' p.pk %}">{{ p.name }}</a></td><td>{% if p.department_id %}<a href="{% url 'department-detail' p.department_id %}">{{ p.department }}</a>{% else %}—{% endif %}</td></tr>
     {% empty %}
       <tr class="empty-row"><td colspan="3">{% t "common.empty" %}</td></tr>
     {% endfor %}

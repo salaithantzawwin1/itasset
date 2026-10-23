@@ -16,9 +16,9 @@ class SiteAdmin(ScopedAdminMixin, admin.ModelAdmin):
 
 @admin.register(Department)
 class DepartmentAdmin(ScopedAdminMixin, admin.ModelAdmin):
-    list_display = ("name", "site")
+    list_display = ("name", "site", "head")
     list_filter = ("site",)
-    search_fields = ("name",)
+    search_fields = ("name", "head__name", "head__employee_no")
 
 
 @admin.register(Person)

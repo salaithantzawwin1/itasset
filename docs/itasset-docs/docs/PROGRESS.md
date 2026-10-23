@@ -15,7 +15,7 @@
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
 | Last updated | 2026-10-23 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **393 passed + 90 subtests** (2026-10-23, local 279 s + server 120 s, exit 0) |
+| Test suite | **394 passed + 90 subtests** (2026-10-23, local 271 s + server 122 s, exit 0) |
 
 ---
 
@@ -185,6 +185,23 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-23 (session 34 — "New person" entry point on the People list)
+- **`/people/` gains its create button**: the list page rendered the table
+  and nothing else — no route to the existing (admin-gated) `/people/new/`
+  form from the UI. Added the header-actions "+ New person" link opening
+  the shared create-modal (`data-modal`), the exact pattern the assets
+  list already uses for "+ New asset"; role enforcement stays on the view
+  (`test_viewer_cannot_create` already pinned it).
+- Gates: **394 passed + 90 subtests** locally (271 s) and on the server
+  (122 s, `SCOPE_ENFORCEMENT_ENABLED=1`) — +1 test
+  (`test_person_list_offers_add_button`) pinning the link + label. ruff
+  check + format clean, `makemigrations --check` clean both sides.
+- Deployed to 192.168.100.142 (LF archive sync → server suite →
+  collectstatic → gunicorn restart, no migrate): probe **18 ok / 0
+  failed**; live checks — `/people/` carries the `data-modal` link,
+  `/people/new/` renders 200 for the admin. Pushed `fcca738..4299912`
+  (+ this session log).
 
 ### 2026-10-23 (session 33 — asset search filter UI/UX fine-tune)
 - **Root cause of the stacked dropdowns** (`templates/base.html`): the

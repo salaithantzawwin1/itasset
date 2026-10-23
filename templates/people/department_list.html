@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load t %}
+{% block title %}{% t "dept.title" %} — {% t "app.name" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% t "dept.title" %}</h1><div class="sub">{% t "dept.count" n=object_list|length %}</div></div>
+</div>
+<table class="data">
+  <thead>
+    <tr>
+      <th>{% t "person.dept" %}</th>
+      <th>{% t "asset.site" %}</th>
+      <th>{% t "dept.head" %}</th>
+      <th>{% t "asset.title" %}</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for d in object_list %}
+    <tr>
+      <td><a href="{% url 'department-detail' d.pk %}">{{ d.name }}</a></td>
+      <td>{{ d.site.code }}</td>
+      <td>{% if d.head_id %}<a href="{% url 'person-detail' d.head_id %}">{{ d.head }}</a>{% else %}<span class="muted">—</span>{% endif %}</td>
+      <td><a href="{% url 'asset-list' %}?department={{ d.pk }}">{{ d.asset_count }}</a></td>
+      <td><a class="btn secondary sm" href="{% url 'department-update' d.pk %}">{% t "asset.edit" %}</a></td>
+    </tr>
+  {% empty %}
+    <tr class="empty-row"><td colspan="5">{% t "common.empty" %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

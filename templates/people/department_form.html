@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% load t %}
+{% block title %}{% t "dept.edit_title" %} — {% t "app.name" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% t "dept.edit_title" %}</h1></div></div>
+<div class="card">
+  <form method="post" class="frm">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn" type="submit">{% t "asset.save" %}</button>
+    <a class="btn secondary" href="{% url 'department-detail' object.pk %}">{% t "asset.cancel" %}</a>
+  </form>
+</div>
+{% endblock %}

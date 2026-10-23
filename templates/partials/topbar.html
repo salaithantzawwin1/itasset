@@ -7,6 +7,7 @@
     <a href="{% url 'home' %}" {% if rm.namespace != 'admin' and rm.url_name == 'home' %}class="active"{% endif %}>{% t "nav.dashboard" %}</a>
     <a href="{% url 'asset-list' %}" {% if rm.namespace != 'admin' and 'asset' in rm.url_name %}class="active"{% endif %}>{% t "nav.assets" %}</a>
     <a href="{% url 'person-list' %}" {% if rm.namespace != 'admin' and 'person' in rm.url_name %}class="active"{% endif %}>{% t "nav.people" %}</a>
+    <a href="{% url 'department-list' %}" {% if rm.namespace != 'admin' and 'department' in rm.url_name %}class="active"{% endif %}>{% t "nav.departments" %}</a>
     <a href="{% url 'site-list' %}" {% if rm.namespace != 'admin' and 'site' in rm.url_name %}class="active"{% endif %}>{% t "nav.sites" %}</a>
     {% if user.is_authenticated %}<a href="{% url 'self-view' %}" {% if rm.url_name == 'self-view' %}class="active"{% endif %}>{% t "nav.me" %}</a>{% endif %}
     {% if user.is_staff %}<a href="/admin/" {% if rm.namespace == 'admin' %}class="active"{% endif %}>{% t "nav.admin" %}</a>{% endif %}

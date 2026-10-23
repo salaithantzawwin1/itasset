@@ -8,6 +8,7 @@
     <div class="sub">{% t "dept.head" %}: {% if head %}<a href="{% url 'person-detail' head.pk %}">{{ head.name }}</a> <span class="muted">({{ head.employee_no }})</span>{% else %}<span class="muted">{% t "dept.no_head" %}</span>{% endif %}</div>
   </div>
   <div class="actions">
+    <a class="btn secondary" href="{% url 'department-update' object.pk %}">{% t "asset.edit" %}</a>
     <a class="btn secondary" href="{% url 'asset-list' %}?department={{ object.pk }}">{% t "dept.view_assets" %}</a>
   </div>
 </div>

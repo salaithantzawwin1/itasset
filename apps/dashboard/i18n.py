@@ -169,6 +169,10 @@ STRINGS = {
     },
     "dept.members": {"en": "Department members", "my": "ဌာနဝင်များ"},
     "dept.view_assets": {"en": "View assets in list", "my": "ပစ္စည်းစာရင်းတွင် ကြည့်မည်"},
+    "nav.departments": {"en": "Departments", "my": "ဌာနများ"},
+    "dept.title": {"en": "Departments", "my": "ဌာနများ"},
+    "dept.count": {"en": "{n} departments", "my": "ဌာန {n} ခု"},
+    "dept.edit_title": {"en": "Edit department", "my": "ဌာန ပြင်ရန်"},
     # bulk department check-out (session 36)
     "bulk.title": {"en": "Bulk check-out", "my": "အစုလိုက် ပေးအပ်မည်"},
     "bulk.sub": {

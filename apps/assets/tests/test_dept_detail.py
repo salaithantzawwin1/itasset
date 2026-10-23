@@ -12,6 +12,11 @@ and the member list. Coverage:
    enforcement (same policy as Site/Person detail).
 4. Entry links: person list/detail + site detail dept names and the asset
    detail's department holder all link to the new page.
+5. Departments list (session 37): head + annotated dept-held asset count
+   (open rows only — closed and member-personal assets excluded), count
+   links into the asset-list filter, nav link, anonymous redirect.
+6. Department edit (session 37): admin changes the head through the main
+   app form; technicians are refused (admin-only like Site/Person).
 """
 
 import pytest
@@ -169,3 +174,116 @@ def test_dept_detail_links_back_to_asset_list(client, tech_user, dept_factory):
     client.force_login(tech_user)
     body = client.get(f"/departments/{dept.pk}/").content.decode()
     assert f"/assets/?department={dept.pk}" in body
+
+
+# 4. list page (session 37) ---------------------------------------------------
+
+
+def test_department_list_shows_head_and_dept_held_count(
+    client, tech_user, asset_factory, person_factory, dept_factory
+):
+    dept = dept_factory(name="Counted Dept")
+    head = person_factory(name="Dept Head")
+    dept.head = head
+    dept.save(update_fields=["head"])
+
+    held = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-CT-7001")
+    Assignment.objects.create(asset=held, to_dept=dept)
+    # closed dept row must not count
+    done = asset_factory(status=Asset.Status.AVAILABLE, asset_tag="IT-CT-DONE")
+    Assignment.objects.create(asset=done, to_dept=dept, in_at=done.updated_at)
+    # a member's personal asset must not count either (it belongs to them)
+    member = person_factory(name="Counted Member")
+    member.department = dept
+    member.save(update_fields=["department"])
+    personal = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-CT-PERS")
+    Assignment.objects.create(asset=personal, to_person=member)
+
+    client.force_login(tech_user)
+    resp = client.get("/departments/")
+    assert resp.status_code == 200
+    row = next(d for d in resp.context["object_list"] if d.pk == dept.pk)
+    assert row.asset_count == 1
+    body = resp.content.decode()
+    assert "Dept Head" in body and f"/people/{head.pk}/" in body
+    # the count deep-links into the asset list's department filter
+    assert f"/assets/?department={dept.pk}" in body
+    assert ">1</a>" in body
+    # nav carries the page
+    assert 'href="/departments/"' in body
+
+
+def test_department_list_without_head_shows_dash(client, tech_user, dept_factory):
+    dept_factory(name="Headless Dept")
+    client.force_login(tech_user)
+    body = client.get("/departments/").content.decode()
+    assert "Headless Dept" in body
+    assert "Head of department" in body  # column header still renders
+
+
+def test_department_list_anonymous_redirects(client, dept_factory):
+    dept_factory()
+    resp = client.get("/departments/")
+    assert resp.status_code == 302
+    assert "/accounts/login/" in resp["Location"]
+
+
+# 5. edit form (session 37) ---------------------------------------------------
+
+
+def _admin_user(django_user_model):
+    from django.contrib.auth.models import Group
+
+    from apps.core.models import UserAccessScope
+
+    group, _ = Group.objects.get_or_create(name="admin")
+    u = django_user_model.objects.create_user(
+        "admin_deptedit", "admin_deptedit@itasset.dev", "pass12345!"
+    )
+    u.groups.add(group)
+    UserAccessScope.objects.create(
+        user=u,
+        scope_type=UserAccessScope.ScopeType.GLOBAL,
+        reason="feature-test fixture (not a scope test)",
+        created_by=u,
+    )
+    return u
+
+
+def test_admin_changes_head_via_main_app_form(
+    client, django_user_model, dept_factory, person_factory
+):
+    admin = _admin_user(django_user_model)
+    dept = dept_factory(name="Editable Dept")
+    new_head = person_factory(name="New Head")
+
+    client.force_login(admin)
+    resp = client.get(f"/departments/{dept.pk}/edit/")
+    assert resp.status_code == 200
+    assert resp.context["form"].fields["head"].queryset.filter(pk=new_head.pk).exists()
+
+    resp = client.post(
+        f"/departments/{dept.pk}/edit/",
+        {"name": dept.name, "site": dept.site_id, "head": new_head.pk},
+    )
+    assert resp.status_code == 302, resp.context["form"].errors
+    dept.refresh_from_db()
+    assert dept.head_id == new_head.pk
+    # the detail page renders the new head immediately (the ask: verify)
+    body = client.get(f"/departments/{dept.pk}/").content.decode()
+    assert "New Head" in body and f"/people/{new_head.pk}/" in body
+    # and the edit button exists on the detail page
+    assert f"/departments/{dept.pk}/edit/" in body
+
+
+def test_technician_cannot_edit_department(client, tech_user, dept_factory):
+    dept = dept_factory(name="Locked Dept")
+    client.force_login(tech_user)
+    assert client.get(f"/departments/{dept.pk}/edit/").status_code == 403
+    resp = client.post(
+        f"/departments/{dept.pk}/edit/",
+        {"name": "Hacked", "site": dept.site_id},
+    )
+    assert resp.status_code == 403
+    dept.refresh_from_db()
+    assert dept.name == "Locked Dept"

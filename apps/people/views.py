@@ -4,6 +4,7 @@ Site/Person management = admin role (§11 user/site management).
 Reads open to any authenticated user (auditor/viewer included).
 """
 
+from django.db.models import Count, Q
 from django.http import HttpResponseForbidden
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
@@ -11,7 +12,7 @@ from django.views.generic import CreateView, DeleteView, DetailView, ListView, U
 from apps.core.roles import RoleRequiredMixin
 from apps.core.scopes import OutOfScope, ScopeGuardMixin, check_scope, scope_list
 
-from .forms import PersonForm, SiteForm
+from .forms import DepartmentForm, PersonForm, SiteForm
 from .models import Department, Person, Site
 
 # ----------------------------------------------------------------------------
@@ -165,9 +166,41 @@ class PersonDelete(ScopeGuardMixin, RoleRequiredMixin, DeleteView):
 
 
 # ---------------------------------------------------------------------------
-# Department detail (session 32) — the landing page for a department-held
-# asset fleet: head (တာဝန်ခံ), department-held inventory, members.
+# Department (sessions 32/37): list with dept-held asset counts, detail
+# (head + held inventory + members), edit (name/site/head, admin).
 # ---------------------------------------------------------------------------
+
+
+class DepartmentList(RoleRequiredMixin, ListView):
+    """Every department with its head and department-held asset count.
+
+    Read-only for any authenticated user; scope-narrowed on both axes
+    (site rows via `site`, department-scoped users via `pk`) — the count is
+    one annotated query over open `to_dept` rows, no N+1 (§17). The number
+    links into the asset list's department filter, matching the detail
+    page's "View assets in list".
+    """
+
+    roles_required = ()
+    model = Department
+    template_name = "people/department_list.html"
+
+    def get_queryset(self):
+        qs = (
+            super()
+            .get_queryset()
+            .select_related("site", "head")
+            .annotate(asset_count=Count("assignments", filter=Q(assignments__in_at__isnull=True)))
+            .order_by("name")
+        )
+        return scope_list(
+            self.request.user,
+            qs,
+            site_field="site",
+            dept_field="pk",
+            action="department_list",
+            path=self.request.path,
+        )
 
 
 class DepartmentDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
@@ -208,3 +241,30 @@ class DepartmentDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
             .order_by("-out_at")[:20]
         )
         return ctx
+
+
+class DepartmentUpdate(ScopeGuardMixin, RoleRequiredMixin, UpdateView):
+    """Edit a department in the main app (admin role, like Site/Person).
+
+    The head (တာဝန်ခံ) can be changed here without the Django admin —
+    scope re-checked against the target site on save, like PersonUpdate.
+    """
+
+    roles_required = ("admin",)
+    scope_action = "department_update"
+    model = Department
+    form_class = DepartmentForm
+    template_name = "people/department_form.html"
+    success_url = reverse_lazy("department-list")
+
+    def form_valid(self, form):
+        try:
+            check_scope(
+                self.request.user,
+                form.instance.site,
+                action="department_update",
+                path=self.request.path,
+            )
+        except OutOfScope:
+            return HttpResponseForbidden("That site is outside your scope.")
+        return super().form_valid(form)

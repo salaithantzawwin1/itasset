@@ -17,6 +17,12 @@ urlpatterns = [
     path("people/<int:pk>/", views.PersonDetail.as_view(), name="person-detail"),
     path("people/<int:pk>/edit/", views.PersonUpdate.as_view(), name="person-update"),
     path("people/<int:pk>/delete/", views.PersonDelete.as_view(), name="person-delete"),
-    # Department detail (head + department-held assets + members)
+    # Department: list with counts (session 37) + detail (32) + edit (37)
+    path("departments/", views.DepartmentList.as_view(), name="department-list"),
     path("departments/<int:pk>/", views.DepartmentDetail.as_view(), name="department-detail"),
+    path(
+        "departments/<int:pk>/edit/",
+        views.DepartmentUpdate.as_view(),
+        name="department-update",
+    ),
 ]

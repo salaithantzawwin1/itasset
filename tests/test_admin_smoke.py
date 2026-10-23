@@ -103,6 +103,22 @@ class AdminSmokeTests(TestCase):
         self.assertContains(resp, "kpi-card")
         self.assertContains(resp, "kpi-value")
 
+    def test_changelist_sticky_header_has_no_inner_scrollport(self):
+        """The sticky thead must resolve against the viewport, not `.results`.
+
+        Django's `#changelist-form .results { overflow-x: auto }` coerces
+        overflow-y to auto, making `.results` the sticky element's scroll
+        container: at scrollTop 0 the `top: 58px` pin pushed the header
+        DOWN over the first data rows (measured in-browser: auto → 58px
+        displacement at rest + never pins on page scroll; clip → 0 at
+        rest, pins at exactly 58px). The higher-specificity clip override
+        must therefore be rendered on every changelist.
+        """
+        self.client.force_login(self.superuser)
+        resp = self.client.get(reverse("admin:people_person_changelist"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "#changelist #changelist-form .results { overflow-x: clip; }")
+
     def test_admin_language_follows_session_switch(self):
         """Admin chrome speaks the same language as the app's ENG/MM switch."""
         resp = self.client.get(reverse("admin:login"))

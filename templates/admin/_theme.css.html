@@ -536,6 +536,21 @@ fieldset.module .form-row .help { padding-top: 4px; }
 }
 /* Long changelists: pin column labels under the sticky topbar while the
    table scrolls (main app table.data does the same). */
+/* IMPORTANT: the scrollport must be the viewport, not `.results` — Django's
+   `#changelist-form .results { overflow-x: auto }` (changelists.css) coerces
+   the visible overflow-y to auto, making `.results` the sticky th's scroll
+   container. With scrollTop = 0 the pin `top: var(--topbar-h)` then pushes
+   the header straight DOWN 58px over the first data rows (no scrolling
+   needed — the "header floating mid-table" changelist bug), and it never
+   pins while the page scrolls because that inner box has no height to
+   scroll. Verified by measurement: auto → displaced 58px at rest / th
+   never pins; clip → displacement 0 at rest, pins at exactly 58px.
+   Cells wrap (overflow-wrap: anywhere below), so the table is built to
+   fit; clip keeps containment without a scrollport. Higher specificity
+   (2 ids vs Django's 1) so load order vs changelists.css never matters;
+   Safari <16 ignores clip → keeps Django's auto → header just doesn't pin
+   there (same stance as table.data's clip/hidden pair). */
+#changelist #changelist-form .results { overflow-x: clip; }
 @media (min-width: 1025px) {
   .results thead th { position: sticky; top: var(--topbar-h); z-index: 3; box-shadow: 0 1px 0 var(--hairline-color); }
   /* Ultrawide: denser rows — more records per screen, not taller ones */

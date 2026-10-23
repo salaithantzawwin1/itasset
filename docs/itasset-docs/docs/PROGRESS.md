@@ -13,9 +13,9 @@
 |---|---|
 | Current milestone | M8 — Go-live |
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
-| Last updated | 2026-10-22 |
+| Last updated | 2026-10-23 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **341 passed + 90 subtests** (2026-10-22, local 264 s + server 108 s, exit 0) |
+| Test suite | **385 passed + 90 subtests** (2026-10-23, local 259 s + server 122 s, exit 0) |
 
 ---
 
@@ -185,6 +185,57 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-23 (session 31 — department-held assets, report summaries, big/phone screens)
+- **Department as a first-class holder** (`Assignment.to_dept` +
+  `assignment_single_holder_kind` check constraint, migration `assets.0012`):
+  servers/NAS/switches and shared laptop pools are assigned to a Department
+  instead of an individual — exactly one of person/department per row, both
+  NULL stays legal for the historical no-holder rows the repair queue
+  fixes. `services.check_out(asset, department=…)` keeps the single write
+  path; both targets land in the ActivityLog event. Surfaces: the edit
+  form's new "assigned department" picker (mutually exclusive with the
+  employee picker, enforced in `clean()`), the detail check-out picker,
+  the repair queue, the list holder column, the department filter (now
+  matches person-department *and* department-held), the Assignment admin,
+  and the API (`to_dept` on check-out, `kind: department` in `holder`).
+- **Department report gets summaries**: rows are grouped under the
+  holder's department (person→Person.department, dept→to_dept directly)
+  and the report closes with a SUMMARY section — one row per department
+  with asset count and total known cost. Orphan report now flags **both
+  directions**: forward (ASSIGNED without open row / inactive holder) and
+  **reverse** (open row on a non-ASSIGNED asset). Counts verified:
+  dev 15 forward / 0 reverse, prod 3 forward / 0 reverse — reverse orphans
+  don't exist today, but they're now visible if an import creates one.
+- **Big screens**: container tiers at 1920/2560/3440px in the app
+  (`templates/base.html`) and the admin (`_theme.css.html`); denser table
+  rows and a taller category chart from 2560px; the dashboard KPI strip
+  is guaranteed one full row from 1100px (auto-fit floor 200px made 5
+  tracks and wrapped 4+2 at ~1100–1280px; 150px floor fits 6).
+- **Sticky table headers**: `table.data thead th` (app) and
+  `.results thead th` (admin changelist) pin under the sticky topbar on
+  desktop — `table.data`'s `overflow: hidden` became `clip` so the table
+  isn't a scroll container; `hidden` kept as fallback (Safari <16).
+- **Phone (<=480px) touch pass**: 44px targets on buttons/nav/pagination,
+  16px inputs (no iOS focus zoom), full-width selects + submit buttons,
+  swipe-scrolling form tab strips (app + admin, appended at sheet end so
+  source order beats the base rules), stacked full-width modal confirm
+  buttons, 44px admin search/action/paginator controls and a bottom-anchored
+  admin save bar.
+- Gates: **385 passed + 90 subtests** locally (259 s) and on the server
+  (122 s) — +17 tests in `apps/assets/tests/test_dept_assignment.py`
+  (service dept-target/exactly-one-holder/label/check-in, form
+  assign/return/kind-switch/both-refused/picker seed, detail + repair
+  dept flows + crafted both-targets POST, dept filter, report summary +
+  reverse-orphan flags). One real bug caught by the new tests: the
+  both-pickers refusal ran in `clean_assigned_to` before the sibling field
+  was validated — moved to `clean()`. ruff check + format clean.
+- Deployed to 192.168.100.142 (LF archive sync → migrate `assets.0012` →
+  server suite → gunicorn restart): probe **18 ok / 0 failed**; live
+  checks — dept report summary renders (Engineering 1/2.5M, IT 2/2200 …),
+  orphan report shows the 3 forward flags, orphan detail + repair queue
+  carry the department picker, list department filter present. Pushed
+  `4d00fc2..213058e`.
 
 ### 2026-10-22 (session 30 — holder workflows: person holdings, orphan queue, bulk attach, list filters)
 - **Person detail becomes a holder page** (`people/person_detail.html`):

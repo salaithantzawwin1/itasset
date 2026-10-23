@@ -42,6 +42,31 @@ class SmokeTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, '<html lang="my"')
 
+    def test_template_comments_never_span_lines(self):
+        """`{# … #}` comments cannot span lines: Django's lexer only matches
+        them within one line, so a wrapped comment ships to the browser as
+        literal page text — which is exactly how the assets filter bar
+        displayed its source comment (session 38). Scan every template.
+        """
+        from pathlib import Path
+
+        from django.conf import settings
+
+        bad = []
+        for tpl in Path(settings.BASE_DIR, "templates").rglob("*.html"):
+            text = tpl.read_text(encoding="utf-8")
+            i = 0
+            while True:
+                i = text.find("{#", i)
+                if i == -1:
+                    break
+                j = text.find("#}", i)
+                if j == -1 or "\n" in text[i : j + 2]:
+                    bad.append(f"{tpl}:{text.count(chr(10), 0, i) + 1}")
+                    break
+                i = j + 2
+        self.assertEqual(bad, [], f"multi-line/unterminated template comments: {bad}")
+
     def test_admin_login_and_asset_crud(self):
         user = get_user_model().objects.create_superuser("admintest", "a@example.com", "pass12345!")
         self.client.force_login(user)

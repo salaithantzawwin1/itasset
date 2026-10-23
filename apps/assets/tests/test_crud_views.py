@@ -73,6 +73,17 @@ def test_authenticated_read_allowed(client, django_user_model, group_setup, page
     assert client.get(URLS[page]).status_code == 200
 
 
+def test_person_list_offers_add_button(client, django_user_model, group_setup):
+    """The People page carries its create entry point: "+ New person" opens
+    /people/new/ in the shared create-modal (session 34 — same pattern as
+    the assets list's "+ New asset"; the admin-only role gate lives on the
+    view itself, pinned by test_viewer_cannot_create)."""
+    _login(client, _user(django_user_model, group_setup, "admin"))
+    body = client.get(URLS["person_list"]).content.decode()
+    assert '<a class="btn" href="/people/new/" data-modal>' in body
+    assert "+ New person" in body
+
+
 @pytest.mark.parametrize("page", ["asset_create", "site_create", "person_create"])
 def test_viewer_cannot_create(client, django_user_model, group_setup, page):
     _login(client, _user(django_user_model, group_setup, "viewer"))

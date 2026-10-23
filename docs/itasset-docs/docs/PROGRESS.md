@@ -15,7 +15,7 @@
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
 | Last updated | 2026-10-23 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **410 passed + 90 subtests** (2026-10-23, local 271 s, exit 0; server green at 409+90 in session 37 — session 38 deploy blocked, host offline) |
+| Test suite | **410 passed + 90 subtests** (2026-10-23: local 271 s + server 122.7 s, both exit 0 — session 38 deployed to 192.168.100.142) |
 
 ---
 
@@ -204,13 +204,25 @@ authenticated user; no company/branch scoping exists.
 - Gates: **410 passed + 90 subtests** locally (271 s), ruff check +
   format clean, `makemigrations --check` clean. Committed `9617666` and
   **pushed** `c9af0c8..9617666`.
-- **Deploy BLOCKED (owed)**: 192.168.100.142 went offline mid-session —
-  ping 100% loss + SSH connect timeouts from 15:16 onward; its own shared
-  terminal had just run `apt update` (13 upgrades + new LTS release
-  offered), so likely a reboot/upgrade. A background waiter retried for
-  ~12.5 min and exited `HOST-STILL-DOWN`. Prod still serves session 37's
-  code; this one-line template fix (and this log) ship on the next deploy
-  once the host is back.
+- **Deploy BLOCKED mid-session, completed later 2026-10-23**: the host
+  dropped offline from 15:16 (ping 100% loss + SSH timeouts; its shared
+  terminal had just run `apt update` — 13 upgrades + a new LTS release
+  offered), a background waiter exited `HOST-STILL-DOWN` after ~12.5 min.
+  When it returned (post-reboot; lingered user units restored gunicorn
+  on their own), deployed: LF `git archive` sync (changed files
+  md5-identical local↔server) → server suite **410 passed + 90
+  subtests**, 122.7 s, exit 0 with `SCOPE_ENFORCEMENT_ENABLED=1` →
+  `makemigrations --check` clean + 0 unapplied migrations (template+test
+  only: no migrate/collectstatic needed) → `systemctl --user restart
+  itasset-gunicorn` (fresh workers) → `/healthz`
+  `{"status":"ok","db":"ok"}` → `manage.py check --deploy` under
+  `config.settings.prod` (16 known LAN/HTTP-only warnings — HSTS, secure
+  cookies, SECRET_KEY — DEBUG off, unchanged) → probe gate **18 ok / 0
+  failed** (incl. the 429 + Retry-After 300 throttle phase; authenticated
+  phase skipped, no creds) → live browser checks: `/assets/` no longer
+  renders the comment as text, status select present, ENG⇄MM round-trip
+  (lang `my`, Burmese title/"ရှာမည်", back to `en`), no JS errors (only
+  the browser's COOP-over-plain-HTTP notice).
 
 ### 2026-10-23 (session 37 — departments list + main-app dept edit + nav link + prod heads)
 - **`/departments/`** (`DepartmentList`): every department with site, head

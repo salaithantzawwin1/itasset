@@ -110,6 +110,18 @@ class Assignment(models.Model):
     to_person = models.ForeignKey(
         "people.Person", on_delete=models.PROTECT, related_name="assignments", null=True, blank=True
     )
+    # Department-as-holder (Server/NAS/Switch/laptop pools): infrastructure
+    # and shared kit is assigned to a Department instead of a person — the
+    # spec's holder column is "employee, department, or team". Exactly one of
+    # (to_person, to_dept) may be set; both NULL stays legal for the
+    # historical no-holder rows the orphan queue repairs.
+    to_dept = models.ForeignKey(
+        "people.Department",
+        on_delete=models.PROTECT,
+        related_name="assignments",
+        null=True,
+        blank=True,
+    )
     assigned_by = models.ForeignKey(
         "people.Person",
         on_delete=models.PROTECT,
@@ -139,11 +151,24 @@ class Assignment(models.Model):
                 condition=models.Q(in_at__isnull=True),
                 name="uniq_active_assignment_per_asset",
             ),
+            # a holder is either a person or a department, never both
+            models.CheckConstraint(
+                condition=~(models.Q(to_person__isnull=False, to_dept__isnull=False)),
+                name="assignment_single_holder_kind",
+            ),
         ]
 
+    @property
+    def holder_label(self) -> str:
+        """Display name of whoever holds the asset (person or department)."""
+        if self.to_person_id:
+            return self.to_person.name
+        if self.to_dept_id:
+            return f"{self.to_dept.name} (dept)"
+        return "(no holder)"
+
     def __str__(self) -> str:
-        who = self.to_person.name if self.to_person else "(no holder)"
-        return f"{self.asset.asset_tag} → {who} ({self.out_at.date()})"
+        return f"{self.asset.asset_tag} → {self.holder_label} ({self.out_at.date()})"
 
 
 # ---------------------------------------------------------------------------

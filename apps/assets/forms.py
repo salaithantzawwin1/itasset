@@ -8,7 +8,7 @@ from the selected category's schema and validated through
 from django import forms
 from django.core.exceptions import ValidationError
 
-from apps.people.models import Person
+from apps.people.models import Department, Person
 
 from .models import Asset, AssetRequest, Assignment, Category
 from .specs import (
@@ -52,6 +52,18 @@ class AssetForm(forms.ModelForm):
             "Employee holding this asset — saving checks it out (or returns it when cleared)."
         ),
     )
+    # Department-as-holder: Server/NAS/Switch and laptop-pool assets are
+    # assigned to a Department instead of an individual (exactly one of the
+    # two pickers may be filled).
+    assigned_dept = forms.ModelChoiceField(
+        queryset=Department.objects.none(),
+        required=False,
+        label="Assigned department",
+        help_text=(
+            "Department holding this asset — use for servers, network kit and "
+            "shared laptops; mutually exclusive with the employee picker."
+        ),
+    )
 
     def __init__(self, *args, **kwargs):
         # optional scope narrowing of the picker (main-app views pass request)
@@ -70,17 +82,23 @@ class AssetForm(forms.ModelForm):
             self.fields["assigned_to"].widget.attrs.update(
                 {"data-assigned": "1"}  # marker for the tab script / future JS
             )
-        # seed the picker from the currently-active assignment
+        if "assigned_dept" in self.fields:
+            self.fields["assigned_dept"].queryset = Department.objects.select_related("site")
+        # seed the pickers from the currently-active assignment
         self._initial_holder_id = None
+        self._initial_dept_id = None
         if self.instance is not None and self.instance.pk:
             active = (
                 Assignment.objects.filter(asset=self.instance, in_at__isnull=True)
-                .select_related("to_person")
+                .select_related("to_person", "to_dept")
                 .first()
             )
             if active is not None and active.to_person_id:
                 self._initial_holder_id = active.to_person_id
                 self.initial.setdefault("assigned_to", active.to_person_id)
+            if active is not None and active.to_dept_id:
+                self._initial_dept_id = active.to_dept_id
+                self.initial.setdefault("assigned_dept", active.to_dept_id)
             self.fields["parent_asset"].queryset = self.fields["parent_asset"].queryset.exclude(
                 pk=self.instance.pk
             )
@@ -180,8 +198,44 @@ class AssetForm(forms.ModelForm):
             )
         return person
 
+    def clean_assigned_dept(self):
+        dept = self.cleaned_data.get("assigned_dept")
+        if dept is None or self.instance is None or not self.instance.pk:
+            return dept
+        # same transition feasibility as the person picker (services preconditions)
+        from . import services
+
+        active = services.active_assignment(self.instance)
+        status = self.instance.status
+        if active is None and status not in (
+            Asset.Status.AVAILABLE,
+            Asset.Status.IN_STOCK,
+            Asset.Status.ASSIGNED,  # orphan recovery, as for persons
+        ):
+            raise ValidationError(
+                f"{self.instance.get_status_display()} assets cannot be checked "
+                f"out from this form — use the lifecycle flow."
+            )
+        if active is not None and status in (
+            Asset.Status.RETIRED,
+            Asset.Status.DISPOSED,
+            Asset.Status.IN_TRANSIT,
+        ):
+            raise ValidationError(
+                f"{self.instance.get_status_display()} assets cannot change holder "
+                f"from this form — use the lifecycle flow."
+            )
+        return dept
+
     def clean(self):
         cleaned = super().clean()
+        # both pickers filled: field-level clean() runs before the sibling
+        # field is validated, so the "exactly one holder" rule lives here
+        if cleaned.get("assigned_to") is not None and cleaned.get("assigned_dept") is not None:
+            self.add_error(
+                "assigned_to",
+                "Pick either an employee or a department as the holder — not both.",
+            )
         category = self._resolve_category(cleaned)
         if category is None:
             return cleaned
@@ -212,11 +266,16 @@ class AssetForm(forms.ModelForm):
 
             active = _services.active_assignment(self.instance)
             holder = cleaned.get("assigned_to")
+            dept = cleaned.get("assigned_dept")
             posted = cleaned.get("status")
+            holder_unchanged = active is not None and (
+                (holder is not None and getattr(holder, "pk", None) == active.to_person_id)
+                if holder is not None
+                else (dept is not None and getattr(dept, "pk", None) == active.to_dept_id)
+            )
             if (
                 active is not None
-                and holder is not None
-                and getattr(holder, "pk", None) == active.to_person_id
+                and holder_unchanged
                 and posted
                 and posted != Asset.Status.ASSIGNED
             ):
@@ -254,15 +313,25 @@ class AssetForm(forms.ModelForm):
         if not self.instance.pk:
             return
         wanted = self.cleaned_data.get("assigned_to")
+        wanted_dept = self.cleaned_data.get("assigned_dept")
         wanted_id = wanted.pk if wanted is not None else None
-        if wanted_id == self._initial_holder_id:
+        wanted_dept_id = wanted_dept.pk if wanted_dept is not None else None
+        if wanted_id == self._initial_holder_id and wanted_dept_id == self._initial_dept_id:
             return
         try:
             active = services.active_assignment(obj)
-            if wanted is None:
+            if wanted is None and wanted_dept is None:
                 if active is not None:
                     services.check_in(obj, actor=self._actor(), remarks="Returned via edit form")
-            elif active is not None and active.to_person_id != wanted.pk:
+            elif active is not None and wanted is not None and active.to_person_id == wanted.pk:
+                return  # person holder unchanged (dept picker untouched)
+            elif (
+                active is not None
+                and wanted_dept is not None
+                and active.to_dept_id == wanted_dept.pk
+            ):
+                return  # department holder unchanged
+            elif active is not None and wanted is not None and active.to_person_id is not None:
                 services.handover(
                     obj,
                     active.to_person,
@@ -271,11 +340,25 @@ class AssetForm(forms.ModelForm):
                     remarks="Handover via edit form",
                 )
             else:
-                if obj.status == Asset.Status.IN_STOCK:
-                    services.receive_asset(obj, actor=self._actor(), to_person=wanted)
+                # no active row (fresh checkout / orphan) or a holder-kind
+                # change (person ↔ department): close the row, then reopen
+                if active is not None:
+                    services.check_in(obj, actor=self._actor(), remarks="Returned via edit form")
+                if wanted is not None:
+                    if obj.status == Asset.Status.IN_STOCK:
+                        services.receive_asset(obj, actor=self._actor(), to_person=wanted)
+                    else:
+                        services.check_out(
+                            obj, wanted, actor=self._actor(), remarks="Assigned via edit form"
+                        )
                 else:
+                    if obj.status == Asset.Status.IN_STOCK:
+                        services.receive_asset(obj, actor=self._actor())
                     services.check_out(
-                        obj, wanted, actor=self._actor(), remarks="Assigned via edit form"
+                        obj,
+                        actor=self._actor(),
+                        department=wanted_dept,
+                        remarks="Assigned to department via edit form",
                     )
         except services.AssetError as exc:
             self.assignment_warning = str(exc)

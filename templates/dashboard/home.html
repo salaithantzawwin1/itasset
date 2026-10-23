@@ -28,6 +28,11 @@
   .accent-swatch { width: 32px; height: 32px; border-radius: 8px; border: none; cursor: pointer; }
 
   .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
+  /* Big screens: 6 KPI cards always fill one full row — auto-fit with a
+     200px floor only made 5 tracks at ~1050–1280px and wrapped 4+2. A 150px
+     floor fits 6 tracks from 1100px up, and auto-fit still stretches 4 cards
+     across the whole row when the conditional KPIs aren't shown. */
+  @media (min-width: 1100px) { .kpi-row { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } }
   .kpi { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--dash-accent);
     border-radius: 12px; padding: 16px 18px; box-shadow: var(--shadow); }
   .kpi.critical { border-left-color: var(--danger); }
@@ -38,6 +43,9 @@
   .kpi-meta { font-size: 11px; color: var(--muted); margin-top: 6px; }
 
   .dash-grid2 { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px; }
+  /* Ultrawide (>=2560px): charts scale with the container instead of
+     stretching into a thin, sparse strip across 2400px. */
+  @media (min-width: 2560px) { .cat-chart { height: 300px; } }
 
   /* category chart — pure CSS bars (CSP allows no CDN chart lib) */
   .cat-chart { display: flex; gap: 14px; height: 210px; }
@@ -62,6 +70,13 @@
     .kpi-row { grid-template-columns: repeat(2, 1fr); }
     .dash-grid2 { grid-template-columns: 1fr; }
     .cat-chart { height: 180px; }
+  }
+  @media (max-width: 480px) {
+    /* one card per row: labels + meta text need the width to stay readable */
+    .kpi-row { grid-template-columns: 1fr; gap: 12px; }
+    .dash-hero { padding: 14px 16px; }
+    .dash-hero h1 { font-size: 17px; }
+    .bar-row .bl { width: 96px; }
   }
 {% endblock %}
 {% block content %}

@@ -28,7 +28,7 @@ log = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from django.contrib.auth.models import User
 
-    from apps.people.models import Person
+    from apps.people.models import Department, Person
 
 
 # ---------------------------------------------------------------------------
@@ -63,8 +63,7 @@ class AssetAlreadyAssigned(AssignmentError):
         active = asset.assignments.filter(in_at__isnull=True).first()
         if active is None:
             return "nobody"
-        person = active.to_person
-        return person.name if person else "(no holder)"
+        return active.holder_label
 
 
 class AssetNotAssigned(AssignmentError):
@@ -128,17 +127,20 @@ class CheckOutResult:
 
 def check_out(
     asset: Asset,
-    person: Person,
+    person: Person | None = None,
     *,
     actor: User,
+    department: Department | None = None,
     due_at: datetime | None = None,
     condition_out: Asset.Condition | str = Asset.Condition.GOOD,
     remarks: str = "",
 ) -> CheckOutResult:
-    """Assign *asset* to *person* (DEVELOPMENT.md §3 stage ⑤, §9).
+    """Assign *asset* to *person* or to *department* (§3 stage ⑤, §9).
 
-    Preconditions enforced here (not in the view layer):
-    - asset.status == AVAILABLE
+    Exactly one holder must be given: a person (employee) or a Department
+    (Server/NAS/Switch/laptop-pool assets are held by a department, not an
+    individual). Preconditions enforced here (not in the view layer):
+    - asset.status == AVAILABLE (or ASSIGNED-as-orphan, below)
     - no active assignment exists for the asset
 
     The caller must have already verified permissions; this layer is
@@ -146,10 +148,14 @@ def check_out(
     """
     from django.db import IntegrityError, transaction
 
-    from apps.people.models import Person  # local import to avoid circular dep at import time
+    from apps.people.models import Department, Person  # local import to avoid circular dep
 
-    if not isinstance(person, Person):
+    if (person is None) == (department is None):
+        raise TypeError("pass exactly one of person or department")
+    if person is not None and not isinstance(person, Person):
         raise TypeError("person must be a Person instance")
+    if department is not None and not isinstance(department, Department):
+        raise TypeError("department must be a Department instance")
 
     # AVAILABLE is the normal precondition. ASSIGNED is accepted only to
     # recover an *orphan* — status says ASSIGNED but no open assignment row
@@ -170,6 +176,7 @@ def check_out(
             assignment = Assignment.objects.create(
                 asset=asset,
                 to_person=person,
+                to_dept=department,
                 assigned_by=person,  # simplified: assigned_by mirrors the person for now
                 out_at=now,
                 due_at=due_at,
@@ -190,7 +197,11 @@ def check_out(
         actor=actor,
         action="check_out",
         obj=asset,
-        details={"to_person": person.pk, "assignment": assignment.pk},
+        details={
+            "to_person": person.pk if person else None,
+            "to_dept": department.pk if department else None,
+            "assignment": assignment.pk,
+        },
     )
 
     return CheckOutResult(assignment=assignment, asset=asset)

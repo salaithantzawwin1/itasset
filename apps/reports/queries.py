@@ -84,8 +84,17 @@ def warranty_expiring(request=None, days=90):
     for a in Asset.objects.select_related("site").filter(
         warranty_end__isnull=False, warranty_end__lte=cutoff
     ):
-        active = a.assignments.filter(in_at__isnull=True).select_related("to_person").first()
-        holder = active.to_person.name if active and active.to_person else ""
+        active = (
+            a.assignments.filter(in_at__isnull=True).select_related("to_person", "to_dept").first()
+        )
+        if active is None:
+            holder = ""
+        elif active.to_person is not None:
+            holder = active.to_person.name
+        elif active.to_dept is not None:
+            holder = active.to_dept.name + " (dept)"
+        else:
+            holder = ""
         left = (a.warranty_end - date.today()).days
         rows.append(
             [a.asset_tag, a.model_name, a.site.code, holder, a.warranty_end.isoformat(), left]
@@ -137,47 +146,85 @@ def contract_renewals(request=None, days=90):
 
 
 def orphan_assets(request=None):
-    """Assigned assets whose holder left, or assigned with no holder (§4)."""
-    from apps.assets.models import Asset
+    """Assignment/data-state anomalies (§4), both directions flagged:
 
-    headers = ["Asset tag", "Status", "Holder", "Holder active", "Last out"]
+    - forward orphan: status ASSIGNED with no open row, or the holder left
+    - reverse orphan: an open row on an asset whose status is *not* ASSIGNED
+      (e.g. AVAILABLE + open row) — the register and the trail disagree
+    """
+    from apps.assets.models import Asset, Assignment
+
+    headers = ["Asset tag", "Status", "Flag", "Holder", "Holder active", "Last out"]
     rows = []
     for a in Asset.objects.filter(status=Asset.Status.ASSIGNED).select_related("site"):
         active = a.assignments.filter(in_at__isnull=True).select_related("to_person").first()
         if active is None:
-            rows.append([a.asset_tag, a.status, "", "", ""])
-        elif active.to_person is None or not active.to_person.is_active:
+            rows.append([a.asset_tag, a.status, "no open assignment", "", "", ""])
+        elif active.to_person is None and active.to_dept is None:
+            rows.append([a.asset_tag, a.status, "holder record missing", "", "", ""])
+        elif active.to_person is not None and not active.to_person.is_active:
             rows.append(
                 [
                     a.asset_tag,
                     a.status,
-                    active.to_person.name if active.to_person else "",
+                    "holder inactive",
+                    active.to_person.name,
                     "no",
                     active.out_at.date().isoformat(),
                 ]
             )
+    # reverse: open assignment row while the status says anything but ASSIGNED
+    reverse = (
+        Assignment.objects.filter(in_at__isnull=True)
+        .exclude(asset__status=Asset.Status.ASSIGNED)
+        .select_related("asset", "to_person", "to_dept")
+        .order_by("asset__asset_tag")
+    )
+    for asg in reverse:
+        holder = (
+            asg.to_person.name
+            if asg.to_person is not None
+            else (asg.to_dept.name + " (dept)" if asg.to_dept is not None else "")
+        )
+        rows.append(
+            [
+                asg.asset.asset_tag,
+                asg.asset.status,
+                "REVERSE: open row, status not assigned",
+                holder,
+                "",
+                asg.out_at.date().isoformat(),
+            ]
+        )
     return headers, rows
 
 
 def assets_by_department(request=None):
-    """Who holds what, grouped by the holder's department (Person.department).
+    """Who holds what, grouped by the holder's department — for a person
+    holder via Person.department, for a department holder directly via
+    Assignment.to_dept (Server/NAS/Switch/laptop pools).
 
-    One row per active assignment (in_at IS NULL) — the department/employee
-    come from the Person record, so a department move needs no asset edit.
-    Assets whose status says ASSIGNED but have no open assignment land in a
-    "Not assigned" bucket: a cheap completeness check (§13 data quality)
-    instead of a silently misleading blank.
+    One row per active assignment (in_at IS NULL). Assets whose status says
+    ASSIGNED but have no open assignment land in a "Not assigned" bucket:
+    a cheap completeness check (§13 data quality) instead of a silently
+    misleading blank. Closes with one summary row per department
+    (department, asset count, total known cost).
     """
+    from decimal import Decimal
+
     from apps.assets.models import Asset, Assignment
 
     headers = ["Department", "Employee", "Asset tag", "Category", "Site", "Status", "Out"]
     rows = []
     assigned_ids: set[int] = set()
+    # (dept_name, employee_label) -> [count, total cost]
+    summary: dict[str, list] = {}
     open_asgs = (
         Assignment.objects.filter(in_at__isnull=True)
         .select_related(
             "to_person",
             "to_person__department",
+            "to_dept",
             "asset",
             "asset__category",
             "asset__site",
@@ -186,9 +233,17 @@ def assets_by_department(request=None):
     )
     for asg in open_asgs:
         person = asg.to_person
-        dept = person.department.name if person and person.department_id else "(no department)"
-        who = person.name if person else "(no holder)"
+        if asg.to_dept_id is not None:
+            dept = asg.to_dept.name
+            who = "(department)"
+        else:
+            dept = person.department.name if person and person.department_id else "(no department)"
+            who = person.name if person else "(no holder)"
         assigned_ids.add(asg.asset_id)
+        bucket = summary.setdefault(dept, [0, Decimal("0")])
+        bucket[0] += 1
+        if asg.asset.cost is not None:
+            bucket[1] += asg.asset.cost
         rows.append(
             [
                 dept,
@@ -208,6 +263,13 @@ def assets_by_department(request=None):
         .order_by("asset_tag")
     ):
         rows.append(["Not assigned", "", a.asset_tag, a.category.code, a.site.code, a.status, ""])
+    # summary section: (department, asset count, total known cost)
+    if summary:
+        rows.append([])
+        rows.append(["SUMMARY", "Assets", "Value (cost)"])
+        for name in sorted(summary, key=str.lower):
+            n, total = summary[name]
+            rows.append([name, n, float(total)])
     return headers, rows
 
 
@@ -245,7 +307,7 @@ def check_activity(request=None, days=30):
         rows.append(
             [
                 asg.asset.asset_tag,
-                asg.to_person.name if asg.to_person else "",
+                asg.holder_label if (asg.to_person_id or asg.to_dept_id) else "",
                 asg.out_at.date().isoformat(),
                 asg.in_at.date().isoformat() if asg.in_at else "",
                 by or "",

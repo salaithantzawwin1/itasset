@@ -150,6 +150,15 @@ STRINGS = {
     "asset.checkout": {"en": "Check out", "my": "ထုတ်ပေးမည် (Check-out)"},
     "asset.checkin": {"en": "Check in", "my": "ပြန်လည်ရရှိမည် (Check-in)"},
     "asset.pick_holder": {"en": "— Select holder —", "my": "— လက်ခံမည့်သူ ရွေးပါ —"},
+    # department-as-holder (Server/NAS/Switch, shared laptops)
+    "asset.pick_dept": {"en": "— Select department —", "my": "— ဌာန ရွေးပါ —"},
+    "asset.or_dept": {"en": "or", "my": "သို့"},
+    "asset.pick_one": {
+        "en": "Pick exactly one holder — an employee or a department.",
+        "my": "လက်ခံသူ တစ်ဦးတည်း ရွေးပါ — ဝန်ထမ်း သို့မဟုတ် ဌာန။",
+    },
+    "asset.dept_holder": {"en": "Department", "my": "ဌာန"},
+    "asset.dept_abbr": {"en": "dept", "my": "ဌာန"},
     "asset.history": {"en": "Assignment history", "my": "ပေးအပ်မှု မှတ်တမ်း (Assignments)"},
     "asset.holder": {"en": "Holder", "my": "လက်ခံသူ"},
     "asset.assigned_to": {"en": "Assigned to", "my": "တာဝန်ပေးထားသူ"},

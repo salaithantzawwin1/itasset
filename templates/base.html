@@ -59,6 +59,11 @@
        screen instead of leaving ~370px dead gutters on each side (1920px).
        Laptop/tablet/mobile breakpoints below still govern below 1440px. */
     @media (min-width: 1440px) { .page { max-width: 1560px; padding: 0 36px; } }
+    /* Ultrawide (3440px) / 4K (2560px+) tiers: keep growing the container so
+       a 21:9 or 4K display doesn't frame a 1560px island in dead space. */
+    @media (min-width: 1920px) { .page { max-width: 1880px; padding: 0 44px; } }
+    @media (min-width: 2560px) { .page { max-width: 2480px; padding: 0 56px; } }
+    @media (min-width: 3440px) { .page { max-width: 3312px; padding: 0 64px; } }
     .page-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; }
     .page-head h1 { margin: 0; font-size: 22px; font-weight: 700; }
     .page-head .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
@@ -90,8 +95,25 @@
     .filterbar .clear-link:hover { text-decoration: underline; }
 
     /* ---------- tables ---------- */
-    table.data { border-collapse: separate; border-spacing: 0; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    /* overflow: clip (not hidden): hidden would make the table a scroll
+       container and break the sticky header below — clip keeps corner
+       rounding without one. `hidden` first is the fallback for engines
+       without clip (Safari <16), where headers just don't stick. */
+    table.data { border-collapse: separate; border-spacing: 0; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; overflow: clip; }
     table.data thead th { background: var(--thead-bg); text-align: left; padding: 10px 14px; font-size: 12.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); border-bottom: 1px solid var(--border); }
+    /* Long tables (50-row asset list, history): keep column labels pinned
+       under the sticky topbar while scrolling. Scoped above the phone
+       breakpoint — at <=1024px .page becomes a scroll container, which
+       would capture the stickiness anyway. */
+    @media (min-width: 1025px) {
+      table.data thead th { position: sticky; top: 58px; z-index: 3; box-shadow: 0 1px 0 var(--border); }
+      /* Ultrawide (>=2560px): denser rows — more records per screen instead
+         of one very tall, very sparse table. */
+      @media (min-width: 2560px) {
+        table.data thead th { padding-top: 8px; padding-bottom: 8px; }
+        table.data tbody td { padding-top: 7px; padding-bottom: 7px; }
+      }
+    }
     table.data tbody td { padding: 11px 14px; border-bottom: 1px solid var(--border); font-size: 14px; }
     table.data tbody tr:last-child td { border-bottom: none; }
     table.data tbody tr:hover td { background: color-mix(in srgb, var(--primary) 4%, transparent); }
@@ -170,6 +192,31 @@
       .card { padding: 16px 14px; }
       form.frm { max-width: 100%; }
       .filterbar input[type=text] { max-width: none; }
+    }
+    /* ---------- phone (<=480px): touch targets & single-column forms ---------- */
+    @media (max-width: 480px) {
+      /* 44px = the iOS/Android comfortable tap target (HIG/WCAG 2.5.5) */
+      .btn { padding: 12px 16px; font-size: 15px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+      .btn.sm { padding: 10px 14px; min-height: 40px; }
+      .topnav a, .btn-ghost, .toggle-theme, .lang-switch button { min-height: 44px; display: inline-flex; align-items: center; }
+      /* every control on its own line, big enough to hit without zooming */
+      .filterbar { gap: 8px; }
+      .filterbar input[type=text], .filterbar select { flex: 1 1 100%; max-width: none; min-height: 44px; width: 100%; }
+      .filterbar label.chk { min-height: 44px; }
+      .filterbar .btn { width: 100%; }
+      form.frm input, form.frm select, form.frm textarea, form.inline-form select { min-height: 44px; font-size: 16px; /* 16px stops iOS auto-zoom on focus */ }
+      form.frm label { font-size: 12px; }
+      .inline-form { width: 100%; }
+      .inline-form select { flex: 1 1 100%; min-width: 0; width: 100%; }
+      .inline-form .btn { width: 100%; }
+      /* tab strips scroll horizontally instead of squeezing to 2px taps */
+      .ftabs { flex-wrap: nowrap !important; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+      .ftabs::-webkit-scrollbar { display: none; }
+      .ftab { white-space: nowrap; min-height: 44px; padding: 12px 14px; }
+      .page-head .actions { width: 100%; }
+      .page-head .actions .btn { flex: 1; }
+      .pagination a { min-height: 44px; display: inline-flex; align-items: center; }
+      table.data thead th, table.data tbody td { padding: 9px 10px; }
     }
 
     {% block extra_css %}{% endblock %}

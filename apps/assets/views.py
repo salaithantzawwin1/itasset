@@ -67,12 +67,16 @@ class AssetList(RoleRequiredMixin, ListView):
             )
         if self.request.GET.get("missing_serial"):
             qs = qs.filter(serial_no="")
-        # department filter: the holder's department (open assignment only)
+        # department filter: match the holder's department (person) OR a
+        # department-held asset (open assignment only)
         department = self.request.GET.get("department", "")
         if department.isdigit():
             qs = qs.filter(
-                assignments__in_at__isnull=True,
-                assignments__to_person__department_id=int(department),
+                Q(
+                    assignments__in_at__isnull=True,
+                    assignments__to_person__department_id=int(department),
+                )
+                | Q(assignments__in_at__isnull=True, assignments__to_dept_id=int(department))
             ).distinct()
         # "assigned to me": assets held by the caller's linked Person
         if self.request.GET.get("mine"):
@@ -96,7 +100,7 @@ class AssetList(RoleRequiredMixin, ListView):
             Prefetch(
                 "assignments",
                 queryset=Assignment.objects.filter(in_at__isnull=True).select_related(
-                    "to_person", "to_person__department"
+                    "to_person", "to_person__department", "to_dept"
                 ),
                 to_attr="active_assignments",
             )
@@ -122,10 +126,11 @@ class AssetDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
         ctx = super().get_context_data(**kwargs)
         active = (
             Assignment.objects.filter(asset=self.object, in_at__isnull=True)
-            .select_related("to_person", "to_person__department", "to_person__site")
+            .select_related("to_person", "to_person__department", "to_person__site", "to_dept")
             .first()
         )
         ctx["current_holder"] = active.to_person if active else None
+        ctx["current_dept"] = active.to_dept if active else None
         ctx["history"] = (
             Assignment.objects.filter(asset=self.object)
             .select_related("to_person", "assigned_by")
@@ -152,6 +157,13 @@ class AssetDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
             self.request.user,
             Person.objects.filter(is_active=True).select_related("site"),
             action="asset_detail_people",
+            path=self.request.path,
+        )
+        # department-as-holder picker (Server/NAS/Switch/laptop pools)
+        ctx["departments"] = scope_list(
+            self.request.user,
+            Department.objects.select_related("site"),
+            action="asset_detail_departments",
             path=self.request.path,
         )
         return ctx
@@ -262,7 +274,16 @@ ASSET_FORM_TABS = (
     (
         "basics",
         "asset.tab.basics",
-        ["category", "asset_tag", "status", "condition", "site", "assigned_to", "parent_asset"],
+        [
+            "category",
+            "asset_tag",
+            "status",
+            "condition",
+            "site",
+            "assigned_to",
+            "assigned_dept",
+            "parent_asset",
+        ],
     ),
     ("specs", "asset.tab.specs", []),
     ("device", "asset.tab.device", ["manufacturer", "model_name", "serial_no", "hostname"]),
@@ -509,12 +530,25 @@ def orphan_repair(request):
         action="orphan_repair_people",
         path=request.path,
     )
+    departments_qs = scope_list(
+        request.user,
+        Department.objects.select_related("site"),
+        action="orphan_repair_departments",
+        path=request.path,
+    )
     if request.method == "POST":
         asset = get_object_or_404(orphans, pk=request.POST.get("asset"))
+        person_id = request.POST.get("to_person")
+        dept_id = request.POST.get("to_dept")
         try:
-            person = Person.objects.get(pk=request.POST.get("to_person"))
-        except (Person.DoesNotExist, ValueError, TypeError):
-            messages.error(request, "Pick an employee to record as the holder.")
+            if person_id and not dept_id:
+                target = {"person": Person.objects.get(pk=person_id)}
+            elif dept_id and not person_id:
+                target = {"department": Department.objects.get(pk=dept_id)}
+            else:
+                raise ValueError("exactly one holder must be picked")
+        except (Person.DoesNotExist, Department.DoesNotExist, ValueError, TypeError):
+            messages.error(request, "Pick an employee or a department as the holder.")
             return redirect("orphan-repair")
         try:
             check_scope(request.user, asset, action="orphan_repair", path=request.path)
@@ -522,16 +556,17 @@ def orphan_repair(request):
             raise Http404("Asset not found") from None
         try:
             services.check_out(
-                asset, person, actor=request.user, remarks="Orphan assignment repaired"
+                asset, actor=request.user, remarks="Orphan assignment repaired", **target
             )
-            messages.success(request, f"{asset.asset_tag} → {person.name}")
+            holder = next(iter(target.values()))
+            messages.success(request, f"{asset.asset_tag} → {holder.name}")
         except services.AssetError as exc:
             messages.warning(request, str(exc))
         return redirect("orphan-repair")
     return render(
         request,
         "assets/orphan_repair.html",
-        {"orphans": orphans, "people": people_qs},
+        {"orphans": orphans, "people": people_qs, "departments": departments_qs},
     )
 
 
@@ -654,13 +689,21 @@ def check_out_view(request, pk):
         raise Http404("Asset not found") from None
     if request.method == "POST":
         person_id = request.POST.get("to_person")
-        try:
-            person = Person.objects.get(pk=person_id)
-        except (Person.DoesNotExist, ValueError, TypeError):
-            return redirect("asset-detail", pk=pk)
+        dept_id = request.POST.get("to_dept")
         remarks = request.POST.get("remarks", "")
+        # exactly one target: an employee or a department (server/network
+        # kit is held by a dept, not an individual)
         try:
-            services.check_out(asset, person, actor=request.user, remarks=remarks)
+            if person_id and not dept_id:
+                target = {"person": Person.objects.get(pk=person_id)}
+            elif dept_id and not person_id:
+                target = {"department": Department.objects.get(pk=dept_id)}
+            else:
+                return redirect("asset-detail", pk=pk)
+        except (Person.DoesNotExist, Department.DoesNotExist, ValueError, TypeError):
+            return redirect("asset-detail", pk=pk)
+        try:
+            services.check_out(asset, actor=request.user, remarks=remarks, **target)
         except services.AssetError:
             pass
     return redirect("asset-detail", pk=pk)

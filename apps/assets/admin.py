@@ -101,6 +101,7 @@ class AssetAdmin(ScopedAdminMixin, admin.ModelAdmin):
                     "condition",
                     "site",
                     "assigned_to",
+                    "assigned_dept",
                     "parent_asset",
                 )
             },
@@ -204,11 +205,17 @@ class AssignmentAdmin(ScopedAdminMixin, admin.ModelAdmin):
     """Read-only: assignment rows are written by the check-out/in service, which
     also keeps `asset.status` in sync — hand-editing here would desync them."""
 
-    list_display = ("asset", "to_person", "out_at", "due_at", "in_at", "condition_out")
+    list_display = ("asset", "to_person", "to_dept", "out_at", "due_at", "in_at", "condition_out")
     list_filter = (ActiveAssignmentFilter, "condition_out", "condition_in", "asset__site")
-    search_fields = ("asset__asset_tag", "asset__serial_no", "to_person__name", "remarks")
+    search_fields = (
+        "asset__asset_tag",
+        "asset__serial_no",
+        "to_person__name",
+        "to_dept__name",
+        "remarks",
+    )
     date_hierarchy = "out_at"
-    list_select_related = ("asset", "to_person", "assigned_by")
+    list_select_related = ("asset", "to_person", "to_dept", "assigned_by")
     autocomplete_fields = ("asset", "to_person", "assigned_by")
 
     def has_add_permission(self, request):

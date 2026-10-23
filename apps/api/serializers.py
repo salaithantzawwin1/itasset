@@ -138,13 +138,18 @@ class AssetSerializer(serializers.ModelSerializer):
         from apps.assets.services import active_assignment
 
         a = active_assignment(obj)
-        if a is None or a.to_person is None:
+        if a is None:
+            return None
+        if a.to_dept is not None:
+            return {"employee_no": "", "name": a.to_dept.name, "kind": "department"}
+        if a.to_person is None:
             return None
         return {"employee_no": a.to_person.employee_no, "name": a.to_person.name}
 
 
 class AssignmentSerializer(serializers.ModelSerializer):
     to_person = PersonSerializer(read_only=True)
+    to_dept = serializers.SlugRelatedField(slug_field="name", read_only=True)
     condition_in_display = serializers.CharField(source="get_condition_in_display", read_only=True)
     condition_out_display = serializers.CharField(
         source="get_condition_out_display", read_only=True
@@ -156,6 +161,7 @@ class AssignmentSerializer(serializers.ModelSerializer):
             "id",
             "asset",
             "to_person",
+            "to_dept",
             "out_at",
             "due_at",
             "in_at",
@@ -168,9 +174,11 @@ class AssignmentSerializer(serializers.ModelSerializer):
 
 
 class CheckOutSerializer(serializers.Serializer):
-    """Scanner/web payload: person identified by employee_no (badge) or pk."""
+    """Scanner/web payload: person by employee_no (badge) or pk; a department
+    holder (server/network kit) by `to_dept` pk — exactly one target."""
 
     to_person = serializers.IntegerField(required=False)
+    to_dept = serializers.IntegerField(required=False)
     employee_no = serializers.CharField(required=False, allow_blank=True)
     due_at = serializers.DateTimeField(required=False, allow_null=True)
     condition_out = serializers.ChoiceField(
@@ -179,8 +187,11 @@ class CheckOutSerializer(serializers.Serializer):
     remarks = serializers.CharField(required=False, allow_blank=True, default="")
 
     def validate(self, attrs):
-        if not attrs.get("to_person") and not attrs.get("employee_no"):
-            raise serializers.ValidationError("to_person (pk) or employee_no is required")
+        targets = sum(bool(attrs.get(k)) for k in ("to_person", "to_dept", "employee_no"))
+        if targets != 1:
+            raise serializers.ValidationError(
+                "exactly one holder is required: to_person (pk), to_dept (pk) or employee_no"
+            )
         return attrs
 
     def resolve_person(self):
@@ -189,6 +200,14 @@ class CheckOutSerializer(serializers.Serializer):
         if self.validated_data.get("to_person"):
             return Person.objects.get(pk=self.validated_data["to_person"])
         return Person.objects.get(employee_no=self.validated_data["employee_no"].strip())
+
+    def resolve_target(self) -> dict:
+        """{person: ...} or {department: ...} for services.check_out()."""
+        from apps.people.models import Department
+
+        if self.validated_data.get("to_dept"):
+            return {"department": Department.objects.get(pk=self.validated_data["to_dept"])}
+        return {"person": self.resolve_person()}
 
 
 class CheckInSerializer(serializers.Serializer):

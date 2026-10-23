@@ -29,7 +29,7 @@ from apps.core.scopes import (
     record_shadow,
     scope_list,
 )
-from apps.people.models import Person
+from apps.people.models import Department, Person
 from apps.reports.models import ExportJob
 from apps.vendors.models import Contract
 
@@ -201,17 +201,17 @@ class AssetViewSet(viewsets.ModelViewSet):
         ser = CheckOutSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         try:
-            person = ser.resolve_person()
-        except Person.DoesNotExist:
-            return _error("person not found", status.HTTP_404_NOT_FOUND, request=request)
+            target = ser.resolve_target()
+        except (Person.DoesNotExist, Department.DoesNotExist):
+            return _error("holder not found", status.HTTP_404_NOT_FOUND, request=request)
         try:
             result = services.check_out(
                 asset,
-                person,
                 actor=request.user,
                 due_at=ser.validated_data.get("due_at"),
                 condition_out=ser.validated_data.get("condition_out", Asset.Condition.GOOD),
                 remarks=ser.validated_data.get("remarks", ""),
+                **target,
             )
         except services.AssetError as exc:
             return _error(str(exc), status.HTTP_409_CONFLICT, request=request)
@@ -536,9 +536,16 @@ def scan_payload(request, asset_tag):
             "model": asset.model_name,
             "serial_no": asset.serial_no,
             "holder": (
-                {"employee_no": active.to_person.employee_no, "name": active.to_person.name}
+                {
+                    "employee_no": active.to_person.employee_no,
+                    "name": active.to_person.name,
+                }
                 if active and active.to_person
-                else None
+                else (
+                    {"employee_no": "", "name": active.to_dept.name, "kind": "department"}
+                    if active and active.to_dept
+                    else None
+                )
             ),
             "can_check_out": services.can_assign(asset),
             "can_check_in": active is not None,

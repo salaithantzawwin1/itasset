@@ -43,7 +43,7 @@
       <td>{{ a.model_name|default:"—" }}</td>
       <td>{{ a.site.code }}</td>
       <td><span class="pill pill-{{ a.status }}">{{ a.get_status_display }}</span></td>
-      <td>{% with h=a.active_assignments.0 %}{% if h %}{{ h.to_person.name|default:"—" }}{% if h.to_person.department %} <span class="muted">({{ h.to_person.department.name }})</span>{% endif %}{% else %}<span class="muted">—</span>{% endif %}{% endwith %}</td>
+      <td>{% with h=a.active_assignments.0 %}{% if h %}{% if h.to_person %}{{ h.to_person.name }}{% if h.to_person.department %} <span class="muted">({{ h.to_person.department.name }})</span>{% endif %}{% elif h.to_dept %}{{ h.to_dept.name }} <span class="muted">({% t "asset.dept_abbr" %})</span>{% else %}—{% endif %}{% else %}<span class="muted">—</span>{% endif %}{% endwith %}</td>
       <td><a class="btn secondary sm" href="{% url 'asset-update' a.pk %}">{% t "asset.edit" %}</a></td>
     </tr>
   {% empty %}

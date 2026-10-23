@@ -21,7 +21,7 @@
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.serial" %}</th><td>{{ object.serial_no|default:"—" }}</td></tr>
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.hostname" %}</th><td>{{ object.hostname|default:"—" }}</td></tr>
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.site" %}</th><td>{{ object.site }}</td></tr>
-      <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.assigned_to" %}</th><td>{% if current_holder %}{{ current_holder.name }} ({{ current_holder.employee_no }}){% if current_holder.department %} — {{ current_holder.department.name }}{% endif %}{% else %}—{% endif %}</td></tr>
+      <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.assigned_to" %}</th><td>{% if current_holder %}{{ current_holder.name }} ({{ current_holder.employee_no }}){% if current_holder.department %} — {{ current_holder.department.name }}{% endif %}{% elif current_dept %}{{ current_dept.name }} <span class="pill pill-ASSIGNED">{% t "asset.dept_holder" %}</span>{% else %}—{% endif %}</td></tr>
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.parent" %}</th><td>{% if object.parent_asset_id %}<a href="{% url 'asset-detail' object.parent_asset_id %}">{{ object.parent_asset }}</a>{% else %}—{% endif %}</td></tr>
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.purchase" %}</th><td>{{ object.purchase_date|default:"—" }} · {% t "asset.cost" %} {{ object.cost|default:"—" }}</td></tr>
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.warranty" %}</th><td>{{ object.warranty_end|default:"—" }}</td></tr>
@@ -73,7 +73,7 @@
 {% if user.is_authenticated and can_lifecycle %}
 <div class="card">
   <h2>{% t "asset.actions" %}</h2>
-  {% if current_holder %}
+  {% if current_holder or current_dept %}
     <form method="post" action="{% url 'asset-check-in' object.pk %}" class="inline-form">
       {% csrf_token %}
       <select name="condition_in">
@@ -83,11 +83,18 @@
     </form>
   {% elif object.status == 'AVAILABLE' or object.status == 'ASSIGNED' %}
     {% if object.status == 'ASSIGNED' %}<p class="muted">{% t "asset.orphan_hint" %}</p>{% endif %}
-    <form method="post" action="{% url 'asset-check-out' object.pk %}" class="inline-form">
+    <form method="post" action="{% url 'asset-check-out' object.pk %}" class="inline-form"
+          onsubmit="if(!this.to_person.value && !this.to_dept.value){alert('{% t "asset.pick_one" %}');return false;}
+                    if(this.to_person.value && this.to_dept.value){alert('{% t "asset.pick_one" %}');return false;}">
       {% csrf_token %}
-      <select name="to_person" required>
+      <select name="to_person">
         <option value="">{% t "asset.pick_holder" %}</option>
         {% for p in people %}<option value="{{ p.pk }}">{{ p.name }} ({{ p.employee_no }})</option>{% endfor %}
+      </select>
+      <span class="muted">{% t "asset.or_dept" %}</span>
+      <select name="to_dept">
+        <option value="">{% t "asset.pick_dept" %}</option>
+        {% for d in departments %}<option value="{{ d.pk }}">{{ d.name }} ({{ d.site.code }})</option>{% endfor %}
       </select>
       <button class="btn" type="submit">{% t "asset.checkout" %}</button>
     </form>
@@ -104,7 +111,7 @@
     <tbody>
     {% for h in history %}
       <tr>
-        <td>{% if h.to_person %}<a href="{% url 'person-detail' h.to_person_id %}">{{ h.to_person.name }}</a>{% else %}—{% endif %}</td>
+        <td>{% if h.to_person %}<a href="{% url 'person-detail' h.to_person_id %}">{{ h.to_person.name }}</a>{% elif h.to_dept %}{{ h.to_dept.name }} <span class="muted">({% t "asset.dept_abbr" %})</span>{% else %}—{% endif %}</td>
         <td>{{ h.out_at|date:"Y-m-d H:i" }}</td>
         <td>{{ h.in_at|date:"Y-m-d H:i"|default:"—" }}</td>
         <td>{{ h.get_condition_out_display }} / {{ h.get_condition_in_display }}</td>

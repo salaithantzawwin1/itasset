@@ -310,6 +310,10 @@ a.brand:hover { color: #fff; }
 /* Big desktops (>=1440px): widen the admin shell to match the main app's
    big-screen tier so changelists/filters/dashboards fill a 1920px display. */
 @media (min-width: 1440px) { #content { max-width: 1620px; padding-left: 40px; padding-right: 40px; } }
+/* Ultrawide (3440px) / 4K (2560px+) tiers — same cadence as templates/base.html */
+@media (min-width: 1920px) { #content { max-width: 1940px; padding-left: 48px; padding-right: 48px; } }
+@media (min-width: 2560px) { #content { max-width: 2540px; padding-left: 60px; padding-right: 60px; } }
+@media (min-width: 3440px) { #content { max-width: 3372px; padding-left: 72px; padding-right: 72px; } }
 .dashboard #content { width: auto; }  /* stock base.css pins the dashboard to 600px */
 
 /* ---------- page header ------------------------------------------------ */
@@ -529,6 +533,16 @@ fieldset.module .form-row .help { padding-top: 4px; }
   padding: 10px 14px;
   border-bottom: 2px solid var(--hairline-color);
   white-space: nowrap;
+}
+/* Long changelists: pin column labels under the sticky topbar while the
+   table scrolls (main app table.data does the same). */
+@media (min-width: 1025px) {
+  .results thead th { position: sticky; top: var(--topbar-h); z-index: 3; box-shadow: 0 1px 0 var(--hairline-color); }
+  /* Ultrawide: denser rows — more records per screen, not taller ones */
+  @media (min-width: 2560px) {
+    .results thead th { padding-top: 8px; padding-bottom: 8px; }
+    .results tbody td { padding-top: 7px; padding-bottom: 7px; }
+  }
 }
 .results thead th a { color: var(--body-medium-color); text-decoration: none; }
 .results thead th a:hover { color: var(--primary); }
@@ -971,6 +985,36 @@ body.login main { flex: 1; display: flex; align-items: center; justify-content: 
   #content .aligned .flex-container .related-widget-wrapper { max-width: 100%; min-width: 0; }
   #content .aligned .flex-container .related-widget-wrapper select { min-width: 0; flex: 1 1 auto; }
 }
+@media (max-width: 480px) {
+  /* phone touch UX: 44px targets (WCAG 2.5.5), 16px inputs (no iOS
+     auto-zoom), full-width action bar — the card layout above already
+     reflows rows; this sizes what stays interactive. */
+  #content { padding: 12px 10px 36px; }
+  #toolbar { padding: 10px 12px 8px; }
+  #changelist-search { gap: 8px; }
+  #changelist-search > div:first-child { min-width: 0; width: 100%; }
+  #searchbar { min-width: 0; min-height: 44px; font-size: 16px; }
+  #toolbar #changelist-search input[type="submit"] { min-height: 44px; flex: 1; }
+  .results { padding: 0 10px 6px; }
+  .results tbody td { padding: 8px 10px; }
+  .results .action-checkbox-column input { width: 22px; height: 22px; }
+  #changelist .actions { margin: 10px 10px 0; }
+  #changelist .actions label { min-height: 44px; }
+  #changelist .actions select { min-height: 44px; font-size: 16px; }
+  #changelist .actions .button { min-height: 44px; padding: 10px 18px; font-size: 14px; }
+  .paginator a, .paginator .this-page { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  #changelist-filter { padding: 12px 10px; }
+  #changelist-filter details > summary { min-height: 44px; display: flex; align-items: center; }
+  /* change form: comfortable inputs + reachable sticky save bar */
+  #content .aligned .flex-container input:not([type="checkbox"]):not([type="radio"]),
+  #content .aligned .flex-container select,
+  #content .aligned .flex-container textarea { min-height: 44px; font-size: 16px; }
+  .submit-row { bottom: 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 10px 12px; }
+  .submit-row input[type="submit"], .submit-row .deletelink { min-height: 44px; padding: 10px 18px; font-size: 14px; }
+  /* fieldset tab strip: swipe-scroll instead of squeezing to 2px taps
+     — declared again at the end of the sheet (see bottom): source order
+     would otherwise let the base .ftabs rule win */
+}
 /* ---------- form field extras: related-widget icons + date shortcuts ----
    Stock Django ships 24 px multicolour icons (yellow pencil, green +, red
    X, blue eye, blue calendar) that fight every theme. Redraw them as
@@ -1181,6 +1225,15 @@ fieldset.module .form-row { overflow: visible; }
   /* With an even field count the final visual row's left cell would keep its
      bottom rule while the right cell drops it (:last-of-type) — close both. */
   .ftab-panel[data-spec-fields] > fieldset.module > .form-row:nth-last-child(2):nth-of-type(odd) { border-bottom: 0; }
+}
+
+/* ---------- phone (<=480px): the tab strip swipe-scrolls ----------------
+   Declared after the base .ftabs rules above — same specificity, later
+   source wins, no !important needed. */
+@media (max-width: 480px) {
+  .ftabs { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .ftabs::-webkit-scrollbar { display: none; }
+  .ftab { white-space: nowrap; min-height: 44px; padding: 12px 14px; }
 }
 
 </style>

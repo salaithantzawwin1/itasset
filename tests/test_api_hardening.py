@@ -80,6 +80,28 @@ def test_asset_create_without_site_is_400_not_500(api, django_user_model, group_
     assert "site_id" in r.json()
 
 
+def test_asset_create_rejects_a_tag_from_another_category(
+    api, django_user_model, group_setup, site, category
+):
+    """DRF never calls the model's full_clean, so the tag ↔ category rule
+    (§13) is repeated in the serializer: a Desktop tag under the Laptop
+    category — the production `IT-HW-DSK-0010` — answers 400, not a bad row.
+    """
+    from apps.assets.models import Asset, Category
+
+    Category.objects.get_or_create(code="IT-HW-DSK", defaults={"name": "Desktop / Workstation"})
+    _login_as(api, django_user_model, group_setup, "technician")
+    r = api.post(
+        "/api/v1/assets/",
+        {"asset_tag": "IT-HW-DSK-7099", "category_id": category.id, "site_id": site.id},
+        format="json",
+    )
+    assert r.status_code == 400
+    assert "asset_tag" in r.json()
+    assert "IT-HW-DSK" in str(r.json()["asset_tag"])
+    assert not Asset.objects.filter(asset_tag="IT-HW-DSK-7099").exists()
+
+
 # --------------------------------------------------------------------------- version lock
 
 

@@ -104,6 +104,36 @@ def next_asset_tag(category: Category) -> str:
     return f"{prefix}{highest + 1:04d}"
 
 
+def tag_category_error(tag, category) -> str | None:
+    """§13 tag format ``{category-code}-{seq}`` — the mismatch message, or None.
+
+    A tag that *claims* another existing category's code (the production
+    bug: ``IT-HW-DSK-0010`` filed under ``IT-HW-LAP``) makes the register
+    and the taxonomy disagree about what the asset is, so it is refused.
+    A tag carrying no category code at all (legacy/manual ids, the
+    ``PROBE-…`` health check, imported historical registers) is left to
+    the caller's own rules — this only rejects an active contradiction.
+
+    Shared by the model's ``clean()`` (create/edit form + admin), the API
+    serializer (DRF never calls ``full_clean``) and the CSV importer, so
+    every write path answers the same way.
+    """
+    if not tag or category is None:
+        return None
+    from apps.assets.models import Category
+
+    claimed = tag.rsplit("-", 1)[0]
+    if claimed == category.code:
+        return None
+    if not Category.objects.filter(code=claimed).exists():
+        return None
+    return (
+        f'Tag "{tag}" carries the code of category "{claimed}", but this asset '
+        f'belongs to "{category.code} — {category.name}". Use a {category.code}- tag '
+        f"(next free: {next_asset_tag(category)}) or file it under {claimed}."
+    )
+
+
 def active_assignment(asset: Asset) -> Assignment | None:
     """Return the currently-active assignment for *asset* (in_at IS NULL)."""
     return asset.assignments.filter(in_at__isnull=True).first()
@@ -562,6 +592,12 @@ def import_assets_csv(
         if Asset.objects.filter(asset_tag=tag).exists():
             skipped += 1
             errors.append(ImportRowError(row_no, f"duplicate asset_tag skipped: {tag}"))
+            return None
+        # ---- tag ↔ category consistency (§13 format) — same rule as the
+        # form/API: a row claiming another category's code never lands
+        message = tag_category_error(tag, values["category"])
+        if message:
+            errors.append(ImportRowError(row_no, message))
             return None
         serial = values.get("serial_no")
         if (

@@ -1,6 +1,7 @@
 """Core asset register (DEVELOPMENT.md §2 taxonomy, §3 status flow, §9 model)."""
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -93,6 +94,32 @@ class Asset(models.Model):
 
     def __str__(self) -> str:
         return f"{self.asset_tag} ({self.get_status_display()})"
+
+    def clean(self) -> None:
+        """The tag must belong to the category it is filed under (§13: tag
+        format `{category-code}-{seq}`).
+
+        This is the bug behind production's `IT-HW-DSK-0010` sitting in
+        category `IT-HW-LAP`: a Desktop tag on a Laptop row, so the register
+        and the category disagree about what the asset is. Runs in
+        ModelForms/admin (Django calls full_clean there) — the create/edit
+        form and the admin both stop on it; raw ORM writes (services,
+        migrations, seed) stay validation-free by the same design as
+        `Category.clean`. The API path repeats the check in its serializer,
+        which never calls `full_clean`.
+
+        Tags that carry no category code at all (`W-1`, `SPEC-0001`, a
+        legacy hand-me-down) are left alone: the rule catches a tag that
+        actively claims a *different* category, which is the confusion that
+        matters.
+        """
+        if not self.category_id or not self.asset_tag:
+            return
+        from apps.assets.services import tag_category_error
+
+        message = tag_category_error(self.asset_tag, self.category)
+        if message:
+            raise ValidationError({"asset_tag": message})
 
     def bump_version(self) -> None:
         """Advance the optimistic-lock counter (pair with update_fields)."""

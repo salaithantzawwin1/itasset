@@ -68,6 +68,19 @@ def test_duplicate_serial_same_model_skipped(seeded):
     assert any("duplicate serial_no" in e.message for e in result.errors)
 
 
+def test_row_whose_tag_belongs_to_another_category_skipped(seeded):
+    """The form/API rule, enforced on CSV too: a Desktop tag on a Laptop row
+    (the production `IT-HW-DSK-0010` mismatch) is reported, never imported."""
+    from apps.assets.models import Category
+
+    Category.objects.get_or_create(code="IT-HW-DSK", defaults={"name": "Desktop / Workstation"})
+    csv2 = CSV + "IT-HW-DSK-9003,IT-HW-LAP,yangon,SN-9003,Aspire Lite,IN_STOCK,GOOD,\n"
+    result = services.import_assets_csv(csv2, dry_run=False)
+    assert result.created == 2  # the two good rows still land
+    assert any("IT-HW-DSK" in e.message and "IT-HW-LAP" in e.message for e in result.errors)
+    assert not Asset.objects.filter(asset_tag="IT-HW-DSK-9003").exists()
+
+
 def test_unknown_category_is_row_error(seeded):
     header = "asset_tag,category,site,serial_no,model,status,condition\n"
     bad = header + "IT-HW-XXX-1,NOPE,yangon,SN-1,M,IN_STOCK,GOOD\n"

@@ -10,7 +10,7 @@ import re
 
 import pytest
 
-from apps.assets.models import AssetRequest, Category
+from apps.assets.models import Asset, AssetRequest, Category
 from apps.people.models import Site
 
 pytestmark = pytest.mark.django_db
@@ -117,6 +117,81 @@ def test_technician_can_create_asset_but_not_site(client, django_user_model, gro
         },
     )
     assert r.status_code == 302, r.context["form"].errors
+
+
+def test_create_refuses_a_tag_from_another_category(client, django_user_model, group_setup):
+    """§13 tag format {category-code}-{seq} — the production bug.
+
+    `IT-HW-DSK-0010` was filed under `IT-HW-LAP`, so the register and the
+    taxonomy disagreed about what the asset is. `Asset.clean()` refuses it
+    on the way in: the form redisplays with the error and no row lands.
+    """
+    tech = _user(django_user_model, group_setup, "technician")
+    _login(client, tech)
+    site = _site()
+    Category.objects.get_or_create(code="IT-HW-DSK", defaults={"name": "Desktop / Workstation"})
+    lap = Category.objects.get_or_create(code="IT-HW-LAP", defaults={"name": "Laptop"})[0]
+
+    r = client.post(
+        URLS["asset_create"],
+        {
+            "asset_tag": "IT-HW-DSK-0010",  # a Desktop tag on a Laptop row
+            "category": lap.pk,
+            "site": site.pk,
+            "status": "IN_STOCK",
+            "condition": "GOOD",
+        },
+    )
+    assert r.status_code == 200  # form redisplayed, not saved
+    errors = r.context["form"].errors
+    assert "asset_tag" in errors
+    assert "IT-HW-DSK" in errors["asset_tag"][0]
+    assert not Asset.objects.filter(asset_tag="IT-HW-DSK-0010").exists()
+
+
+def test_retagging_onto_a_mismatched_category_is_blocked(
+    client, django_user_model, group_setup, asset_factory
+):
+    """The other half of the bug: an asset whose category is changed while
+    the tag keeps the old code. The row must not silently become a
+    Desktop-tagged Laptop again — the edit stops until the tag follows."""
+    tech = _user(django_user_model, group_setup, "technician")
+    _login(client, tech)
+    desk = Category.objects.get_or_create(
+        code="IT-HW-DSK", defaults={"name": "Desktop / Workstation"}
+    )[0]
+    lap = Category.objects.get_or_create(code="IT-HW-LAP", defaults={"name": "Laptop"})[0]
+    asset = asset_factory(asset_tag="IT-HW-DSK-0010", category=desk)
+
+    r = client.post(
+        f"/assets/{asset.pk}/edit/",
+        {
+            "asset_tag": asset.asset_tag,  # unchanged DSK tag
+            "category": lap.pk,  # …filed under Laptop
+            "site": asset.site_id,
+            "status": asset.status,
+            "condition": asset.condition,
+        },
+    )
+    assert r.status_code == 200
+    assert "asset_tag" in r.context["form"].errors
+    asset.refresh_from_db()
+    assert asset.category_id == desk.pk  # nothing changed on either axis
+
+    # …and the fixed pair saves cleanly
+    r2 = client.post(
+        f"/assets/{asset.pk}/edit/",
+        {
+            "asset_tag": "IT-HW-LAP-0010",
+            "category": lap.pk,
+            "site": asset.site_id,
+            "status": asset.status,
+            "condition": asset.condition,
+        },
+    )
+    assert r2.status_code == 302, r2.context["form"].errors
+    asset.refresh_from_db()
+    assert asset.asset_tag == "IT-HW-LAP-0010" and asset.category_id == lap.pk
 
 
 def test_admin_can_manage_site(client, django_user_model, group_setup):

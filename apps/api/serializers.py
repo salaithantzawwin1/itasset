@@ -104,6 +104,23 @@ class AssetSerializer(serializers.ModelSerializer):
         # after its stale-check, never taken from the payload itself.
         read_only_fields = ["id", "version", "created_at", "updated_at"]
 
+    def validate(self, attrs):
+        """Tag ↔ category consistency (§13: tags are ``{category-code}-NNNN``).
+
+        DRF never calls the model's ``full_clean``, so the check the form
+        and admin get from ``Asset.clean()`` is repeated here: a tag
+        carrying another category's code (the production
+        ``IT-HW-DSK-0010`` under ``IT-HW-LAP``) is a 400, not a bad row.
+        """
+        from apps.assets.services import tag_category_error
+
+        tag = attrs.get("asset_tag", getattr(self.instance, "asset_tag", None))
+        category = attrs.get("category") or getattr(self.instance, "category", None)
+        message = tag_category_error(tag, category)
+        if message:
+            raise serializers.ValidationError({"asset_tag": message})
+        return attrs
+
     def validate_attrs(self, value):
         """§5 catalogue engine: types, option sets, min/max, unknown keys.
 

@@ -105,13 +105,17 @@ def test_fragment_finds_the_holder_as_you_type(
     client, viewer_user, asset_factory, person_factory, site
 ):
     """The typing path answers the holder question too: an open assignment's
-    person or department name matches through `_fragment=1`, so typing a
-    name replaces the rows without a Search click."""
+    person name, that person's department, or the department the asset is
+    checked out to matches through `_fragment=1`, so typing a name replaces
+    the rows without a Search click."""
     from apps.assets.models import Assignment
     from apps.people.models import Department
 
     held = asset_factory(asset_tag="IT-LS-HOLD", status=Asset.Status.ASSIGNED)
-    Assignment.objects.create(asset=held, to_person=person_factory(name="Thandar Aung"))
+    member = person_factory(name="Thandar Aung")
+    member.department = Department.objects.create(site=site, name="Shared Services")
+    member.save(update_fields=["department"])
+    Assignment.objects.create(asset=held, to_person=member)
     dept_asset = asset_factory(asset_tag="IT-LS-DEPT", status=Asset.Status.ASSIGNED)
     Assignment.objects.create(
         asset=dept_asset,
@@ -129,6 +133,12 @@ def test_fragment_finds_the_holder_as_you_type(
     by_dept = client.get(URL, {"_fragment": "1", "q": "network operations"}).json()
     assert "IT-LS-DEPT" in by_dept["rows"]
     assert "1 total" in by_dept["count"]
+
+    # the holder's own department name finds the member's asset as well
+    by_member_dept = client.get(URL, {"_fragment": "1", "q": "shared services"}).json()
+    assert "IT-LS-HOLD" in by_member_dept["rows"]
+    assert "IT-LS-DEPT" not in by_member_dept["rows"]
+    assert "1 total" in by_member_dept["count"]
 
 
 def test_fragment_paginates_like_the_full_page(client, viewer_user, asset_factory):

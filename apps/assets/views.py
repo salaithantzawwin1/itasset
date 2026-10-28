@@ -51,13 +51,18 @@ class AssetList(RoleRequiredMixin, ListView):
         if site:
             qs = qs.filter(site_id=site)
         if q:
-            # holder search: the open assignment's person name or the
-            # department the asset is checked out to (a closed row is
-            # history, not a holder, so it does not match). Wrapped in
-            # EXISTS so a second assignment row on the same asset can never
-            # fan it out — counts stay exact without a DISTINCT.
+            # holder search: the open assignment's person name, that
+            # person's own department, or the department the asset is
+            # checked out to (a closed row is history, not a holder, so it
+            # does not match). Matches what the HOLDER column shows — a
+            # department name finds its members' assets as well as assets
+            # held by the department itself. Wrapped in EXISTS so a second
+            # assignment row on the same asset can never fan it out — counts
+            # stay exact without a DISTINCT.
             holder_hit = Assignment.objects.filter(asset=OuterRef("pk"), in_at__isnull=True).filter(
-                Q(to_person__name__icontains=q) | Q(to_dept__name__icontains=q)
+                Q(to_person__name__icontains=q)
+                | Q(to_person__department__name__icontains=q)
+                | Q(to_dept__name__icontains=q)
             )
             qs = qs.filter(
                 Q(asset_tag__icontains=q)

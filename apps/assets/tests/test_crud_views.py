@@ -262,8 +262,9 @@ def test_search_matches_holder_name_and_department(
     client, django_user_model, group_setup, asset_factory, person_factory
 ):
     """The search box answers "who has it" as well as "what is it": an open
-    assignment's person name or department name matches (case-insensitive,
-    like every other field), while a *closed* row is history, not a holder.
+    assignment's person name, that person's own department, or the department
+    the asset is checked out to matches (case-insensitive, like every other
+    field), while a *closed* row is history, not a holder.
     """
     from apps.assets.models import Assignment
     from apps.people.models import Department
@@ -271,6 +272,9 @@ def test_search_matches_holder_name_and_department(
     _login(client, _user(django_user_model, group_setup, "viewer"))
     person_asset = asset_factory(asset_tag="IT-HLD-1", status=Asset.Status.ASSIGNED)
     holder = person_factory(name="Su Myat Noe")
+    holder_dept = Department.objects.create(site=_site(), name="Shared Services")
+    holder.department = holder_dept
+    holder.save(update_fields=["department"])
     Assignment.objects.create(asset=person_asset, to_person=holder)
     # a closed history row on the same asset: must not match, and must not
     # duplicate the open hit either (EXISTS, not a join → one row, one count)
@@ -285,6 +289,12 @@ def test_search_matches_holder_name_and_department(
     r = client.get(URLS["asset_list"], {"q": "Su Myat"})
     assert [a.asset_tag for a in r.context["object_list"]] == ["IT-HLD-1"]
     assert r.context["paginator"].count == 1  # history row did not fan it out
+
+    # typing the holder's *department* finds the member's asset too — the
+    # same thing the HOLDER column shows ("Su Myat Noe (Shared Services)")
+    r = client.get(URLS["asset_list"], {"q": "shared services"})
+    assert [a.asset_tag for a in r.context["object_list"]] == ["IT-HLD-1"]
+    assert r.context["paginator"].count == 1
 
     r = client.get(URLS["asset_list"], {"q": "field operations"})  # case-insensitive
     assert [a.asset_tag for a in r.context["object_list"]] == ["IT-HLD-2"]

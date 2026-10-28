@@ -12,6 +12,9 @@ status sync and per-asset ActivityLog trail stay the normal lifecycle path.
    asset); a crafted pk outside the candidate set is dropped.
 3. Guards: no dept / nothing ticked / viewer / anonymous.
 4. Entry button on the assets list is technician-only.
+5. Tick-all header checkbox + the select-all-matching-filter control: the
+   rendered rows ARE the filtered set (no pagination), so both tick
+   everything the current filter matches.
 """
 
 import pytest
@@ -224,3 +227,28 @@ def test_assets_list_offers_bulk_button_to_technicians_only(
     assert 'href="/assets/bulk-checkout/"' in body
     client.force_login(viewer_user)
     assert 'href="/assets/bulk-checkout/"' not in client.get("/assets/").content.decode()
+
+
+# 5. tick-all + select-all ----------------------------------------------------
+
+
+def test_page_offers_tick_all_and_select_all_matching_filter(client, tech_user, asset_factory):
+    asset_factory(status=Asset.Status.AVAILABLE, asset_tag="IT-TA-6100")
+    client.force_login(tech_user)
+    body = client.get(URL).content.decode()
+    # header checkbox ticks every rendered row (row boxes share name=assets)
+    assert 'id="bulk-tickall"' in body
+    assert "function bulkTickAll" in body
+    assert body.count('name="assets"') >= 1
+    # explicit select-all labelled with the live count of the current filter
+    assert "Select all 1 matching this filter" in body
+    assert 'id="bulk-select-all"' in body
+
+
+def test_select_all_control_hides_when_nothing_matches(client, tech_user):
+    client.force_login(tech_user)
+    body = client.get(URL).content.decode()
+    assert 'id="bulk-select-all"' not in body
+    assert "Select all" not in body
+    # the header tick-all stays (harmless with zero rows)
+    assert 'id="bulk-tickall"' in body

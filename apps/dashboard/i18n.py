@@ -197,6 +197,11 @@ STRINGS = {
         "en": "Pick a department and tick at least one asset.",
         "my": "ဌာနတစ်ခု ရွေးပြီး အနည်းဆုံး asset တစ်ခု ရွေးပါ။",
     },
+    "bulk.tick_all": {"en": "Tick all shown assets", "my": "ပြသထားသည့် asset အားလုံး ရွေးမည်"},
+    "bulk.select_all": {
+        "en": "Select all {n} matching this filter",
+        "my": "စစ်ထုတ်မှုနှင့် ကိုက်ညီသည့် {n} ခုအားလုံး ရွေးမည်",
+    },
     "asset.all_sites": {"en": "All sites", "my": "စခန်း အားလုံး"},
     "asset.history": {"en": "Assignment history", "my": "ပေးအပ်မှု မှတ်တမ်း (Assignments)"},
     "asset.holder": {"en": "Holder", "my": "လက်ခံသူ"},

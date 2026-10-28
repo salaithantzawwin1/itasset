@@ -20,13 +20,14 @@
   </select>
   <button class="btn secondary" type="submit">{% t "asset.search_btn" %}</button>
   <span class="muted">{% t "bulk.hint" n=candidates|length %}</span>
+  {% if candidates %}<button class="btn secondary sm" type="button" id="bulk-select-all" onclick="bulkTickAll(true)">{% t "bulk.select_all" n=candidates|length %}</button>{% endif %}
 </form>
 <form method="post" onsubmit="if(!this.to_dept.value || !this.querySelector('input[name=assets]:checked')){alert('{% t "bulk.pick_one" %}');return false;}">
   {% csrf_token %}
   <table class="data">
     <thead>
       <tr>
-        <th style="width:36px;"></th>
+        <th style="width:36px;"><input type="checkbox" id="bulk-tickall" title="{% t "bulk.tick_all" %}" onclick="bulkTickAll(this.checked)"></th>
         <th>{% t "asset.tag" %}</th>
         <th>{% t "asset.category" %}</th>
         <th>{% t "asset.model" %}</th>
@@ -60,4 +61,14 @@
   </div>
   {% endif %}
 </form>
+<script>
+  // header tick-all + the "select all matching this filter" button drive the
+  // same row boxes (the candidate list is unpaginated: rendered == filtered,
+  // so ticking everything shown IS selecting everything the filter matches)
+  function bulkTickAll(on) {
+    document.querySelectorAll('input[name="assets"]').forEach(function (box) { box.checked = on; });
+    var all = document.getElementById('bulk-tickall');
+    if (all) all.checked = on;
+  }
+</script>
 {% endblock %}

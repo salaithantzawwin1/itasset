@@ -15,7 +15,7 @@
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
 | Last updated | 2026-10-28 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **426 passed + 90 subtests** (2026-10-28: local 286 s + server 130.7 s, both exit 0 — session 39 deployed to 192.168.100.142) |
+| Test suite | **426 passed + 90 subtests** (2026-10-28: local 286 s + server 130.7 s, both exit 0 — session 41 deployed to 192.168.100.142) |
 
 ---
 
@@ -186,7 +186,45 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
-### 2026-10-28 (session 39 — department delete, bulk tick-all/select-all, live search)
+### 2026-10-23 (session 39 — member count on the departments list)
+- **`DepartmentList`** (`apps/people/views.py`) gained a second
+  annotation, `member_count=Count("people", distinct=True)`, beside the
+  dept-held `asset_count`. Both carry `distinct=True`: the two
+  multi-valued joins (`assignments` × `people`) multiply each other's
+  rows, so 2 members × 2 dept-held assets would otherwise report 4 and
+ 4. Both counts still come from the one query (§17 no-N+1), and the
+  member number mirrors the detail page's members card.
+- **Column**: `/departments/` gained the `dept.members` header (EN+MM
+  key shared with the detail card) between head and assets.
+- Test: `test_department_list_shows_member_count` in
+  `apps/assets/tests/test_dept_detail.py` — the 2×2 fan-out asserts 2
+  and 2 (never 4); the memberless department shows 0.
+- Committed `fe8b001`, pushed; reached production in session 40's
+  deploy (session 41's sync below found it already live).
+
+### 2026-10-23 (session 40 — "Held by department members" card on dept detail)
+- **Second asset card** on `/departments/<pk>/`: open Assignment rows
+  with `to_person` whose person belongs to the department — the
+  members' assets surfaced without visiting every person page,
+  deliberately kept apart from the department-held card (`to_dept`
+  only): accountability sits with the department in one card, with the
+  person in the other.
+- Query: `to_person__department=<dept>, in_at__isnull=True` with
+  `select_related` (asset, category, site, to_person) — open-only, one
+  query, no N+1, ordered by holder then tag. New i18n keys
+  `dept.held_by_members` / `dept.no_member_held` (EN+MM).
+- Tests: member-held section in `test_dept_detail.py` — open row in,
+  closed row out, member of another department out, holder rendered as
+  a person link, `held_now` stays `to_dept`-only, count matches the
+  members card, empty state.
+- Gates: local **412 passed + 90 subtests** (274 s, +1 test), ruff +
+  `makemigrations --check` clean; server suite **412 + 90** (123.6 s,
+  exit 0) → gunicorn restart → `/healthz` db ok → probe **18 ok / 0
+  failed** → live: Finance (yangon) detail showed members (3) and
+  "Held by department members (3)" = IT-HW-DSK-0011 / 0012 / 0013 with
+  their holders. Committed `1feb6f9`, pushed `fe8b001..1feb6f9`.
+
+### 2026-10-28 (session 41 — department delete, bulk tick-all/select-all, live search)
 - **Department delete flow** (admin-only, only while nothing references the
   row): new `DepartmentDelete` (`apps/people/views.py`, route
   `departments/<pk>/delete/`, reuses `people/confirm_delete.html`).
@@ -245,7 +283,14 @@ authenticated user; no company/branch scoping exists.
   `?q=H110M&…&_fragment=1 → 200`, table swapped to 4 rows + “4 total”,
   focus stayed in the search box, URL updated via `replaceState`;
   clearing restored 12 rows the same way; no JS errors (only the
-  browser's pre-existing COOP-over-plain-HTTP notice).
+  browser's pre-existing COOP-over-plain-HTTP notice) →
+  **credential rotation**: the break-glass and technician passwords had
+  surfaced in this session's transcript (operator `cat` on the server),
+  so both were rotated server-side — fresh `secrets.token_urlsafe(18)`
+  written straight into the mode-600 secrets files (same line-1/line-2
+  format, nothing echoed), stale API tokens revoked (1 per user),
+  file↔DB `check_password` True — and the probe re-run green (**27 ok /
+  0 failed**) on the new credentials.
 
 ### 2026-10-23 (session 38 — literal template comment on the assets filter bar)
 - **Bug** (screenshot): the session-33 filter toolbar printed its own

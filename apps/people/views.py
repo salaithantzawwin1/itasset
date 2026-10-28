@@ -4,12 +4,14 @@ Site/Person management = admin role (§11 user/site management).
 Reads open to any authenticated user (auditor/viewer included).
 """
 
+from django.contrib import messages
 from django.db.models import Count, Q
 from django.http import HttpResponseForbidden
+from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
-from apps.core.roles import RoleRequiredMixin
+from apps.core.roles import RoleRequiredMixin, is_admin
 from apps.core.scopes import OutOfScope, ScopeGuardMixin, check_scope, scope_list
 
 from .forms import DepartmentForm, PersonForm, SiteForm
@@ -167,7 +169,8 @@ class PersonDelete(ScopeGuardMixin, RoleRequiredMixin, DeleteView):
 
 # ---------------------------------------------------------------------------
 # Department (sessions 32/37): list with dept-held asset counts, detail
-# (head + held inventory + members), edit (name/site/head, admin).
+# (head + held inventory + members), edit (name/site/head, admin), delete
+# (admin, only while nothing references the row).
 # ---------------------------------------------------------------------------
 
 
@@ -228,6 +231,11 @@ class DepartmentDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
       matches the report's per-person buckets.
 
     Both cards are open-only, one select_related query each (no N+1, §17).
+
+    `can_delete` gates the delete button: admins only, and only while the row
+    is empty (no members, no assignment rows) — both PROTECT backstops are
+    re-checked server-side in DepartmentDelete, so a stale page or a crafted
+    URL still cannot produce a 500.
     """
 
     roles_required = ()
@@ -264,6 +272,11 @@ class DepartmentDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
             .select_related("asset")
             .order_by("-out_at")[:20]
         )
+        # delete button: admin AND nothing references the row (PROTECT FKs);
+        # short-circuits so non-admins pay no extra queries
+        ctx["can_delete"] = is_admin(self.request.user) and not (
+            self.object.people.exists() or self.object.assignments.exists()
+        )
         return ctx
 
 
@@ -292,3 +305,53 @@ class DepartmentUpdate(ScopeGuardMixin, RoleRequiredMixin, UpdateView):
         except OutOfScope:
             return HttpResponseForbidden("That site is outside your scope.")
         return super().form_valid(form)
+
+
+class DepartmentDelete(ScopeGuardMixin, RoleRequiredMixin, DeleteView):
+    """Delete a department — admin role, and only while nothing references it.
+
+    `Person.department` and `Assignment.to_dept` are both PROTECT, so the
+    database refuses the row regardless; this view turns that refusal into a
+    friendly flow instead of a ProtectedError 500. The confirm page (GET) and
+    the write (POST — Django 5.2's DeletionMixin deletes in `form_valid`, not
+    in `delete()`) both bounce back to the detail page with the reason.
+    Closed assignment rows count too: history is accountability and stays.
+    The detail page only shows the button to admins when the row is genuinely
+    empty (`can_delete`), so the guards here are the backstop for stale pages
+    and crafted URLs.
+    """
+
+    roles_required = ("admin",)
+    scope_action = "department_delete"
+    model = Department
+    template_name = "people/confirm_delete.html"
+    success_url = reverse_lazy("department-list")
+    cancel_url = "department-list"
+
+    @staticmethod
+    def _block_reason(dept: Department) -> str | None:
+        members = dept.people.count()
+        if members:
+            return f'Cannot delete "{dept.name}": {members} member(s) still belong to it.'
+        rows = dept.assignments.count()
+        if rows:
+            return f'Cannot delete "{dept.name}": {rows} assignment record(s) still reference it.'
+        return None
+
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        reason = self._block_reason(self.object)
+        if reason:
+            messages.error(request, reason)
+            return redirect("department-detail", pk=self.object.pk)
+        return super().get(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        reason = self._block_reason(self.object)
+        if reason:
+            messages.error(self.request, reason)
+            return redirect("department-detail", pk=self.object.pk)
+        name = self.object.name
+        response = super().form_valid(form)
+        messages.success(self.request, f'Department "{name}" deleted.')
+        return response

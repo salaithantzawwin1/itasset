@@ -10,6 +10,7 @@
   <div class="actions">
     <a class="btn secondary" href="{% url 'department-update' object.pk %}">{% t "asset.edit" %}</a>
     <a class="btn secondary" href="{% url 'asset-list' %}?department={{ object.pk }}">{% t "dept.view_assets" %}</a>
+    {% if can_delete %}<a class="btn danger" href="{% url 'department-delete' object.pk %}">{% t "asset.delete" %}</a>{% endif %}
   </div>
 </div>
 <div class="card">

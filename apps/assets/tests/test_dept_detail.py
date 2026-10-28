@@ -20,6 +20,11 @@ and the member list. Coverage:
    `distinct=True` so the two multi-valued joins never multiply.
 6. Department edit (session 37): admin changes the head through the main
    app form; technicians are refused (admin-only like Site/Person).
+7. Delete flow: admin-only, and only for a department nothing references
+   (no members, no assignment rows). The button renders solely in that
+   case; the view refuses stale/crafted URLs with a message + redirect
+   back to the detail page instead of tripping the PROTECT FKs (no 500),
+   and a successful delete lands on the list with a confirmation.
 """
 
 import pytest
@@ -356,3 +361,108 @@ def test_technician_cannot_edit_department(client, tech_user, dept_factory):
     assert resp.status_code == 403
     dept.refresh_from_db()
     assert dept.name == "Locked Dept"
+
+
+# 6. delete flow (admin-only, only while nothing references the row) ---------
+
+
+def test_delete_link_only_for_admins_on_an_empty_department(
+    client, django_user_model, tech_user, dept_factory, person_factory
+):
+    empty = dept_factory(name="Empty Delete Dept")
+    busy = dept_factory(name="Busy Delete Dept")
+    member = person_factory(name="Blocking Member")
+    member.department = busy
+    member.save(update_fields=["department"])
+
+    admin = _admin_user(django_user_model)
+    client.force_login(admin)
+    delete_url = f"/departments/{empty.pk}/delete/"
+    assert delete_url in client.get(f"/departments/{empty.pk}/").content.decode()
+    # a department with members offers no delete button
+    assert (
+        f"/departments/{busy.pk}/delete/"
+        not in client.get(f"/departments/{busy.pk}/").content.decode()
+    )
+
+    # technician: never the button, even on an empty department
+    client.force_login(tech_user)
+    assert delete_url not in client.get(f"/departments/{empty.pk}/").content.decode()
+
+
+def test_admin_confirms_and_deletes_empty_department(client, django_user_model, dept_factory):
+    from apps.people.models import Department
+
+    dept = dept_factory(name="Doomed Dept")
+    admin = _admin_user(django_user_model)
+    client.force_login(admin)
+
+    confirm = client.get(f"/departments/{dept.pk}/delete/")
+    assert confirm.status_code == 200
+    assert "Doomed Dept" in confirm.content.decode()  # generic confirm template
+
+    resp = client.post(f"/departments/{dept.pk}/delete/")
+    assert resp.status_code == 302
+    assert resp["Location"] == "/departments/"
+    assert not Department.objects.filter(pk=dept.pk).exists()
+    # confirmation message on the landing page (asserted on the context
+    # objects: the template autoescapes the quotes in the text)
+    landing = client.get("/departments/")
+    assert any('Department "Doomed Dept" deleted.' in str(m) for m in landing.context["messages"])
+
+
+def test_technician_cannot_delete_department(client, tech_user, dept_factory):
+    from apps.people.models import Department
+
+    dept = dept_factory(name="Locked Delete Dept")
+    client.force_login(tech_user)
+    assert client.get(f"/departments/{dept.pk}/delete/").status_code == 403
+    resp = client.post(f"/departments/{dept.pk}/delete/")
+    assert resp.status_code == 403
+    assert Department.objects.filter(pk=dept.pk).exists()
+
+
+def test_delete_refused_while_department_has_members(
+    client, django_user_model, dept_factory, person_factory
+):
+    from apps.people.models import Department, Person
+
+    dept = dept_factory(name="Membered Delete Dept")
+    member = person_factory(name="Staying Member")
+    member.department = dept
+    member.save(update_fields=["department"])
+    admin = _admin_user(django_user_model)
+    client.force_login(admin)
+
+    # GET confirm refuses (redirects back with the reason, no form)
+    resp = client.get(f"/departments/{dept.pk}/delete/")
+    assert resp.status_code == 302
+    assert resp["Location"] == f"/departments/{dept.pk}/"
+    # POST refuses without tripping Person.department's PROTECT (no 500)
+    resp = client.post(f"/departments/{dept.pk}/delete/", follow=True)
+    assert resp.status_code == 200
+    assert any("member(s) still belong" in str(m) for m in resp.context["messages"])
+    assert Department.objects.filter(pk=dept.pk).exists()
+    assert Person.objects.filter(pk=member.pk).exists()
+
+
+def test_delete_refused_when_assignment_history_exists(
+    client, django_user_model, asset_factory, dept_factory
+):
+    from apps.people.models import Department
+
+    dept = dept_factory(name="History Dept")
+    done = asset_factory(status=Asset.Status.AVAILABLE, asset_tag="IT-DEL-9001")
+    Assignment.objects.create(asset=done, to_dept=dept, in_at=done.updated_at)  # closed
+    admin = _admin_user(django_user_model)
+    client.force_login(admin)
+
+    # closed rows count too — no delete button on the detail page
+    body = client.get(f"/departments/{dept.pk}/").content.decode()
+    assert f"/departments/{dept.pk}/delete/" not in body
+    # POST refuses without tripping Assignment.to_dept's PROTECT (no 500)
+    resp = client.post(f"/departments/{dept.pk}/delete/", follow=True)
+    assert resp.status_code == 200
+    assert any("assignment record(s) still reference" in str(m) for m in resp.context["messages"])
+    assert Department.objects.filter(pk=dept.pk).exists()
+    assert Assignment.objects.filter(to_dept=dept).exists()

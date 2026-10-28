@@ -175,17 +175,24 @@ class PersonDelete(ScopeGuardMixin, RoleRequiredMixin, DeleteView):
 
 
 class DepartmentList(RoleRequiredMixin, ListView):
-    """Every department with its head, member count and dept-held asset count.
+    """Every department with its head, member count and total held-asset count.
 
     Read-only for any authenticated user; scope-narrowed on both axes
-    (site rows via `site`, department-scoped users via `pk`) — both counts
+    (site rows via `site`, department-scoped users via `pk`) — all counts
     are annotations in the one query, no N+1 (§17). Each Count is
-    `distinct=True`: aggregating two multi-valued joins (`assignments` ×
-    `people`) would otherwise multiply each other's rows and inflate both
-    numbers. The member count mirrors the detail page's members card
+    `distinct=True`: aggregating multi-valued joins (`assignments` ×
+    `people` × `people__assignments`) would otherwise multiply each other's
+    rows and inflate every number.
+
+    `asset_count` is the union of the detail page's two open-only cards —
+    assets held *by* the department (`to_dept`) plus assets held *by its
+    members* (`to_person` whose person belongs to this department) — so the
+    list number equals the detail cards' sum and equals the asset-list
+    department filter its link opens (previously it counted only the
+    dept-held half, showing 0 for departments whose assets sat with their
+    members). The member count mirrors the detail page's members card
     (`department.people.all()` — the site list renders its people count the
-    same plain way); the asset number links into the asset list's department
-    filter, matching the detail page's "View assets in list".
+    same plain way).
     """
 
     roles_required = ()
@@ -198,8 +205,20 @@ class DepartmentList(RoleRequiredMixin, ListView):
             .get_queryset()
             .select_related("site", "head")
             .annotate(
+                # dept-held open rows + the members' own open rows — the same
+                # two cards the detail page shows; counted as distinct assets,
+                # which is what the linked asset-list filter returns (an asset
+                # has at most one open row, and a holder is either a person or
+                # a department, so the two halves never overlap)
                 asset_count=Count(
-                    "assignments", filter=Q(assignments__in_at__isnull=True), distinct=True
+                    "assignments__asset",
+                    filter=Q(assignments__in_at__isnull=True),
+                    distinct=True,
+                )
+                + Count(
+                    "people__assignments__asset",
+                    filter=Q(people__assignments__in_at__isnull=True),
+                    distinct=True,
                 ),
                 member_count=Count("people", distinct=True),
             )

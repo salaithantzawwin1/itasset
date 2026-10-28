@@ -13,11 +13,12 @@ and the member list. Coverage:
    enforcement (same policy as Site/Person detail).
 4. Entry links: person list/detail + site detail dept names and the asset
    detail's department holder all link to the new page.
-5. Departments list (session 37): head + annotated dept-held asset count
-   (open rows only — closed and member-personal assets excluded), count
-   links into the asset-list filter, nav link, anonymous redirect; the
-   member count column (people in the department) — both counts are
-   `distinct=True` so the two multi-valued joins never multiply.
+5. Departments list (session 37): head + annotated asset count
+   (open rows only — the dept-held card AND the members' own card, so the
+   number matches the detail page and the asset-list filter it links to),
+   count links into the asset-list filter, nav link, anonymous redirect;
+   the member count column (people in the department) — all counts are
+   `distinct=True` so the multi-valued joins never multiply.
 6. Department edit (session 37): admin changes the head through the main
    app form; technicians are refused (admin-only like Site/Person).
 7. Delete flow: admin-only, and only for a department nothing references
@@ -240,7 +241,8 @@ def test_department_list_shows_head_and_dept_held_count(
     # closed dept row must not count
     done = asset_factory(status=Asset.Status.AVAILABLE, asset_tag="IT-CT-DONE")
     Assignment.objects.create(asset=done, to_dept=dept, in_at=done.updated_at)
-    # a member's personal asset must not count either (it belongs to them)
+    # a member's personal asset DOES count: it is the detail page's second
+    # card, and the count links into the department filter that shows it
     member = person_factory(name="Counted Member")
     member.department = dept
     member.save(update_fields=["department"])
@@ -251,29 +253,66 @@ def test_department_list_shows_head_and_dept_held_count(
     resp = client.get("/departments/")
     assert resp.status_code == 200
     row = next(d for d in resp.context["object_list"] if d.pk == dept.pk)
-    assert row.asset_count == 1
+    assert row.asset_count == 2
     body = resp.content.decode()
     assert "Dept Head" in body and f"/people/{head.pk}/" in body
     # the count deep-links into the asset list's department filter
     assert f"/assets/?department={dept.pk}" in body
-    assert ">1</a>" in body
+    assert ">2</a>" in body
     # nav carries the page
     assert 'href="/departments/"' in body
+
+
+def test_department_list_counts_member_held_assets(
+    client, tech_user, asset_factory, person_factory, dept_factory
+):
+    """The case reported on production: a department whose assets all sit
+    with its members must not read 0 on the list."""
+    dept = dept_factory(name="Members Hold All")
+    for n, tag in (("Holder One", "IT-MH-9001"), ("Holder Two", "IT-MH-9002")):
+        p = person_factory(name=n)
+        p.department = dept
+        p.save(update_fields=["department"])
+        a = asset_factory(status=Asset.Status.ASSIGNED, asset_tag=tag)
+        Assignment.objects.create(asset=a, to_person=p)
+    # a closed member row must not count
+    left = asset_factory(status=Asset.Status.AVAILABLE, asset_tag="IT-MH-DONE")
+    p3 = person_factory(name="Holder Three")
+    p3.department = dept
+    p3.save(update_fields=["department"])
+    Assignment.objects.create(asset=left, to_person=p3, in_at=left.updated_at)
+
+    client.force_login(tech_user)
+    resp = client.get("/departments/")
+    row = next(d for d in resp.context["object_list"] if d.pk == dept.pk)
+    assert row.asset_count == 2  # both member-held, none dept-held
+    # …and that is exactly what the linked filter and the detail page show
+    filtered = client.get(f"/assets/?department={dept.pk}")
+    assert filtered.context["paginator"].count == 2
+    detail = client.get(f"/departments/{dept.pk}/")
+    assert len(detail.context["held_now"]) == 0
+    assert len(detail.context["member_held"]) == 2
 
 
 def test_department_list_shows_member_count(
     client, tech_user, asset_factory, person_factory, dept_factory
 ):
     dept = dept_factory(name="Membered Dept")
+    members = []
     for n in ("Member One", "Member Two"):
         p = person_factory(name=n)
         p.department = dept
         p.save(update_fields=["department"])
+        members.append(p)
     # members × held assets fan out the joined rows (2×2) — the two
     # counts must stay exact, which is what distinct=True guarantees
     for tag in ("IT-MC-8001", "IT-MC-8002"):
         a = asset_factory(status=Asset.Status.ASSIGNED, asset_tag=tag)
         Assignment.objects.create(asset=a, to_dept=dept)
+    # one member-held asset too: the union count must land on 3, not 2,
+    # not anything inflated by the members × assets × member-rows fan-out
+    own = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-MC-8003")
+    Assignment.objects.create(asset=own, to_person=members[0])
     dept_factory(name="Lonely Dept")  # no members, no held assets
 
     client.force_login(tech_user)
@@ -281,8 +320,9 @@ def test_department_list_shows_member_count(
     assert resp.status_code == 200
     rows = {d.name: d for d in resp.context["object_list"]}
     assert rows["Membered Dept"].member_count == 2  # not 2×2
-    assert rows["Membered Dept"].asset_count == 2  # not 2×2
+    assert rows["Membered Dept"].asset_count == 3  # 2 dept-held + 1 member-held
     assert rows["Lonely Dept"].member_count == 0
+    assert rows["Lonely Dept"].asset_count == 0
     body = resp.content.decode()
     assert "Department members" in body  # column header renders (i18n key dept.members)
 

@@ -622,7 +622,7 @@ Tasks must be idempotent — a re-run must not send duplicate emails
 | Page render (server-side) p95 | < 500 ms |
 | API p95 | < 300 ms |
 | Asset list query (100k rows, filtered) | < 100 ms DB time |
-| Search-as-you-type | 300 ms debounce; only indexed fields |
+| Search-as-you-type | 300 ms debounce; tag, serial, hostname, model, holder and department names |
 | Batch label generation (500 QRs) | < 10 s |
 | Bulk import (5,000 rows) | < 60 s |
 

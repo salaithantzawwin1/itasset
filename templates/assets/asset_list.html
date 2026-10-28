@@ -12,7 +12,7 @@
 </div>
 {# inputs live INSIDE the form so submitting actually sends q/status/… (was an empty form) #}
 <form id="filterform" class="filterbar" method="get">
-  <input type="text" name="q" placeholder="{% t "asset.search_ph" %}" value="{{ request.GET.q }}">
+  <input type="text" name="q" placeholder="{% t "asset.search_ph_full" %}" value="{{ request.GET.q }}">
   {# selects auto-submit (attach_components pattern); other controls ride along in the GET #}
   <select name="status" {% if request.GET.status %}class="on"{% endif %} onchange="this.form.submit()">
     <option value="">{% t "asset.all_statuses" %}</option>

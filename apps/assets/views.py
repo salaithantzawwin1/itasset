@@ -38,7 +38,7 @@ class AssetList(RoleRequiredMixin, ListView):
     def get_queryset(self):
         from datetime import timedelta
 
-        from django.db.models import Q
+        from django.db.models import Exists, OuterRef, Q
         from django.utils import timezone
 
         qs = Asset.objects.select_related("category", "site")
@@ -51,11 +51,20 @@ class AssetList(RoleRequiredMixin, ListView):
         if site:
             qs = qs.filter(site_id=site)
         if q:
+            # holder search: the open assignment's person name or the
+            # department the asset is checked out to (a closed row is
+            # history, not a holder, so it does not match). Wrapped in
+            # EXISTS so a second assignment row on the same asset can never
+            # fan it out — counts stay exact without a DISTINCT.
+            holder_hit = Assignment.objects.filter(asset=OuterRef("pk"), in_at__isnull=True).filter(
+                Q(to_person__name__icontains=q) | Q(to_dept__name__icontains=q)
+            )
             qs = qs.filter(
                 Q(asset_tag__icontains=q)
                 | Q(serial_no__icontains=q)
                 | Q(hostname__icontains=q)
                 | Q(model_name__icontains=q)
+                | Exists(holder_hit)
             )
         # quick filters used by the dashboard alert deep links (§ dashboard)
         if warranty_days.isdigit():

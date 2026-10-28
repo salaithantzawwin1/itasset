@@ -258,6 +258,42 @@ def test_search_filters_rows(client, django_user_model, group_setup, asset_facto
     assert [a.asset_tag for a in r.context["object_list"]] == ["ZZZ-1"]
 
 
+def test_search_matches_holder_name_and_department(
+    client, django_user_model, group_setup, asset_factory, person_factory
+):
+    """The search box answers "who has it" as well as "what is it": an open
+    assignment's person name or department name matches (case-insensitive,
+    like every other field), while a *closed* row is history, not a holder.
+    """
+    from apps.assets.models import Assignment
+    from apps.people.models import Department
+
+    _login(client, _user(django_user_model, group_setup, "viewer"))
+    person_asset = asset_factory(asset_tag="IT-HLD-1", status=Asset.Status.ASSIGNED)
+    holder = person_factory(name="Su Myat Noe")
+    Assignment.objects.create(asset=person_asset, to_person=holder)
+    # a closed history row on the same asset: must not match, and must not
+    # duplicate the open hit either (EXISTS, not a join → one row, one count)
+    Assignment.objects.create(asset=person_asset, to_person=holder, in_at=person_asset.updated_at)
+
+    dept_asset = asset_factory(asset_tag="IT-HLD-2", status=Asset.Status.ASSIGNED)
+    dept = Department.objects.create(site=_site(), name="Field Operations")
+    Assignment.objects.create(asset=dept_asset, to_dept=dept)
+
+    asset_factory(asset_tag="IT-HLD-3")  # in stock: no holder at all
+
+    r = client.get(URLS["asset_list"], {"q": "Su Myat"})
+    assert [a.asset_tag for a in r.context["object_list"]] == ["IT-HLD-1"]
+    assert r.context["paginator"].count == 1  # history row did not fan it out
+
+    r = client.get(URLS["asset_list"], {"q": "field operations"})  # case-insensitive
+    assert [a.asset_tag for a in r.context["object_list"]] == ["IT-HLD-2"]
+
+    # the department *filter* still works alongside the new q match
+    r = client.get(URLS["asset_list"], {"department": dept.pk})
+    assert [a.asset_tag for a in r.context["object_list"]] == ["IT-HLD-2"]
+
+
 def test_quick_filters_warranty_and_missing_serial(
     client, django_user_model, group_setup, asset_factory
 ):

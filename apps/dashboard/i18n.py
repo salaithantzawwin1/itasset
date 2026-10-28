@@ -135,6 +135,13 @@ STRINGS = {
         "en": "Search tag / serial / hostname / model…",
         "my": "Tag / Serial / Hostname / Model ဖြင့် ရှာမည်…",
     },
+    # the assets list also matches the holder (person / department) name —
+    # the bulk check-out page keeps the narrower hint above: nothing there
+    # has a holder yet
+    "asset.search_ph_full": {
+        "en": "Search tag / serial / holder / department…",
+        "my": "Tag / Serial / လက်ခံသူ / ဌာန ဖြင့် ရှာမည်…",
+    },
     "asset.search_btn": {"en": "Search", "my": "ရှာမည်"},
     "asset.all_statuses": {"en": "All statuses", "my": "အခြေအနေ အားလုံး"},
     "asset.all_warranties": {"en": "Any warranty", "my": "အာမခံ မရွေး"},

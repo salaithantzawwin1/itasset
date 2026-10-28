@@ -3,7 +3,7 @@
 {% block title %}{% t "asset.title" %} — {% t "app.name" %}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>{% t "asset.title" %}</h1><div class="sub">{% t "asset.count" n=paginator.count %}</div></div>
+  <div><h1>{% t "asset.title" %}</h1>{% include "assets/_asset_count.html" %}</div>
   <div class="actions">
     {% if can_repair %}<a class="btn secondary" href="{% url 'orphan-repair' %}">{% t "orphan.title" %}</a>{% endif %}
     {% if can_bulk %}<a class="btn secondary" href="{% url 'asset-bulk-checkout' %}">{% t "bulk.title" %}</a>{% endif %}
@@ -37,30 +37,66 @@
 </form>
 <table class="data">
   <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "asset.category" %}</th><th>{% t "asset.model" %}</th><th>{% t "asset.site" %}</th><th>{% t "asset.status" %}</th><th>{% t "asset.holder" %}</th><th></th></tr></thead>
-  <tbody>
-  {% for a in object_list %}
-    <tr>
-      <td><a href="{% url 'asset-detail' a.pk %}">{{ a.asset_tag }}</a></td>
-      <td>{{ a.category.code }}</td>
-      <td>{{ a.model_name|default:"—" }}</td>
-      <td>{{ a.site.code }}</td>
-      <td><span class="pill pill-{{ a.status }}">{{ a.get_status_display }}</span></td>
-      <td>{% with h=a.active_assignments.0 %}{% if h %}{% if h.to_person %}{{ h.to_person.name }}{% if h.to_person.department %} <span class="muted">({{ h.to_person.department.name }})</span>{% endif %}{% elif h.to_dept %}{{ h.to_dept.name }} <span class="muted">({% t "asset.dept_abbr" %})</span>{% else %}—{% endif %}{% else %}<span class="muted">—</span>{% endif %}{% endwith %}</td>
-      <td><a class="btn secondary sm" href="{% url 'asset-update' a.pk %}">{% t "asset.edit" %}</a></td>
-    </tr>
-  {% empty %}
-    <tr class="empty-row"><td colspan="7">{% t "common.empty" %}</td></tr>
-  {% endfor %}
+  <tbody id="asset-rows">
+  {% include "assets/_asset_list_rows.html" %}
   </tbody>
 </table>
-{% if is_paginated %}
-{# keep every active filter when paging (was: ?page=N alone dropped q/status) #}
-{% with f_q=request.GET.q|urlencode f_status=request.GET.status|urlencode f_w=request.GET.warranty_days|urlencode f_ms=request.GET.missing_serial|urlencode %}
-<div class="pagination">
-  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&q={{ f_q }}&status={{ f_status }}&warranty_days={{ f_w }}&missing_serial={{ f_ms }}">{% t "common.prev" %}</a>{% endif %}
-  <span class="muted" style="padding:7px;">{% t "common.page" n=page_obj.number m=page_obj.paginator.num_pages %}</span>
-  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&q={{ f_q }}&status={{ f_status }}&warranty_days={{ f_w }}&missing_serial={{ f_ms }}">{% t "common.next" %}</a>{% endif %}
+{# always rendered so live search can swap it; hidden while one page fits (inline style beats the flex CSS) #}
+<div class="pagination" id="asset-pagination"{% if not is_paginated %} style="display:none"{% endif %}>
+  {% include "assets/_asset_list_pagination.html" %}
 </div>
-{% endwith %}
-{% endif %}
+<script>
+  // search-as-you-type: debounce keystrokes, fetch the SAME url with
+  // _fragment=1 (server answers count/rows/pagination as JSON) and swap the
+  // DOM in place — no navigation, so focus and scroll survive. The Search
+  // button and the select onchange submits keep doing full GETs.
+  (function () {
+    var form = document.getElementById("filterform");
+    var input = form && form.querySelector('input[name="q"]');
+    if (!input) return;
+    var DELAY = 300;
+    var timer = null;
+    var inflight = null;
+
+    function queryString(fragment) {
+      var p = new URLSearchParams(new FormData(form));
+      p.delete("page"); // a new query always starts at page 1
+      if (fragment) p.set("_fragment", "1");
+      else p.delete("_fragment");
+      return p.toString();
+    }
+
+    function run() {
+      if (timer) { clearTimeout(timer); timer = null; }
+      if (inflight) inflight.abort(); // an older keystroke's answer is stale
+      var ctrl = new AbortController();
+      inflight = ctrl;
+      fetch(location.pathname + "?" + queryString(true), { signal: ctrl.signal })
+        .then(function (r) { return r.json(); })
+        .then(function (frag) {
+          if (ctrl !== inflight) return; // superseded while decoding
+          document.getElementById("asset-count").outerHTML = frag.count;
+          document.getElementById("asset-rows").innerHTML = frag.rows;
+          var pag = document.getElementById("asset-pagination");
+          pag.innerHTML = frag.pagination;
+          pag.style.display = frag.pagination.trim() ? "" : "none";
+          var qs = queryString(false);
+          history.replaceState(null, "", location.pathname + (qs ? "?" + qs : ""));
+        })
+        .catch(function (err) {
+          if (err && err.name === "AbortError") return;
+          // non-JSON (expired session → login HTML) or a network hiccup:
+          // leave the current rows alone; the Search button still works
+        });
+    }
+
+    input.addEventListener("input", function () {
+      clearTimeout(timer);
+      timer = setTimeout(run, DELAY);
+    });
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); run(); } // search now
+    });
+  })();
+</script>
 {% endblock %}

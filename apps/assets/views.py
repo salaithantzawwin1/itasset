@@ -117,6 +117,32 @@ class AssetList(RoleRequiredMixin, ListView):
         ctx["can_bulk"] = is_technician_or_admin(self.request.user)
         return ctx
 
+    def render_to_response(self, context, **response_kwargs):
+        """Live search: `?_fragment=1` answers with the three swappable
+        regions (count, rows, pagination) as JSON instead of the page.
+
+        Same URL, same queryset, same scope filter as the normal render —
+        the debounced search box fetches this and swaps the DOM in place,
+        so a keystroke never costs a navigation (no focus/scroll loss).
+        All three regions render from the same partials the full page
+        includes, so the two surfaces cannot drift apart.
+        """
+        if self.request.GET.get("_fragment"):
+            return JsonResponse(
+                {
+                    "count": render_to_string(
+                        "assets/_asset_count.html", context, request=self.request
+                    ),
+                    "rows": render_to_string(
+                        "assets/_asset_list_rows.html", context, request=self.request
+                    ),
+                    "pagination": render_to_string(
+                        "assets/_asset_list_pagination.html", context, request=self.request
+                    ),
+                }
+            )
+        return super().render_to_response(context, **response_kwargs)
+
 
 class AssetDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
     roles_required = ()

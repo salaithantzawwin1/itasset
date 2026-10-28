@@ -13,9 +13,9 @@
 |---|---|
 | Current milestone | M8 — Go-live |
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
-| Last updated | 2026-10-23 |
+| Last updated | 2026-10-28 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **410 passed + 90 subtests** (2026-10-23: local 271 s + server 122.7 s, both exit 0 — session 38 deployed to 192.168.100.142) |
+| Test suite | **426 passed + 90 subtests** (2026-10-28: local 286 s + server 130.7 s, both exit 0 — session 39 deployed to 192.168.100.142) |
 
 ---
 
@@ -185,6 +185,60 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-28 (session 39 — department delete, bulk tick-all/select-all, live search)
+- **Department delete flow** (admin-only, only while nothing references the
+  row): new `DepartmentDelete` (`apps/people/views.py`, route
+  `departments/<pk>/delete/`, reuses `people/confirm_delete.html`).
+  `Person.department` and `Assignment.to_dept` are both PROTECT, so the
+  confirm page (GET) and the write (POST — Django 5.2's `DeletionMixin`
+  deletes in `form_valid`, not in `delete()`) both bounce back to the
+  detail page with `messages.error` instead of a ProtectedError 500;
+  closed assignment rows block too (history is accountability). The
+  detail page renders the danger button only when `can_delete` (admin AND
+  no members AND no assignment rows; short-circuited so non-admins pay no
+  extra queries); success lands on the list with a confirmation message.
+- **Bulk tick-all + select-all** (`templates/assets/bulk_checkout.html`):
+  the header checkbox toggles every rendered row and a labelled button
+  `Select all {n} matching this filter` appears next to the live hint
+  (i18n `bulk.tick_all` / `bulk.select_all`, EN+MM). The candidate list is
+  unpaginated — rendered rows ARE the filtered set — so one shared
+  `bulkTickAll()` drives both controls.
+- **Search-as-you-type on the assets list**: the `q` box debounces 300 ms
+  then fetches the same URL with `_fragment=1`; `AssetList.render_to_response`
+  answers `count`/`rows`/`pagination` as JSON rendered from three new
+  shared partials (`_asset_count`, `_asset_list_rows`,
+  `_asset_list_pagination`) that the full page also includes — one markup
+  source, no drift; same queryset and `scope_list` as the page. The JS
+  swaps `#asset-count`/`#asset-rows`/`#asset-pagination` in place (no
+  navigation → focus and scroll survive), Enter searches immediately,
+  stale responses are aborted, `replaceState` keeps the query in the URL,
+  and a non-JSON answer (expired session) leaves the rows alone — the
+  Search button keeps doing a full GET. Selects/checkboxes unchanged.
+- Tests: `test_live_search.py` (7 — page wiring, fragment JSON + filter
+  parity, empty state, pagination link contract incl. page 2, MM session
+  language, anonymous redirect), delete-flow section in
+  `test_dept_detail.py` (5), tick-all section in `test_bulk_checkout.py`
+  (2). Full suite **426 passed + 90 subtests** locally (286 s) and on the
+  server (130.7 s), both exit 0 with `SCOPE_ENFORCEMENT_ENABLED=1`; ruff
+  check + format and `makemigrations --check` clean. One mid-run failure:
+  the multi-line `{# … #}` comments I had added — the session-38 smoke
+  test caught them (wrapped comments print as literal page text); joined
+  to single lines.
+- Commits `5620771` (dept delete), `badef04` (bulk controls), `04443df`
+  (live search) — **pushed** `1feb6f9..04443df`.
+- **Deploy 2026-10-28**: the server copy is not a git repo → tar-over-ssh
+  sync of the 13 changed files, md5 local↔server identical (LF
+  preserved) → `makemigrations --check` clean → server suite **426 passed
+  + 90 subtests**, 130.7 s → `systemctl --user restart itasset-gunicorn`
+  (fresh, active) → `/healthz` `{"status":"ok","db":"ok"}`, `/` 200 →
+  probe gate **18 ok / 0 failed** (11-bad-login 429 + Retry-After phase
+  green; authenticated phase needs `PROBE_USER`/`PROBE_PASS`) → live
+  browser on `/assets/`: typing `H110M` issued exactly one
+  `?q=H110M&…&_fragment=1 → 200`, table swapped to 4 rows + “4 total”,
+  focus stayed in the search box, URL updated via `replaceState`;
+  clearing restored 12 rows the same way; no JS errors (only the
+  browser's pre-existing COOP-over-plain-HTTP notice).
 
 ### 2026-10-23 (session 38 — literal template comment on the assets filter bar)
 - **Bug** (screenshot): the session-33 filter toolbar printed its own

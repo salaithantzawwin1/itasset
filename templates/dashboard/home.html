@@ -78,6 +78,12 @@
     .dash-hero h1 { font-size: 17px; }
     .bar-row .bl { width: 96px; }
   }
+
+  /* RAM card: the two breakdowns share one card, stacking when narrow */
+  .ram-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 24px; }
+  .ram-sub { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted);
+    font-weight: 700; margin: 4px 0 10px; }
+  .ram-coverage { font-size: 12px; margin: 12px 0 0; }
 {% endblock %}
 {% block content %}
 <div class="dash-hero">
@@ -181,8 +187,7 @@
       </div>
     {% empty %}<p class="muted">{% t "common.empty" %}</p>
     {% endfor %}
-  </div>
-  <div class="card">
+  </div>  <div class="card">
     <h2>{% t "dash.by_condition" %}</h2>
     {% for row in by_condition %}
       <div class="bar-row">
@@ -190,9 +195,37 @@
         <span class="bar"><span style="width: {% widthratio row.n total_assets 100 %}%"></span></span>
         <span class="bn">{{ row.n }}</span>
       </div>
-    {% empty %}<p class="muted">{% t "common.empty" %}</p>
-    {% endfor %}
+    {% empty %}<p class="muted">{% t "common.empty" %}</p>{% endfor %}
   </div>
+</div>
+
+<div class="card">
+  <h2>💾 {% t "dash.ram" %}</h2>
+  {% if ram_types or ram_speeds %}
+  <div class="ram-cols">
+    <div>
+      <div class="ram-sub">{% t "dash.ram.by_type" %}</div>
+      {% for row in ram_types %}
+      <div class="bar-row">
+        <span class="bl">{{ row.label }}</span>
+        <span class="bar"><span style="width: {% widthratio row.n total_assets 100 %}%"></span></span>
+        <span class="bn">{{ row.n }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <div>
+      <div class="ram-sub">{% t "dash.ram.by_speed" %}</div>
+      {% for row in ram_speeds %}
+      <div class="bar-row">
+        <span class="bl">{{ row.label }}</span>
+        <span class="bar"><span style="width: {% widthratio row.n total_assets 100 %}%"></span></span>
+        <span class="bn">{{ row.n }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <p class="ram-coverage muted">{% t "dash.ram.coverage" n=ram_recorded m=total_assets %}</p>
+  {% else %}<p class="muted">{% t "dash.ram.none" %}</p>{% endif %}
 </div>
 
 <script>

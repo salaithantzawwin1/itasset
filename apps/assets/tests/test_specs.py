@@ -129,6 +129,100 @@ class TestCatalogue(TestCase):
                     fdef.get("required"), f"{code}.{fdef['key']} should not be required"
                 )
 
+    def test_every_memory_category_declares_ram_speed_next_to_ram_type(self):
+        """§5.1 pairs RAM Speed with RAM Type — wherever memory is specified
+        its speed is recordable (Desktop/Workstation always had it; Laptop
+        and Physical Server gained it in session 42). One shared key also
+        means the dashboard's RAM card sees every category."""
+        for code, entry in CATALOGUE.items():
+            keys = [f["key"] for f in entry["schema"]["fields"]]
+            if "ram_type" in keys:
+                with self.subTest(code=code):
+                    self.assertIn("ram_speed_mhz", keys)
+                    self.assertEqual(keys.index("ram_speed_mhz"), keys.index("ram_type") + 1)
+
+    def test_seeded_schemas_carry_ram_speed(self):
+        """The DB rows (not just the code) expose the field — the dynamic
+        form, detail card and validation all read Category.schema."""
+        for code in ("IT-HW-DSK", "IT-HW-WKS", "IT-HW-LAP", "IT-HW-SRV"):
+            cat = Category.objects.get(code=code)
+            keys = [f["key"] for f in cat.schema["fields"]]
+            with self.subTest(code=code):
+                self.assertIn("ram_speed_mhz", keys)
+                self.assertEqual(keys.index("ram_speed_mhz"), keys.index("ram_type") + 1)
+
+
+class TestRamSpeedMigration(TestCase):
+    """Migration 0013 merges the field into schemas 0008 already seeded.
+
+    0008 only fills a schema that is *empty*, so production's populated
+    Laptop/Server rows would never pick the field up on their own — the
+    exact gap this migration closes.
+    """
+
+    @staticmethod
+    def _run_migration():
+        import importlib
+        from types import SimpleNamespace
+
+        from django.apps import apps as migration_apps
+        from django.db import connection
+
+        mig = importlib.import_module(
+            "apps.assets.migrations.0013_add_ram_speed_to_category_schemas"
+        )
+        # the migration only reads schema_editor.connection.alias
+        mig.add_ram_speed(migration_apps, SimpleNamespace(connection=connection))
+
+    def test_pre_speed_schema_gains_the_field_without_losing_anything(self):
+        cat = Category.objects.get(code="IT-HW-LAP")
+        definition = next(
+            f for f in CATALOGUE["IT-HW-LAP"]["schema"]["fields"] if f["key"] == "ram_speed_mhz"
+        )
+        before = [f for f in cat.schema["fields"] if f["key"] != "ram_speed_mhz"]
+        cat.schema = {**cat.schema, "fields": before}  # production's pre-0013 row
+        cat.save(update_fields=["schema"])
+
+        self._run_migration()
+
+        cat.refresh_from_db()
+        keys = [f["key"] for f in cat.schema["fields"]]
+        self.assertIn("ram_speed_mhz", keys)
+        self.assertEqual(keys.index("ram_speed_mhz"), keys.index("ram_type") + 1)
+        self.assertEqual(
+            next(f for f in cat.schema["fields"] if f["key"] == "ram_speed_mhz"), definition
+        )
+        # every pre-existing field survived untouched
+        self.assertEqual([f for f in cat.schema["fields"] if f["key"] != "ram_speed_mhz"], before)
+
+        # idempotent: a second run must not duplicate the field
+        count_before = len(cat.schema["fields"])
+        self._run_migration()
+        cat.refresh_from_db()
+        self.assertEqual(len(cat.schema["fields"]), count_before)
+
+    def test_schemas_without_ram_type_are_left_alone(self):
+        """Categories that never specify memory (a Monitor, a Switch) must
+        not grow a speed field."""
+        mon = Category.objects.get(code="IT-HW-MON")
+        before = mon.schema
+        self._run_migration()
+        mon.refresh_from_db()
+        self.assertEqual(mon.schema, before)
+        self.assertNotIn("ram_speed_mhz", [f["key"] for f in mon.schema["fields"]])
+
+
+class TestRamSpeedValidation(TestCase):
+    def test_speed_is_coerced_and_bounded_like_the_other_integers(self):
+        cat = _category(CATALOGUE["IT-HW-LAP"]["schema"]["fields"])
+        cleaned = validate_specs(cat, {"ram_type": "ddr4", "ram_speed_mhz": "3200"})
+        self.assertEqual(cleaned["ram_type"], "DDR4")
+        self.assertEqual(cleaned["ram_speed_mhz"], 3200)
+        with self.assertRaises(ValidationError):
+            validate_specs(cat, {"ram_speed_mhz": 0})  # min=1
+        with self.assertRaises(ValidationError):
+            validate_specs(cat, {"ram_speed_mhz": "fast"})
+
 
 # ---------------------------------------------------------------------------
 # Validation engine

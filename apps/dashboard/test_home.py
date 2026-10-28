@@ -71,6 +71,64 @@ class DashboardHomeTests(TestCase):
         self.assertEqual(resp.json()["status"], "ok")
 
 
+class DashboardRamCardTests(TestCase):
+    """RAM inventory card: type + speed breakdown from the §5 spec attrs.
+
+    Two key spellings feed one card — installed devices record
+    `ram_type`/`ram_speed_mhz`, the RAM-module category records
+    `memory_type`/`speed_mhz` — and the coverage line says how much of the
+    register actually has RAM recorded.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.site = Site.objects.create(name="Yangon HQ", code="yangon")
+        cls.lap = Category.objects.get_or_create(code="IT-HW-LAP", defaults={"name": "Laptop"})[0]
+        cls.mod = Category.objects.get_or_create(
+            code="IT-HW-RAM", defaults={"name": "RAM / Memory Module"}
+        )[0]
+
+    def _asset(self, tag, category, attrs):
+        return Asset.objects.create(asset_tag=tag, category=category, site=self.site, attrs=attrs)
+
+    def test_card_groups_types_and_speeds_across_both_key_spellings(self):
+        self._asset("RAM-A", self.lap, {"ram_type": "DDR4", "ram_speed_mhz": 3200})
+        self._asset("RAM-B", self.lap, {"ram_type": "DDR4", "ram_speed_mhz": 2666})
+        self._asset("RAM-C", self.mod, {"memory_type": "DDR5", "speed_mhz": 4800})
+        self._asset("RAM-D", self.lap, {})  # RAM not recorded yet
+
+        _login_global(self.client)
+        resp = self.client.get("/")
+
+        self.assertEqual(resp.context["ram_recorded"], 3)
+        self.assertEqual(
+            resp.context["ram_types"], [{"label": "DDR4", "n": 2}, {"label": "DDR5", "n": 1}]
+        )
+        # speeds read fastest-first, like a spec sheet
+        self.assertEqual(
+            resp.context["ram_speeds"],
+            [
+                {"label": "4800 MHz", "n": 1},
+                {"label": "3200 MHz", "n": 1},
+                {"label": "2666 MHz", "n": 1},
+            ],
+        )
+        self.assertContains(resp, "RAM type and speed")
+        self.assertContains(resp, "4800 MHz")
+        self.assertContains(resp, "RAM recorded for 3 of 4 assets")
+
+    def test_card_offers_the_setup_hint_when_nothing_is_recorded(self):
+        self._asset("RAM-E", self.lap, {})
+
+        _login_global(self.client)
+        resp = self.client.get("/")
+
+        self.assertEqual(resp.context["ram_recorded"], 0)
+        self.assertEqual(resp.context["ram_types"], [])
+        self.assertEqual(resp.context["ram_speeds"], [])
+        self.assertContains(resp, "No RAM details recorded yet")
+
+
 class DashboardKpiAlertTests(TestCase):
     """Mockup layout: live KPIs, category chart and the alerts list (§ dashboard redesign)."""
 

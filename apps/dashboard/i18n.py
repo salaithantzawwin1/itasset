@@ -88,6 +88,18 @@ STRINGS = {
         "my": "အားလုံး ကောင်းမွန်ပါသည် — ဂရုပြုစရာ မရှိပါ။",
     },
     "dash.others": {"en": "Others", "my": "အခြား"},
+    # RAM inventory card (type + speed breakdown from the §5 spec attrs)
+    "dash.ram": {"en": "RAM type and speed", "my": "RAM အမျိုးအစားနှင့် အမြန်နှုန်း"},
+    "dash.ram.by_type": {"en": "By type", "my": "အမျိုးအစားအလိုက်"},
+    "dash.ram.by_speed": {"en": "By speed", "my": "အမြန်နှုန်းအလိုက်"},
+    "dash.ram.coverage": {
+        "en": "RAM recorded for {n} of {m} assets",
+        "my": "RAM မှတ်တမ်း ဖြည့်ထားသည့် ပစ္စည်း {n} / {m} ခု",
+    },
+    "dash.ram.none": {
+        "en": "No RAM details recorded yet — fill them in an asset's Specifications tab.",
+        "my": "RAM အသေးစိတ် မှတ်တမ်း မရှိသေးပါ — ပစ္စည်းရဲ့ သတ်မှတ်ချက် စာမျက်နှာမှာ ဖြည့်ပါ။",
+    },
     "dash.view_list": {"en": "View list →", "my": "စာရင်း ကြည့်မည် →"},
     "dash.kpi.pending": {"en": "Pending approvals", "my": "အတည်ပြုရန် စောင့်ဆိုင်းနေသည်"},
     "dash.kpi.pending_meta": {

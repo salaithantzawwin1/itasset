@@ -163,6 +163,7 @@ CATALOGUE = {
                     level="recommended",
                 ),
                 _f("ram_type", "RAM Type", "choice", choices=["DDR4", "DDR5", "LPDDR", "Other"]),
+                _f("ram_speed_mhz", "RAM Speed", "integer", unit="MHz", min=1),
                 _f("ram_upgradeable", "RAM Upgradeable", "boolean"),
                 _f(
                     "storage_1_type",
@@ -278,6 +279,7 @@ CATALOGUE = {
                     level="recommended",
                 ),
                 _f("ram_type", "RAM Type", "choice", choices=["DDR4", "DDR5", "Other"]),
+                _f("ram_speed_mhz", "RAM Speed", "integer", unit="MHz", min=1),
                 _f("drive_bay_count", "Drive Bay Count", "integer", min=0),
                 _f("raid_controller_model", "RAID Controller", "string"),
                 _f("raid_configuration", "RAID Configuration", "string", help="e.g. RAID 1"),

@@ -92,6 +92,52 @@ class DashboardView(TemplateView):
         ctx["by_site"] = sites.annotate(n=Count("assets", distinct=True)).order_by("-n")
         ctx["recent"] = assets.select_related("category", "site").order_by("-created_at")[:6]
 
+        # ---- RAM card: what memory is actually in the fleet --------------
+        # attrs is a JSON column, so there is no SQL group-by to lean on —
+        # read the page's own (already scope-filtered) assets, capped, and
+        # count in Python. Two spellings exist and both answer the same
+        # question: installed devices record `ram_type`/`ram_speed_mhz`
+        # (§5 catalogue), the RAM-module category records `memory_type`/
+        # `speed_mhz`; a RAM with neither is simply not counted (the coverage
+        # line below says how much of the register has RAM recorded).
+        from collections import Counter
+
+        def _speed_label(value) -> str:
+            try:
+                return f"{int(value)} MHz"
+            except (TypeError, ValueError):
+                return str(value)
+
+        def _mhz(label: str) -> int:
+            head = label.split()[0]
+            return int(head) if head.isdigit() else -1
+
+        type_counts: Counter = Counter()
+        speed_counts: Counter = Counter()
+        ram_recorded = 0
+        for attrs in assets.values_list("attrs", flat=True)[:1000]:
+            data = attrs if isinstance(attrs, dict) else {}
+            kind = next((data.get(k) for k in ("ram_type", "memory_type") if data.get(k)), None)
+            speed = next((data.get(k) for k in ("ram_speed_mhz", "speed_mhz") if data.get(k)), None)
+            if kind or speed is not None:
+                ram_recorded += 1
+            if kind:
+                type_counts[str(kind)] += 1
+            if speed is not None:
+                speed_counts[_speed_label(speed)] += 1
+
+        ctx["ram_recorded"] = ram_recorded
+        # types lead with the most common stick; speeds read as a spec sheet
+        # (fastest first) — neither needs a second pass over the register
+        ctx["ram_types"] = [
+            {"label": label, "n": n}
+            for label, n in sorted(type_counts.items(), key=lambda kv: (-kv[1], kv[0]))
+        ]
+        ctx["ram_speeds"] = [
+            {"label": label, "n": n}
+            for label, n in sorted(speed_counts.items(), key=lambda kv: -_mhz(kv[0]))
+        ]
+
         # ---- mockup KPIs + alerts (live queries, caller-scoped) ----------
         today = timezone.localdate()
         in_30 = today + timedelta(days=30)

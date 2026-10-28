@@ -232,8 +232,15 @@ authenticated user; no company/branch scoping exists.
   preserved) → `makemigrations --check` clean → server suite **426 passed
   + 90 subtests**, 130.7 s → `systemctl --user restart itasset-gunicorn`
   (fresh, active) → `/healthz` `{"status":"ok","db":"ok"}`, `/` 200 →
-  probe gate **18 ok / 0 failed** (11-bad-login 429 + Retry-After phase
-  green; authenticated phase needs `PROBE_USER`/`PROBE_PASS`) → live
+  probe gate **18 ok / 0 failed** (incl. the 11-bad-login 429 +
+  Retry-After phase) → authenticated phase with the same creds, run as
+  `itadmin` with `SKIP_THROTTLE=1` — credentials fetched at runtime from
+  the server's `~/secrets/itasset-breakglass-admin.txt`, never echoed in
+  commands or output → **27 ok / 0 failed**: token, `/me`, org sites,
+  bad ordering → 400, create → **201**, idempotent replay → 201 +
+  `Idempotency-Replayed: true` with no duplicate (count 1), version 1 →
+  stale PATCH → **409** → current PATCH → 200, cleanup DELETE → **204**
+  (no `PROBE-*` row left) → live
   browser on `/assets/`: typing `H110M` issued exactly one
   `?q=H110M&…&_fragment=1 → 200`, table swapped to 4 rows + “4 total”,
   focus stayed in the search box, URL updated via `replaceState`;

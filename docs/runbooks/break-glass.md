@@ -45,3 +45,25 @@ documented procedure, including the reason/incident capture.
 | Alert that break-glass was used | email to `IT_LEAD_EMAIL` | automatically |
 | Reason / incident reference | incident log (step 4) | **operator — required** |
 | Credential rotation after use | incident log (step 6) | **operator — required** |
+
+## Verifying with the authenticated probe (no echo)
+
+The break-glass admin doubles as the probe account. Its credentials live
+in `~/secrets/itasset-breakglass-admin.txt` **on the server only** (line 1
+= username, line 2 = password) — never copy them into the repo, `.env`,
+or a command line. Fetch them into the shell at the moment of use so they
+appear in no command, shell history, or output:
+
+```bash
+PROBE_USER="$(ssh itasset-dev 'head -n1 ~/secrets/itasset-breakglass-admin.txt' | tr -d '\r\n')"
+PROBE_PASS="$(ssh itasset-dev 'sed -n 2p ~/secrets/itasset-breakglass-admin.txt' | tr -d '\r\n')"
+SKIP_THROTTLE=1 PROBE_USER="$PROBE_USER" PROBE_PASS="$PROBE_PASS" \
+  bash deploy/probe-production.sh
+```
+
+`SKIP_THROTTLE=1` skips the probe's 11-bad-login phase so a run right
+after the full gate does not burn this machine's login budget again
+(the script prints which phase it skipped). Reference run
+(2026-10-28): **27 ok / 0 failed** — token, `/me`, org sites, create
+201, idempotent replay 201 + `Idempotency-Replayed: true`, stale 409,
+cleanup 204.

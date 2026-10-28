@@ -186,6 +186,43 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-10-28 (session 42 — holder + department in the assets quick search)
+- The `/assets/` `q` box now answers "who has it": it matches the open
+  assignment's person name, that person's own department, or the
+  department the asset is checked out to — one `Exists` subquery
+  (`asset=OuterRef(pk), in_at__isnull=True`, person name / person's
+  department / `to_dept` name, all `icontains`). Closed rows are
+  history and never match; EXISTS keeps counts exact no matter how
+  many assignment rows an asset has. Typing `Finance` now finds both
+  the department-held assets and its members' assets (the HOLDER
+  column's "Aye Nyein Phyu (Finance)"), mirroring the department
+  dropdown filter's two legs.
+- Placeholder: new i18n key `asset.search_ph_full` (EN+MM) on the list
+  only — the bulk check-out page keeps `asset.search_ph` (nothing there
+  has a holder yet). Type-ahead itself was already live (300 ms debounce
+  + `_fragment=1` partial swap); holder search + no-Search-click typing
+  are now both covered end to end. `DEVELOPMENT.md`'s perf row updated
+  to list the matched fields.
+- Tests: holder/dept coverage in `test_crud_views.py`
+  (`test_search_matches_holder_name_and_department` — member-department
+  leg, history row stays out) and `test_live_search.py`
+  (`test_fragment_finds_the_holder_as_you_type` — fragment answers
+  person, holder-dept and dept-held queries).
+- Gates: local **440 passed + 98 subtests** (305 s, exit 0), ruff
+  format clean; server suite **440 + 98** (131 s, exit 0),
+  `makemigrations --check` clean. Commits `1ea21d7` (holder/department
+  search + placeholder) and `cd1f71c` (member-of-department leg) —
+  **pushed** `a869cf0..cd1f71c`.
+- **Deploy 2026-10-28**: LF `git archive` tar-over-ssh sync of the 6 + 3
+  changed files, md5 local↔server identical → server suite green →
+  `systemctl --user restart itasset-gunicorn` (active) → `/healthz`
+  `{"status":"ok","db":"ok"}` → probe **16 ok / 0 failed**
+  (`SKIP_THROTTLE=1` so the browser could log in right after) → live as
+  `itadmin`: placeholder shows the new hint, typing `Finance` → **6
+  rows** (members' assets, `Finance (ChanYin)` substring included),
+  `Salai` → 2 rows, every `_fragment=1` fetch 200, focus/URL swap
+  intact, no JS errors (only the known COOP-over-plain-HTTP notice).
+
 ### 2026-10-23 (session 39 — member count on the departments list)
 - **`DepartmentList`** (`apps/people/views.py`) gained a second
   annotation, `member_count=Count("people", distinct=True)`, beside the

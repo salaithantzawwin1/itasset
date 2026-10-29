@@ -76,3 +76,26 @@ class Person(models.Model):
 
     def __str__(self) -> str:
         return f"{self.name} ({self.employee_no})"
+
+
+# The person form assigns staff numbers automatically in this series
+# (mirrors assets' <CATEGORY>-NNNN tag): a single scheme, never hand-invented.
+EMPLOYEE_NO_PREFIX = "EMP-"
+
+
+def next_employee_no() -> str:
+    """Next free staff number: ``EMP-NNNN`` (highest existing suffix + 1).
+
+    Only rows already in the series are counted, so legacy keys (``EMP1``,
+    ``E101``) never poison the sequence; sparse or out-of-order numbers are
+    fine. The winner is advisory — ``Person.employee_no`` stays unique, so a
+    lost race surfaces as a normal form error rather than bad data (the same
+    contract as ``services.next_asset_tag``).
+    """
+    highest = 0
+    for value in Person.objects.values_list("employee_no", flat=True):
+        if value and value.startswith(EMPLOYEE_NO_PREFIX):
+            suffix = value[len(EMPLOYEE_NO_PREFIX) :]
+            if suffix.isdigit() and int(suffix) > highest:
+                highest = int(suffix)
+    return f"{EMPLOYEE_NO_PREFIX}{highest + 1:04d}"

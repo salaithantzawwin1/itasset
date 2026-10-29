@@ -1,14 +1,44 @@
 {% extends "base.html" %}
 {% load t %}
 {% block title %}{% if object %}{% t "person.edit_title" %}{% else %}{% t "person.new_title" %}{% endif %} — {% t "app.name" %}{% endblock %}
+{% block extra_css %}
+  /* Person create/edit: two-up field grid so the New person modal fits
+     one screen (no inner scroll). Employee No is auto-assigned, so it
+     leads the form pre-filled rather than demanding typing. */
+  .person-form form.frm { max-width: 760px; }
+  .person-form .pgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 0 18px; align-items: start; }
+  .person-form .pcell { margin: 13px 0; min-width: 0; }
+  .person-form .pcell .req { color: var(--danger); margin-left: 3px; }
+  .person-form .phint { margin-top: 5px; font-size: 12px; color: var(--muted); line-height: 1.4; }
+  .person-form .pspan { grid-column: 1 / -1; }
+  /* checkbox rows read better inline: box first, then the label */
+  .person-form .pcell.chk { display: flex; align-items: center; gap: 8px; align-self: center; }
+  .person-form .pcell.chk label { order: 2; margin: 0; font-size: 13px; color: var(--text); text-transform: none; letter-spacing: 0; }
+  .person-form .pcell.chk input { order: 1; width: auto; }
+  .person-form .pactions { display: flex; gap: 10px; margin-top: 4px; }
+  .person-form .pactions .btn { width: auto; }
+  @media (max-width: 520px) { .person-form .pactions .btn { flex: 1; justify-content: center; } }
+{% endblock %}
 {% block content %}
 <div class="page-head"><div><h1>{% if object %}{% t "person.edit_title" %}{% else %}{% t "person.new_title" %}{% endif %}</h1></div></div>
-<div class="card">
+<div class="card person-form">
   <form method="post" class="frm">
     {% csrf_token %}
-    {{ form.as_p }}
-    <button class="btn" type="submit">{% t "asset.save" %}</button>
-    <a class="btn secondary" href="{% url 'person-list' %}">{% t "asset.cancel" %}</a>
+    {% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
+    <div class="pgrid">
+      {% for field in form.visible_fields %}
+      <div class="pcell{% if field.field.widget.input_type == "checkbox" %} chk{% endif %}{% if field.errors %} has-err{% endif %}">
+        {{ field.errors }}
+        <label for="{{ field.id_for_label }}">{% if field.field.label %}{{ field.label }}{% endif %}{% if field.field.required %}<span class="req">*</span>{% endif %}</label>
+        {{ field }}
+        {% if field.help_text %}<div class="phint">{{ field.help_text }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="pactions">
+      <button class="btn" type="submit">{% t "asset.save" %}</button>
+      <a class="btn secondary" href="{% url 'person-list' %}">{% t "asset.cancel" %}</a>
+    </div>
   </form>
 </div>
 {% endblock %}

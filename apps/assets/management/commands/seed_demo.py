@@ -102,7 +102,7 @@ class Command(BaseCommand):
             for d in ("IT", "Finance", "Operations"):
                 Department.objects.get_or_create(site=site, name=d)
             Person.objects.get_or_create(
-                employee_no=f"E{i}01",
+                employee_no=f"EMP-{i + 1:04d}",
                 defaults={"name": f"Demo Person {i + 1}", "site": site},
             )
 

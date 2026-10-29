@@ -15,7 +15,7 @@
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
 | Last updated | 2026-10-29 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **472 passed + 99 subtests** (2026-10-29: local 294 s + server 136.2 s, both exit 0 — sessions 43+44 deployed to 192.168.100.142) |
+| Test suite | **483 passed + 99 subtests** (2026-10-29: local 301.9 s + server 135.6 s, both exit 0 — sessions 43–45 deployed to 192.168.100.142) |
 
 ---
 
@@ -185,6 +185,53 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-29 (session 45 — one badge colour per category on the assets list)
+- **Problem** (user screenshot): the CATEGORY column was monochrome
+  text, so scanning the register by category meant reading every
+  `IT-HW-*` code.
+- **`Category.color`** (`apps/assets/models.py`, migration
+  `assets.0015_category_color`): a `#rrggbb` badge colour, blank by
+  default. `Category.save` picks the first free palette colour — 15°
+  hue steps anchored on blue (24 candidates), first-unused wins, pure
+  and deterministic — so a whole palette's worth of codes never
+  repeats and a later category still lands on a free hue (production:
+  23 of 23 distinct after the backfill). `badge_color` returns the
+  stored value or neutral slate `#64748b` if it is missing/garbage, so
+  a bad row degrades instead of breaking; `Category.clean` refuses a
+  non-hex value in the admin.
+- **Backfill**: `0015` adds the column then paints the existing rows
+  in pk order with the same walk (importing the live pure helper —
+  the 0008 precedent), keeping any colour an operator already set.
+- **Rendering** (`_asset_list_rows.html` + `base.html`): the cell is
+  now `<span class="pill cat-pill" style="--c: …">`, tinted with
+  `color-mix` — 15% in light theme, 26% in dark, text mixed towards
+  black/white so every hue stays readable on both backgrounds. The
+  same partial serves the live-search fragment, so typed queries keep
+  the colours. Admin category form gained a real `type="color"`
+  picker (form field order `code, name, color, schema`).
+- Tests: `apps/assets/tests/test_category_colors.py` — 11 tests
+  (auto-assign, 24-distinct from empty, differs-from-seeded-catalogue,
+  explicit kept, saturation fallback, badge fallback, hex validation,
+  rendered pill, admin picker, 0015 backfill incl. operator colour
+  surviving). One test fixed mid-run: the test DB is seeded with the
+  21-category catalogue by 0008 + painted by 0015, so the “24 fresh
+  colours” case has to clear the master first — the code was right,
+  the assumption wasn't.
+- Gates: local **483 passed + 99 subtests** (301.9 s, exit 0),
+  `ruff check` + `format --check` clean, `makemigrations --check`
+  clean; server suite **483 passed + 99 subtests** (135.6 s, exit 0,
+  `SCOPE_ENFORCEMENT_ENABLED=1`).
+- Commit `9f1d014` — **pushed** `f6ebc27..9f1d014`.
+- **Deploy 2026-10-29**: LF `git -c core.autocrlf=false archive`
+  sync (6 files md5-identical to `git show`) → `makemigrations
+  --check` clean → server suite green → `migrate` applied
+  `assets.0015_category_color` (23 production categories painted,
+  **23 distinct**) → `systemctl --user restart itasset-gunicorn`
+  (active) → `/healthz` ok → probe gate **27 ok / 0 failed** → live
+  browser on `/assets/`: every row's CATEGORY is a tinted pill,
+  14 rows showed 6 distinct hues, all backgrounds tinted, no JS
+  errors.
 
 ### 2026-10-29 (session 44 — auto-assigned staff numbers + New person modal rebuild)
 - **Problem** (user screenshot): the New person modal demanded

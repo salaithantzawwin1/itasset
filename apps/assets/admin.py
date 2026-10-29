@@ -61,10 +61,14 @@ class CategoryAdminForm(forms.ModelForm):
 
     class Meta:
         model = Category
-        fields = ("code", "name", "schema")
+        fields = ("code", "name", "color", "schema")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # the badge colour gets a real colour picker; the other CharFields stay text
+        self.fields["color"].widget = forms.TextInput(
+            attrs={"type": "color", "style": "width:72px;height:30px;padding:2px;"}
+        )
         if self.instance is not None and self.instance.pk and self.instance.schema:
             self.initial["schema"] = schema_as_json(self.instance.schema)
 
@@ -77,7 +81,7 @@ class CategoryAdmin(admin.ModelAdmin):
     list_display = ("code", "name", "field_count")
     search_fields = ("code", "name")
     ordering = ("code",)
-    fields = ("code", "name", "schema")
+    fields = ("code", "name", "color", "schema")
 
     @admin.display(description="spec fields")
     def field_count(self, obj) -> int:

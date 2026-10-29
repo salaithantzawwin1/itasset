@@ -1,8 +1,52 @@
 """Core asset register (DEVELOPMENT.md §2 taxonomy, §3 status flow, §9 model)."""
 
+import colorsys
+import re
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+
+# Badge colours for the assets list (one per category): 15° hue steps,
+# starting from blue, on a fixed saturation/lightness that stays readable as
+# pill text on both themes. 24 candidates = a full 360° without repeats.
+COLOR_HUE_STEP = 15
+COLOR_HUE_ANCHOR = 210  # blue first — the most "neutral" badge colour
+_HEX_COLOR_RE = re.compile(r"#[0-9a-fA-F]{6}\Z")
+
+
+def _hue_to_hex(hue: float) -> str:
+    r, g, b = colorsys.hls_to_rgb((hue % 360) / 360, 0.42, 0.65)
+    return f"#{round(r * 255):02x}{round(g * 255):02x}{round(b * 255):02x}"
+
+
+def _hex_to_hue(value: str | None) -> float | None:
+    m = _HEX_COLOR_RE.match((value or "").strip())
+    if not m:
+        return None
+    digits = m.group(0)[1:]
+    r, g, b = (int(digits[i : i + 2], 16) / 255 for i in (0, 2, 4))
+    h, _, _ = colorsys.rgb_to_hls(r, g, b)
+    return h * 360
+
+
+def default_category_color(taken: list[str]) -> str:
+    """First palette colour nobody in ``taken`` is using yet.
+
+    Deterministic (same inputs → same colour), so the admin and fresh
+    databases agree; once every candidate is in use the anchor repeats —
+    at that point colours are decorative anyway and an admin can override.
+    """
+    used = set()
+    for value in taken:
+        hue = _hex_to_hue(value)
+        if hue is not None:
+            used.add(round(hue / COLOR_HUE_STEP) % (360 // COLOR_HUE_STEP) * COLOR_HUE_STEP)
+    for i in range(360 // COLOR_HUE_STEP):
+        hue = (COLOR_HUE_ANCHOR + i * COLOR_HUE_STEP) % 360
+        if hue not in used:
+            return _hue_to_hex(hue)
+    return _hue_to_hex(COLOR_HUE_ANCHOR)
 
 
 class Category(models.Model):
@@ -10,6 +54,13 @@ class Category(models.Model):
 
     code = models.SlugField(max_length=20, unique=True)  # e.g. IT-HW-LAP
     name = models.CharField(max_length=120)
+    color = models.CharField(
+        max_length=7,
+        blank=True,
+        default="",
+        help_text="Badge colour on the assets list, #rrggbb — leave blank and one is "
+        "picked automatically (a hue no other category uses).",
+    )
     schema = models.JSONField(default=dict, blank=True)  # custom field defs (§2)
 
     class Meta:
@@ -20,6 +71,19 @@ class Category(models.Model):
     def __str__(self) -> str:
         return f"{self.code} — {self.name}"
 
+    def save(self, *args, **kwargs):
+        """A new category arrives with a badge colour no sibling is using."""
+        if not self.color:
+            taken = list(Category.objects.exclude(pk=self.pk).values_list("color", flat=True))
+            self.color = default_category_color(taken)
+        super().save(*args, **kwargs)
+
+    @property
+    def badge_color(self) -> str:
+        """Colour for this category's badge — stored value, else neutral slate."""
+        value = (self.color or "").strip()
+        return value if _HEX_COLOR_RE.match(value) else "#64748b"
+
     def clean(self):
         """Structural check of the declarative spec schema (ADR-0004 layer 2).
 
@@ -29,6 +93,8 @@ class Category(models.Model):
         from .specs import validate_schema_dict
 
         validate_schema_dict(self.schema)
+        if self.color and not _HEX_COLOR_RE.match(self.color.strip()):
+            raise ValidationError({"color": "Use a hex colour such as #2563eb."})
 
 
 class SpecChoice(models.Model):

@@ -3,7 +3,7 @@
 {% for a in object_list %}
     <tr>
       <td><a href="{% url 'asset-detail' a.pk %}">{{ a.asset_tag }}</a></td>
-      <td>{{ a.category.code }}</td>
+      <td><span class="pill cat-pill" style="--c: {{ a.category.badge_color }}">{{ a.category.code }}</span></td>
       <td>{{ a.model_name|default:"—" }}</td>
       <td>{{ a.site.code }}</td>
       <td><span class="pill pill-{{ a.status }}">{{ a.get_status_display }}</span></td>

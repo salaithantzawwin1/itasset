@@ -13,9 +13,9 @@
 |---|---|
 | Current milestone | M8 — Go-live |
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
-| Last updated | 2026-10-28 |
+| Last updated | 2026-10-29 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **426 passed + 90 subtests** (2026-10-28: local 286 s + server 130.7 s, both exit 0 — session 41 deployed to 192.168.100.142) |
+| Test suite | **472 passed + 99 subtests** (2026-10-29: local 294 s + server 136.2 s, both exit 0 — sessions 43+44 deployed to 192.168.100.142) |
 
 ---
 
@@ -185,6 +185,98 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-29 (session 44 — auto-assigned staff numbers + New person modal rebuild)
+- **Problem** (user screenshot): the New person modal demanded
+  EMPLOYEE NO by hand, so the production list had drifted (`EMP1`,
+  `EMP02` … `EMP10`), and the stacked single-column form made the modal
+  scroll.
+- **Auto-assign** (`apps/people/models.py`): `EMPLOYEE_NO_PREFIX` +
+  `next_employee_no()` — highest in-series suffix + 1, counting only
+  rows already in the series, so legacy keys (`EMP1`, `E201`) never
+  poison the sequence; same contract as `services.next_asset_tag` (the
+  winner is advisory — uniqueness still surfaces as a normal form
+  error).
+- **`PersonForm` (create only)**: `initial` prefill so the modal opens
+  showing the next number; a blank/missing value still gets one
+  server-side (QueryDict-copy, the AssetForm pattern) so the field
+  works with or without JS; Name gains autofocus, placeholders and
+  help texts; an explicit value always wins; edit never rewrites the
+  stored number (clearing it is a plain required error).
+- **Migration `people.0007_renumber_employee_nos`**: every legacy row
+  moved onto `EMP-NNNN` in two phases — pass 1 lets canonical rows
+  reserve their own number (a legacy row can never displace them),
+  pass 2 takes the trailing number or the lowest free one, and every
+  mover is parked on `__renumber-<pk>` first so the unique constraint
+  cannot fire mid-run. Reverse is a no-op (old values not stored).
+- **UI** (`templates/people/person_form.html`): manual field loop in a
+  responsive two-up `.pgrid` with required `*` marks, per-field help
+  text, an inline checkbox row and a proper actions row — modal body
+  measured 448 px with `scrollHeight == clientHeight`, i.e. the
+  screenshot's inner scrollbar is gone. `seed_demo` people now start
+  in-series (`EMP-0001`…) so fresh dev DBs stay consistent.
+- Tests: `apps/people/tests.py` — 12 tests (series sequencing + legacy
+  ignored, create prefill/autofocus, blank-POST assign, explicit value
+  wins, taken-slot skip, edit keeps the number, duplicate rejected,
+  layout assertions, and 3 for the migration incl. idempotency).
+- Gates: local full suite **472 passed + 99 subtests** (294 s, exit
+  0), `ruff check` + `format --check` clean, `makemigrations --check`
+  clean.
+- Commits `bc6c308` (SpecChoice CRUD — session 43, whose commit and
+  deploy were still pending) + `3d50377` (auto-assign) — **pushed**
+  `9976991..3d50377`.
+- **Deploy 2026-10-29**: `git archive` on this Windows box applies
+  `core.autocrlf=true`, so the first sync landed CRLF on the server
+  (md5 mismatch against the blobs — caught by the verify step);
+  re-synced with `git -c core.autocrlf=false archive` → all 11 files
+  md5-identical to `git show` (LF) → `makemigrations --check` clean →
+  server suite **472 passed + 99 subtests**, 136.2 s, exit 0 with
+  `SCOPE_ENFORCEMENT_ENABLED=1` → `migrate` applied
+  `assets.0014_specchoice` + `people.0007_renumber_employee_nos`:
+  production `EMP1`…`EMP10` → **`EMP-0001`…`EMP-0010`** (10 rows,
+  names unchanged), `next_employee_no()` → `EMP-0011`, SpecChoice
+  seeded 9 options → `systemctl --user restart itasset-gunicorn`
+  (fresh, active) → `/healthz` `{"status":"ok","db":"ok"}` → probe
+  gate **27 ok / 0 failed** (throttle probe skipped) → live browser
+  as `itadmin`: `/people/` shows 10 people all `EMP-00NN`; the modal
+  opens with `EMP-0011` pre-filled, two-up grid, 3 required marks,
+  autofocus on Name, no inner scroll, no JS errors (only the
+  pre-existing COOP-over-plain-HTTP notice) → end-to-end create
+  through the modal landed `EMP-0011 / Temp Auto Assign Check`, then
+  deleted via its confirm page (back to 10 people).
+
+### 2026-10-29 (session 43 — CRUD option lists for RAM Type / Primary Storage Type)
+- **`SpecChoice` model** (`apps/assets/models.py`, migration
+  `assets.0014_specchoice`): one row = one selectable value for one
+  choice-field key. Seeded with the *union* of the catalogue defaults
+  — `ram_type`: DDR3, DDR4, DDR5, LPDDR, Other (Desktop allowed DDR3,
+  Laptop LPDDR) and `storage_1_type`: HDD, SATA SSD, NVMe SSD, Other —
+  so every value any category can already hold stays valid. Seeding is
+  `get_or_create`, re-run safe.
+- **Engine** (`specs.managed_choice_options`): one batched query per
+  validation/form build; a key with rows is *authoritative* for every
+  category declaring the field (a maintained list replaces the schema's
+  `choices`), keys without rows fall back to the schema. Wired into
+  `validate_specs` (+ `_coerce`) and `build_spec_form_fields`, so the
+  main-app form, admin, API and CSV import all honour the same list —
+  adding DDR6 on the new page makes it selectable everywhere at once.
+- **Admin CRUD** (Assets → “spec choice options”): `key` is a dropdown
+  built from the live category schemas (a typo'd key can never be
+  entered), changelist shows an assets-using count. Data guards:
+  rename + case-variant duplicate refused in `SpecChoice.clean()`
+  while assets record the value; single delete is refused *before* the
+  confirmation page with a message naming the count; bulk delete marks
+  in-use options `protected`, so Django skips both the deletion and
+  its log entry. Category admin's schema textarea gained help text
+  pointing at the new page (schema `choices` only apply to keys
+  without rows).
+- Tests: `apps/assets/tests/test_spec_choice_crud.py` — 20 tests
+  (seed + idempotent re-run, authority vs schema, fallback, dropdowns,
+  multi-choice in-use match, add/unknown-key/case-dup/rename/delete
+  guards incl. bulk). Gates: local full suite **460 passed + 99
+  subtests** (exit 0), `ruff check` + `format --check` clean,
+  `makemigrations --check` clean. Commit/deploy pending (not requested
+  this session).
 
 ### 2026-10-28 (session 42 — holder + department in the assets quick search)
 - The `/assets/` `q` box now answers "who has it": it matches the open

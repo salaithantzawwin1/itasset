@@ -1,8 +1,11 @@
 import json
+from urllib.parse import unquote
 
 from django import forms
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.admin.helpers import flatten_fieldsets
+from django.http import HttpResponseRedirect
+from django.urls import reverse
 
 from apps.core.admin import ScopedAdminMixin, _is_scope_admin
 
@@ -17,10 +20,11 @@ from .models import (
     Category,
     DisposalRecord,
     RepairTicket,
+    SpecChoice,
     Transfer,
     WriteOff,
 )
-from .specs import SPEC_FIELD_PREFIX, build_spec_form_fields, schema_as_json
+from .specs import SPEC_FIELD_PREFIX, build_spec_form_fields, schema_as_json, spec_fields
 
 
 class PrettyJSONField(forms.JSONField):
@@ -47,6 +51,9 @@ class CategoryAdminForm(forms.ModelForm):
 
     schema = PrettyJSONField(
         required=False,
+        help_text='Choice fields whose key has rows under "Spec choice options" '
+        "(ram_type, storage_1_type …) take their option list from there — the "
+        '"choices" written here only apply to keys without rows.',
         widget=forms.Textarea(
             attrs={"rows": 22, "cols": 96, "style": "font-family:monospace;font-size:12.5px;"}
         ),
@@ -76,6 +83,103 @@ class CategoryAdmin(admin.ModelAdmin):
     def field_count(self, obj) -> int:
         fields = (obj.schema or {}).get("fields") if isinstance(obj.schema, dict) else None
         return len(fields) if isinstance(fields, list) else 0
+
+
+def _spec_choice_key_choices(current: str | None = None) -> list[tuple[str, str]]:
+    """(value, label) options for every choice field in the live category schemas.
+
+    The ``key`` of a SpecChoice must match a real spec field — a typo'd key
+    would silently collect rows that no form ever shows. Labels use the first
+    schema that declares the key (deterministic: categories order by code).
+    """
+    labels: dict[str, str] = {}
+    for category in Category.objects.all().only("schema"):
+        for fdef in spec_fields(category):
+            if fdef.get("type") in ("choice", "multi-choice"):
+                labels.setdefault(fdef["key"], fdef.get("label") or fdef["key"])
+    if current and current not in labels:
+        labels[current] = f"{current} (no longer in any schema)"
+    return sorted(
+        ((key, f"{label} ({key})") for key, label in labels.items()), key=lambda pair: pair[0]
+    )
+
+
+class SpecChoiceAdminForm(forms.ModelForm):
+    """``key`` as a dropdown of the live schemas' choice fields (see helper)."""
+
+    class Meta:
+        model = SpecChoice
+        fields = ("key", "value", "order")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        current = self.instance.key if self.instance is not None and self.instance.pk else None
+        original = self.fields["key"]
+        self.fields["key"] = forms.ChoiceField(
+            choices=[("", "---------")] + _spec_choice_key_choices(current),
+            label=original.label,
+            help_text=original.help_text,
+            required=original.required,
+        )
+
+
+@admin.register(SpecChoice)
+class SpecChoiceAdmin(admin.ModelAdmin):
+    """CRUD for the option lists behind choice spec fields (RAM Type,
+    Primary Storage Type …) — one shared list per key, every category that
+    declares the field offers it (engine: ``specs.managed_choice_options``).
+
+    Data-safety guards:
+    - rename/case-duplicate → refused in ``SpecChoice.clean()`` while assets
+      still record the value;
+    - single delete → a friendly refusal before the confirmation page;
+    - bulk delete → in-use options are reported as *protected*, which makes
+      Django skip the deletion (and the audit log entry) entirely.
+    """
+
+    form = SpecChoiceAdminForm
+    list_display = ("key", "value", "order", "assets_using")
+    list_filter = ("key",)
+    search_fields = ("key", "value")
+    ordering = ("key", "order", "value")
+
+    @admin.display(description="assets")
+    def assets_using(self, obj) -> int:
+        return obj.assets_in_use()
+
+    def delete_view(self, request, object_id, extra_context=None):
+        """Refuse an in-use option *before* the confirmation page, with a
+        message that says which value is stuck and why (permission handling
+        stays with the base view — no guard for users who may not delete)."""
+        obj = self.get_object(request, unquote(object_id))
+        if obj is not None and self.has_delete_permission(request, obj):
+            used = obj.assets_in_use()
+            if used:
+                plural = "assets" if used != 1 else "asset"
+                self.message_user(
+                    request,
+                    f"Cannot delete “{obj.value}” — {used} {plural} still record it under "
+                    f"{obj.key}. Edit those assets first, or keep the option.",
+                    level=messages.ERROR,
+                )
+                return HttpResponseRedirect(reverse("admin:assets_specchoice_changelist"))
+        return super().delete_view(request, object_id, extra_context)
+
+    def get_deleted_objects(self, objs, request):
+        """Bulk delete: in-use options are protected — the action then shows
+        them on the confirmation page and deletes nothing (no misleading
+        "successfully deleted" log either)."""
+        objs = list(objs)
+        deleted, model_count, perms_needed, protected = super().get_deleted_objects(objs, request)
+        for obj in objs:
+            used = obj.assets_in_use()
+            if used:
+                plural = "assets" if used != 1 else "asset"
+                protected.append(
+                    f"{obj.key}: {obj.value} — still recorded by {used} {plural}; "
+                    "edit those assets first."
+                )
+        return deleted, model_count, perms_needed, protected
 
 
 @admin.register(Asset)

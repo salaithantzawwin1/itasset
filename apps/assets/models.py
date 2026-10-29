@@ -31,6 +31,88 @@ class Category(models.Model):
         validate_schema_dict(self.schema)
 
 
+class SpecChoice(models.Model):
+    """CRUD-maintained option list behind a shared ``choice`` spec field.
+
+    One row = one selectable value for one field key (``ram_type``,
+    ``storage_1_type`` …). While a key has rows they are *authoritative* for
+    every category declaring that field: add DDR6 here and Desktop, Laptop
+    and Server dropdowns all offer it — no schema-JSON edits (the per-category
+    ``choices`` stay in place as the fallback for keys that have no rows).
+
+    Data safety (``clean``): a value still recorded by assets can neither be
+    renamed nor duplicated case-insensitively, so an option list can never
+    strand a stored value — ``attrs`` keeps round-tripping through the form.
+    """
+
+    key = models.SlugField(
+        max_length=64,
+        db_index=True,
+        help_text="Spec field this list belongs to, e.g. ram_type (pick from the dropdown).",
+    )
+    value = models.CharField(
+        max_length=100,
+        help_text="One selectable option, e.g. DDR5. Renaming it in the admin is refused "
+        "while assets still record the old value.",
+    )
+    order = models.PositiveIntegerField(
+        default=0,
+        help_text="Position in the dropdown — lower numbers come first.",
+    )
+
+    class Meta:
+        ordering = ["key", "order", "value"]
+        constraints = [
+            models.UniqueConstraint(fields=["key", "value"], name="spec_choice_key_value_uniq")
+        ]
+        verbose_name = "spec choice option"
+        verbose_name_plural = "spec choice options"
+
+    def __str__(self) -> str:
+        return f"{self.key}: {self.value}"
+
+    def assets_in_use(self) -> int:
+        """Assets whose ``attrs`` still record this value (save/delete guard).
+
+        Covers single-choice storage (scalar match) and multi-choice storage
+        (list containment) alike. Asset is imported lazily: it is declared
+        later in this module.
+        """
+        from django.db.models import Q
+
+        scalar = Q(**{f"attrs__{self.key}": self.value})
+        listed = Q(**{f"attrs__{self.key}__contains": [self.value]})
+        return Asset.objects.filter(scalar | listed).count()
+
+    def clean(self):
+        super().clean()
+        self.value = (self.value or "").strip()
+        if not self.value:
+            raise ValidationError({"value": "A list option cannot be blank."})
+        duplicates = SpecChoice.objects.filter(key=self.key, value__iexact=self.value)
+        if self.pk:
+            duplicates = duplicates.exclude(pk=self.pk)
+        if duplicates.exists():
+            raise ValidationError(
+                {"value": f"“{self.value}” already exists for {self.key} (capitalisation counts)."}
+            )
+        if self.pk:
+            original = SpecChoice.objects.filter(pk=self.pk).first()
+            if original and (original.key, original.value) != (self.key, self.value):
+                used = original.assets_in_use()
+                if used:
+                    plural = "assets" if used != 1 else "asset"
+                    raise ValidationError(
+                        {
+                            "value": (
+                                f"“{original.value}” is still recorded by {used} {plural} "
+                                f"under {original.key} — add a new option instead of renaming, "
+                                "or edit those assets first."
+                            )
+                        }
+                    )
+
+
 class Asset(models.Model):
     class Status(models.TextChoices):
         IN_STOCK = "IN_STOCK", "In stock"

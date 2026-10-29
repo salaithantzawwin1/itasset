@@ -23,6 +23,8 @@ Engine entry points:
 - ``build_spec_form_fields(category)``   → dynamic Django form fields
 - ``format_spec_value(field, value)``    → display string for detail views
 - ``validate_schema_dict(schema)``       → Category.clean() structure check
+- ``managed_choice_options(keys)``       → CRUD-maintained option sets for choice
+                                            fields (SpecChoice rows; schema fallback)
 """
 
 from __future__ import annotations
@@ -838,18 +840,48 @@ def validate_schema_dict(schema) -> None:
             )
 
 
+def managed_choice_options(keys) -> dict[str, list[str]]:
+    """Option sets maintained as CRUD rows (``SpecChoice``) for these keys.
+
+    A key with rows is authoritative: the admin-maintained list replaces the
+    per-category ``choices`` everywhere the field appears — one place to add
+    ``DDR6`` instead of editing every category schema (both RAM Type and
+    Primary Storage Type ship seeded). Keys without rows are absent here and
+    fall back to the schema's declared ``choices``.
+
+    One query for the whole batch; ordering follows SpecChoice.Meta. The model
+    import stays local: ``models`` loads this module at import time
+    (``Category.clean``), so a module-scope import would be circular.
+    """
+    keys = list(dict.fromkeys(k for k in keys if k))
+    if not keys:
+        return {}
+    from .models import SpecChoice
+
+    options: dict[str, list[str]] = {}
+    for key, value in SpecChoice.objects.filter(key__in=keys).values_list("key", "value"):
+        options.setdefault(key, []).append(value)
+    return options
+
+
 def _is_empty(value) -> bool:
     """§7.1 \"not recorded\": None, blank string and empty list all mean absent."""
     return value is None or value == "" or value == [] or value == ()
 
 
-def _coerce(fdef: dict, value):
+def _coerce(fdef: dict, value, options: list[str] | None = None):
     """Coerce one submitted value to its canonical JSON-native type.
 
     Accepts both raw strings (API/CSV/POST) and already-typed Python values
     (form cleaned_data). Raises ValueError with a human message on bad input.
+
+    ``options`` is the effective option set for choice fields — the maintained
+    list when the key has ``SpecChoice`` rows; None falls back to the schema's
+    declared ``choices``.
     """
     ftype = fdef["type"]
+    if options is None:
+        options = fdef.get("choices", [])
 
     if ftype in ("string", "text"):
         return str(value).strip()
@@ -886,22 +918,22 @@ def _coerce(fdef: dict, value):
 
     if ftype == "choice":
         text = str(value).strip()
-        for opt in fdef.get("choices", []):
+        for opt in options:
             if text == opt or text.lower() == str(opt).lower():
                 return opt  # canonical spelling from the option set
-        raise ValueError(f"must be one of: {', '.join(fdef.get('choices', []))}")
+        raise ValueError(f"must be one of: {', '.join(str(o) for o in options)}")
 
     if ftype == "multi-choice":
         items = value if isinstance(value, (list, tuple)) else str(value).split(",")
         out = []
-        lowered = {str(o).lower(): o for o in fdef.get("choices", [])}
+        lowered = {str(o).lower(): o for o in options}
         for item in items:
             text = str(item).strip()
             if not text:
                 continue
             hit = lowered.get(text.lower())
             if hit is None:
-                raise ValueError(f"must be from: {', '.join(fdef.get('choices', []))}")
+                raise ValueError(f"must be from: {', '.join(str(o) for o in options)}")
             out.append(hit)
         return out
 
@@ -944,6 +976,10 @@ def validate_specs(category, raw: dict | None) -> dict:
         raise ValidationError({"specs": "Specifications must be a JSON object of key/value pairs."})
 
     fields = {f["key"]: f for f in spec_fields(category)}
+    # one batched query: maintained option sets win over the schema choices
+    managed = managed_choice_options(
+        k for k, f in fields.items() if f["type"] in ("choice", "multi-choice")
+    )
     cleaned: dict = {}
     errors: dict[str, list[str]] = {}
 
@@ -958,7 +994,7 @@ def validate_specs(category, raw: dict | None) -> dict:
                 errors[key] = [f"{fdef['label']} is required."]
             continue
         try:
-            value = _coerce(fdef, value)
+            value = _coerce(fdef, value, managed.get(key))
         except ValueError as exc:
             errors[key] = [f"{fdef['label']}: {exc}."]
             continue
@@ -1009,8 +1045,14 @@ def build_spec_form_fields(category) -> dict[str, forms.Field]:
     option sets, unknown keys) are enforced once by ``validate_specs`` in the
     form's clean — a single source of truth shared with API and import.
     """
+    definitions = spec_fields(category)
+    # dropdowns show the maintained option set when the key has rows (CRUD),
+    # otherwise the schema's declared choices — same rule as validate_specs
+    managed = managed_choice_options(
+        f["key"] for f in definitions if f.get("type") in ("choice", "multi-choice")
+    )
     out: dict[str, forms.Field] = {}
-    for fdef in spec_fields(category):
+    for fdef in definitions:
         key = fdef["key"]
         label = fdef["label"]
         help_text = fdef.get("help", "")
@@ -1031,11 +1073,13 @@ def build_spec_form_fields(category) -> dict[str, forms.Field]:
             # (a plain Select would render False as blank and lose it on save)
             fld = forms.NullBooleanField(**common)
         elif ftype == "choice":
-            choices = [("", "—")] + [(c, c) for c in fdef.get("choices", [])]
+            options = managed.get(key) or fdef.get("choices", [])
+            choices = [("", "—")] + [(c, c) for c in options]
             fld = forms.ChoiceField(choices=choices, **common)
         elif ftype == "multi-choice":
+            options = managed.get(key) or fdef.get("choices", [])
             fld = forms.MultipleChoiceField(
-                choices=[(c, c) for c in fdef.get("choices", [])],
+                choices=[(c, c) for c in options],
                 widget=forms.CheckboxSelectMultiple,
                 **common,
             )

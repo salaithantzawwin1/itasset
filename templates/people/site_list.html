@@ -4,6 +4,9 @@
 {% block content %}
 <div class="page-head">
   <div><h1>{% t "site.title" %}</h1><div class="sub">{% t "site.count" n=object_list|length %}</div></div>
+  <div class="actions">
+    <a class="btn" href="{% url 'site-create' %}" data-modal>{% t "site.new" %}</a>
+  </div>
 </div>
 <table class="data">
   <thead><tr><th>{% t "site.code" %}</th><th>{% t "person.name" %}</th><th>{% t "site.people_n" %}</th><th></th></tr></thead>

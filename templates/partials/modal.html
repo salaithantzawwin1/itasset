@@ -143,6 +143,7 @@ body.nb-modal-open { overflow: hidden; }
     if (b0) b0.style.height = "";  // back to the default while the frame loads
     var c0 = modal.querySelector(".nb-modal-card");
     if (c0) c0.style.width = "";  // …and to the default width while it loads
+    frame._nbWidthCap = 0;
     document.body.classList.add("nb-modal-open");
     loader.hidden = false;
     frame.src = href.href;
@@ -176,23 +177,35 @@ body.nb-modal-open { overflow: hidden; }
   }
 
   /* Width: a framed form caps itself (form.frm { max-width: 520/760px }), so
-     the card's fixed 920px left a dead panel beside it — measure the form
-     and hug the card to it (the framed page's 32px side padding + 16px
-     slack), never above the 920px default and never past the viewport.
-     The iframe's scrollbar width is added back so a scrolling form measures
-     the same on every pass — otherwise each re-fit would creep a pixel
-     narrower. A framed page with no form keeps the default width. */
+     the card's fixed 920px left a dead panel beside it — hug the card to the
+     form's own cap (or its measured box when it just fills the page) plus
+     the framed page's 32px side padding and 16px slack, never above the
+     920px default and never past the viewport.
+
+     The cap is read once per load, from the default width: the ≤640px media
+     rule flips `form.frm` to max-width:100%, so measuring a narrowed frame
+     would feed the shrink back into the measurement and make the dialog
+     breathe. Width is only recomputed on load and window resize, never from
+     the resize observer (which the width change itself triggers). */
   function fitWidth(doc, win) {
     var card = modal.querySelector(".nb-modal-card");
     if (!card) return;
     /* first form with a real box — the framed page's chrome (the topbar's
        set-lang/logout forms) renders hidden at width 0 under the skin */
-    var forms = doc.querySelectorAll("form"), w = 0, i, r;
+    var forms = doc.querySelectorAll("form"), form = null, r = null, i, b;
     for (i = 0; i < forms.length; i++) {
-      r = forms[i].getBoundingClientRect();
-      if (r.width > 0) { w = r.width; break; }
+      b = forms[i].getBoundingClientRect();
+      if (b.width > 0) { form = forms[i]; r = b; break; }
     }
-    if (!w) { card.style.width = ""; return; }
+    if (!r) { card.style.width = ""; frame._nbWidthCap = 0; return; }
+    if (!frame._nbWidthCap) {
+      card.style.width = "";  // measure from the default width, never a narrowed one
+      r = form.getBoundingClientRect();
+      var css = "";
+      try { css = win.getComputedStyle(form).maxWidth || ""; } catch (e) {}
+      if (/px$/.test(css) && parseFloat(css) > 0) frame._nbWidthCap = parseFloat(css);
+    }
+    var w = frame._nbWidthCap || r.width;
     var sb = Math.max(0, (win.innerWidth || 0) - doc.documentElement.clientWidth);
     card.style.width = "min(" + Math.min(920, Math.ceil(w + sb) + 48) + "px, 100%)";
   }
@@ -201,11 +214,11 @@ body.nb-modal-open { overflow: hidden; }
      height, so a short form no longer sits in a full-height box and a tall
      one scrolls exactly once — inside the frame. Caps at 88vh (full height
      on small screens, matching the media queries above). */
-  function fit() {
+  function fit(withWidth) {
     var doc, win;
     try { doc = frame.contentDocument; win = frame.contentWindow; } catch (e) { return; }
     if (!doc || !doc.body || modal.hidden) return;
-    fitWidth(doc, win);
+    if (withWidth) fitWidth(doc, win);
     var bodyEl = modal.querySelector(".nb-modal-body");
     var head = modal.querySelector(".nb-modal-head");
     if (!bodyEl) return;
@@ -252,12 +265,14 @@ body.nb-modal-open { overflow: hidden; }
       }
       doc.addEventListener("input", function () { dirty = true; }, true);
       doc.addEventListener("change", function () { dirty = true; }, true);
-      fit();
+      frame._nbWidthCap = 0;  // a fresh page: re-derive the form's cap
+      fit(true);
       if (window.ResizeObserver) {
         /* Tab switches and the live spec swap change the framed page's height
-           without a reload — re-fit on every content resize. */
+           without a reload — re-fit on every content resize. Height only:
+           recomputing the width here would loop with our own width change. */
         if (frame._nbRo) frame._nbRo.disconnect();
-        var ro = new ResizeObserver(function () { fit(); });
+        var ro = new ResizeObserver(function () { fit(false); });
         ro.observe(doc.documentElement);
         ro.observe(doc.body);
         frame._nbRo = ro;
@@ -274,7 +289,7 @@ body.nb-modal-open { overflow: hidden; }
     open(a.getAttribute("href"), titleFor(a), a);
   });
 
-  window.addEventListener("resize", fit);
+  window.addEventListener("resize", function () { fit(true); });
 
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape" && !modal.hidden) {

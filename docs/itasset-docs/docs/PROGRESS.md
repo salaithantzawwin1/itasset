@@ -15,7 +15,7 @@
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
 | Last updated | 2026-10-30 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **486 passed + 99 subtests** (2026-10-30: local 301.7 s + server 136.4 s, both exit 0 — session 50 deployed to 192.168.100.142) |
+| Test suite | **509 passed + 100 subtests** (2026-10-30: local 308.4 s; server 507 + 100 at the session-51 deploy, 143.6 s — both exit 0) |
 
 ---
 
@@ -185,6 +185,74 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-30 (session 51 — People type-ahead, the option-list page, and tabbed detail pages)
+- **`/people/` type-ahead** (`apps/people/views.py`, `person_list.html` +
+  three partials): name search on the asset list's live-search contract —
+  a 300 ms debounce fetches the same URL with `_fragment=1`, the server
+  answers count/rows/pagination as JSON and the script swaps them in
+  place (focus/scroll survive, `history.replaceState` keeps `?q=`,
+  pagination carries `q` forward); without JS the plain filtered GET
+  does the same work.
+- **Match highlighting** (new `{% highlight value q %}` tag in
+  `apps/dashboard/templatetags/t.py`): asset rows wrap every q hit in
+  `<mark>` — tag, model, holder name/department columns — case-insensitive
+  with the original casing kept; value and query are HTML-escaped on
+  both sides, and an empty query renders exactly as before. `AssetList`
+  now puts `q` into the context (it only ever lived in `request.GET`).
+- **Admin auto-assign** (`apps/people/admin.py`): the admin Person add
+  form opens with `next_employee_no()` prefilled and fills a cleared
+  field server-side — the main-app `PersonForm` contract (`employee_no`
+  is model-required, so the fill happens before validation); edits never
+  rewrite the stored number.
+- **`/assets/spec-options/`** (`views.spec_options` + template): one
+  technician-gated page, one section per live choice key — rowless keys
+  included, so a list starts here instead of through schema JSON — with
+  inline add/save/delete running `SpecChoice.clean()`'s guards (no blank,
+  no case-duplicate, no rename/delete while assets record the value),
+  same wording as the admin. Key labels moved to
+  `specs.spec_choice_key_labels()`, shared by the page, the admin
+  dropdown and the key filter.
+- **`storage_2_type` seeded** (migration `assets.0016`, HDD/SATA SSD/
+  NVMe SSD/Other, idempotent `get_or_create`): backfilled on production
+  over SSH *before* the deploy, so the migrate on deploy was a no-op.
+- **Admin key filter shows rowless keys**: `list_filter = ("key",)`
+  derives its choices from existing rows, so a key with no rows vanished
+  from the sidebar; `SpecChoiceKeyFilter` starts from the live schemas
+  (zero rows or not) and adds row-only keys as "(no longer in any
+  schema)".
+- **Detail-page tabs**: `/people/<pk>/` held + history ship as the
+  department page's `.ftabs` pair (tablist with the live count, two
+  server-rendered un-hidden panels the script collapses; no-JS stacks
+  them); both detail pages round-trip `?tab=` — the view validates the
+  param, buttons render `aria-selected` server-side, clicks
+  `replaceState` the key into the URL, so a refresh lands on the section
+  you were reading (stray values fall back to the first tab).
+- Tests: local full suite **509 passed + 100 subtests** (308.4 s),
+  `ruff check` + `format --check` clean, `makemigrations --check` clean.
+- Commits `ec62673` (admin auto-assign) + `78f2484` (spec option lists +
+  seed + rowless filter) + `32b238f` (people type-ahead + highlighting) —
+  **pushed** `118d390..32b238f`; `24293e7` (detail tabs + `?tab=`) and
+  this log follow.
+- **Deploy 2026-10-30**: LF `git -c core.autocrlf=false archive` sync of
+  the 20 changed files → all md5-identical local↔server →
+  `makemigrations --check` clean → server suite **507 passed + 100
+  subtests**, 143.6 s, exit 0 with `SCOPE_ENFORCEMENT_ENABLED=1` →
+  `migrate` applied `assets.0016_seed_storage_2_type` (seed already in
+  place → no-op) → `systemctl --user restart itasset-gunicorn` (active)
+  → `/healthz` `{"status": "ok", "db": "ok"}` → probe gate **27 ok /
+  0 failed** (throttle skipped; authed phase via the runbook secrets) →
+  live as `itadmin`: the admin Person add form opens with **`EMP-0011`**
+  prefilled; typing `Htwe` on `/people/` swaps to **1 row** without
+  navigation (`?q=Htwe`, focus kept, no JS errors).
+- **`/assets/spec-options/` verified live** the next day: every choice
+  key renders a section (rowless ones with their add form), the seeded
+  lists show usage counts (ram_type DDR4 ×10, storage_1 SATA SSD ×9,
+  storage_2 HDD ×3); round-trip add → `Added “QA-Test-Opt” to CPU
+  Manufacturer.` → delete → `Removed …` (row gone); deleting an in-use
+  option refused server-side (`Cannot delete “DDR3” — 1 asset still
+  record it under ram_type…`, row intact, nothing mutated). The tabs
+  commit + this log are pushed; the tabs' deploy not requested (pending).
 
 ### 2026-10-30 (session 50 — department detail becomes four tabs)
 - **Problem** (user screenshot): `/departments/<pk>/` stacked four

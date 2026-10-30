@@ -6,6 +6,8 @@ from django.contrib import admin, messages
 from django.contrib.admin.helpers import flatten_fieldsets
 from django.http import HttpResponseRedirect
 from django.urls import reverse
+from django.utils.html import format_html_join
+from django.utils.safestring import mark_safe
 
 from apps.core.admin import ScopedAdminMixin, _is_scope_admin
 
@@ -135,8 +137,35 @@ class SpecChoiceKeyFilter(admin.SimpleListFilter):
         return queryset
 
 
+class SearchableSelect(forms.TextInput):
+    """Text input backed by a ``<datalist>`` — type to narrow the keys.
+
+    The key list is a couple of dozen rows long, so a plain ``<select>``
+    meant scrolling to find one. Typing filters the suggestions natively
+    (no JS); validation is unchanged, because the field stays a
+    ``ChoiceField`` — a value that is not a live key is still refused.
+    """
+
+    def __init__(self, choices, attrs=None):
+        super().__init__(attrs)
+        self.choices = list(choices)
+
+    def render(self, name, value, attrs=None, renderer=None):
+        attrs = dict(attrs or {})
+        list_id = attrs.get("id") or f"datalist-{name}"
+        attrs["list"] = list_id
+        attrs.setdefault("autocomplete", "off")
+        field_html = super().render(name, value, attrs, renderer)
+        options = format_html_join(
+            "",
+            '<option value="{}">{}</option>',
+            [(key, label) for key, label in self.choices if key],
+        )
+        return mark_safe(f'{field_html}<datalist id="{list_id}">{options}</datalist>')
+
+
 class SpecChoiceAdminForm(forms.ModelForm):
-    """``key`` as a dropdown of the live schemas' choice fields (see helper)."""
+    """``key`` as a type-to-search field over the live schemas' choice keys."""
 
     class Meta:
         model = SpecChoice
@@ -146,11 +175,13 @@ class SpecChoiceAdminForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         current = self.instance.key if self.instance is not None and self.instance.pk else None
         original = self.fields["key"]
+        choices = [("", "---------")] + _spec_choice_key_choices(current)
         self.fields["key"] = forms.ChoiceField(
-            choices=[("", "---------")] + _spec_choice_key_choices(current),
+            choices=choices,
             label=original.label,
-            help_text=original.help_text,
+            help_text="Type to search the option lists, then pick one — e.g. “ram” or “storage”.",
             required=original.required,
+            widget=SearchableSelect(choices),
         )
 
 

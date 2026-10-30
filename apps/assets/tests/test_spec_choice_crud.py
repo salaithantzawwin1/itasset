@@ -205,6 +205,21 @@ class TestSpecChoiceAdmin(TestCase):
         self.assertIn("panel_type", keys)  # any choice field of any schema
         self.assertNotIn("bogus_key", keys)  # a typo'd key can never be selected
 
+    def test_key_field_is_type_to_search(self):
+        """The key control is a text input backed by a <datalist>: a couple of
+        dozen keys meant scrolling one long select, so typing narrows the
+        suggestions instead — validation still runs against the live keys
+        (``test_unknown_key_is_refused``)."""
+        resp = self.client.get(self._url("add"))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode()
+        self.assertIn('list="id_key"', body)
+        self.assertIn('<datalist id="id_key">', body)
+        self.assertIn('<option value="ram_type">', body)
+        self.assertIn('<option value="panel_type">', body)  # rowless keys suggest too
+        self.assertIn("Type to search", body)
+        self.assertNotIn('<select name="key"', body)
+
     def test_add_option_via_admin_becomes_selectable_everywhere(self):
         resp = self.client.post(
             self._url("add"),

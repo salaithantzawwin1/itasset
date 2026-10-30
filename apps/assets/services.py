@@ -113,7 +113,7 @@ def tag_category_error(tag, category) -> str | None:
     shared by the model's ``clean()`` (create/edit form + admin), the API
     serializer (DRF never calls ``full_clean``) and the CSV importer —
     then the interactive paths *repair* it via ``retag_for_category``
-    (the prefix follows the category, session 46), while the importer
+    (the prefix follows the category, session 49), while the importer
     reports the row: a CSV tag is the register's own identity, so
     rewriting it is an operator decision, not a save-time fix.
 

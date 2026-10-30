@@ -86,7 +86,7 @@ def test_asset_create_re_files_a_tag_from_another_category(
     """DRF never calls the model's full_clean, so the tag ↔ category rule
     (§13) is repeated in the serializer: a Desktop tag under the Laptop
     category — the production `IT-HW-DSK-0010` — is re-filed onto the
-    category's prefix with its sequence kept (session 46), never stored
+    category's prefix with its sequence kept (session 49), never stored
     as a bad row.
     """
     from apps.assets.models import Asset, Category
@@ -106,7 +106,7 @@ def test_asset_create_re_files_a_tag_from_another_category(
 def test_patch_category_change_re_files_the_tag(
     api, django_user_model, group_setup, asset_factory, category
 ):
-    """The API's half of session 46: PATCHing only the category re-files the
+    """The API's half of session 49: PATCHing only the category re-files the
     tag's prefix too — the client doesn't resend asset_tag, and the
     sequence rides along (`DSK-7040` → `LAP-7040`)."""
     from apps.assets.models import Category

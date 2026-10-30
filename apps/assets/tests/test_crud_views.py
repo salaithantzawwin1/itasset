@@ -123,7 +123,7 @@ def test_create_re_files_a_tag_from_another_category(client, django_user_model, 
     """§13 tag format {category-code}-{seq} — the production bug.
 
     `IT-HW-DSK-0010` filed under `IT-HW-LAP` used to block the save until
-    the tag was retyped. Since session 46 the tag follows the category on
+    the tag was retyped. Since session 49 the tag follows the category on
     the way in: prefix swapped, sequence kept, and no row lands carrying
     the contradiction.
     """
@@ -153,7 +153,7 @@ def test_changing_category_re_files_the_tag_and_keeps_the_sequence(
 ):
     """The other half of the bug: an asset whose category is changed while
     the tag keeps the old code. The row must not become a Desktop-tagged
-    Laptop — and since session 46 the edit doesn't stop either: the prefix
+    Laptop — and since session 49 the edit doesn't stop either: the prefix
     follows the new category, the sequence (0010) rides along."""
     tech = _user(django_user_model, group_setup, "technician")
     _login(client, tech)
@@ -185,7 +185,7 @@ def test_category_change_onto_a_taken_number_continues_the_target_sequence(
     """Per-category counters overlap (both series start at 0001), so the
     carried number can already be taken in the target category. The move
     still saves — it continues the *target's* run instead, keeping both
-    sequences unique and counting (session 46)."""
+    sequences unique and counting (session 49)."""
     tech = _user(django_user_model, group_setup, "technician")
     _login(client, tech)
     desk = Category.objects.get_or_create(

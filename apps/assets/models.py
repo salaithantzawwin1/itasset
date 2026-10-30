@@ -252,7 +252,7 @@ class Asset(models.Model):
         and the category disagree about what the asset is. Changing the
         category now re-files the tag *with* it — the prefix follows the new
         category, the sequence (`0010`) is kept — instead of blocking the
-        save until the tag is retyped (session 46). Runs in ModelForms/admin
+        save until the tag is retyped (session 49). Runs in ModelForms/admin
         (Django calls full_clean there), and `validate_unique` then checks
         the rewritten tag like any other, so a lost race surfaces as a normal
         form error; raw ORM writes (services, migrations, seed) stay

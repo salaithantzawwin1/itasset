@@ -132,7 +132,7 @@ class TestCatalogue(TestCase):
     def test_every_memory_category_declares_ram_speed_next_to_ram_type(self):
         """§5.1 pairs RAM Speed with RAM Type — wherever memory is specified
         its speed is recordable (Desktop/Workstation always had it; Laptop
-        and Physical Server gained it in session 42). One shared key also
+        and Physical Server gained it in session 44). One shared key also
         means the dashboard's RAM card sees every category."""
         for code, entry in CATALOGUE.items():
             keys = [f["key"] for f in entry["schema"]["fields"]]

@@ -15,7 +15,7 @@
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
 | Last updated | 2026-10-30 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **485 passed + 99 subtests** (2026-10-30: local 296.7 s, exit 0 — session 46, commit + push only, not yet deployed; server last ran 483 @ 2026-10-29) |
+| Test suite | **485 passed + 99 subtests** (2026-10-30: local 296.7 s, exit 0 — session 49, commit + push only, not yet deployed; server last ran 483 @ 2026-10-29) |
 
 ---
 
@@ -186,7 +186,7 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
-### 2026-10-30 (session 46 — a category change re-files the asset tag, sequence kept)
+### 2026-10-30 (session 49 — a category change re-files the asset tag, sequence kept)
 - **Problem** (user request): editing an asset's **category** left the
   tag carrying the old code (`IT-HW-DSK-0010` under `IT-HW-LAP` —
   production's own row), so `Asset.clean()` refused the save until the
@@ -225,7 +225,7 @@ authenticated user; no company/branch scoping exists.
   **not deployed** to 192.168.100.142.
 - Commit `4d3a36a` — **pushed** `9395844..4d3a36a`.
 
-### 2026-10-29 (session 45 — one badge colour per category on the assets list)
+### 2026-10-29 (session 48 — one badge colour per category on the assets list)
 - **Problem** (user screenshot): the CATEGORY column was monochrome
   text, so scanning the register by category meant reading every
   `IT-HW-*` code.
@@ -272,7 +272,7 @@ authenticated user; no company/branch scoping exists.
   14 rows showed 6 distinct hues, all backgrounds tinted, no JS
   errors.
 
-### 2026-10-29 (session 44 — auto-assigned staff numbers + New person modal rebuild)
+### 2026-10-29 (session 47 — auto-assigned staff numbers + New person modal rebuild)
 - **Problem** (user screenshot): the New person modal demanded
   EMPLOYEE NO by hand, so the production list had drifted (`EMP1`,
   `EMP02` … `EMP10`), and the stacked single-column form made the modal
@@ -308,7 +308,7 @@ authenticated user; no company/branch scoping exists.
 - Gates: local full suite **472 passed + 99 subtests** (294 s, exit
   0), `ruff check` + `format --check` clean, `makemigrations --check`
   clean.
-- Commits `bc6c308` (SpecChoice CRUD — session 43, whose commit and
+- Commits `bc6c308` (SpecChoice CRUD — session 46, whose commit and
   deploy were still pending) + `3d50377` (auto-assign) — **pushed**
   `9976991..3d50377`.
 - **Deploy 2026-10-29**: `git archive` on this Windows box applies
@@ -331,7 +331,7 @@ authenticated user; no company/branch scoping exists.
   through the modal landed `EMP-0011 / Temp Auto Assign Check`, then
   deleted via its confirm page (back to 10 people).
 
-### 2026-10-29 (session 43 — CRUD option lists for RAM Type / Primary Storage Type)
+### 2026-10-29 (session 46 — CRUD option lists for RAM Type / Primary Storage Type)
 - **`SpecChoice` model** (`apps/assets/models.py`, migration
   `assets.0014_specchoice`): one row = one selectable value for one
   choice-field key. Seeded with the *union* of the catalogue defaults
@@ -364,7 +364,7 @@ authenticated user; no company/branch scoping exists.
   `makemigrations --check` clean. Commit/deploy pending (not requested
   this session).
 
-### 2026-10-28 (session 42 — holder + department in the assets quick search)
+### 2026-10-28 (session 45 — holder + department in the assets quick search)
 - The `/assets/` `q` box now answers "who has it": it matches the open
   assignment's person name, that person's own department, or the
   department the asset is checked out to — one `Exists` subquery
@@ -400,6 +400,76 @@ authenticated user; no company/branch scoping exists.
   rows** (members' assets, `Finance (ChanYin)` substring included),
   `Salai` → 2 rows, every `_fragment=1` fetch 200, focus/URL swap
   intact, no JS errors (only the known COOP-over-plain-HTTP notice).
+
+### 2026-10-28 (session 44 — RAM Speed in the specs catalogue + a RAM card on the dashboard)
+*Backfilled from git on 2026-10-30 — committed and pushed (`a869cf0`)
+but never given a log entry; its own test docstring had called it
+"session 42", the number the holder-search session took, and was
+corrected with the renumber.*
+- **RAM Speed next to RAM Type everywhere RAM is specified**: the §5
+  catalogue paired `ram_speed_mhz` with `ram_type` only on
+  Desktop/Workstation, so a laptop's or server's Specifications tab had
+  no speed field. The catalogue now declares it on every
+  memory-declaring category (field sits right after the type), with a
+  test walking the whole map: key present, index = type + 1, nothing
+  else moved.
+- **Migration `assets.0013_add_ram_speed_to_category_schemas`** inserts
+  the field wherever a schema declares `ram_type` but no speed — 0008
+  only seeds *empty* schemas, so editing `specs.py` alone would never
+  reach the rows production already has; reverse is a no-op.
+- **Dashboard RAM card** — "what memory is actually in the fleet":
+  installed devices (`ram_type`/`ram_speed_mhz`) and spare modules
+  (`memory_type`/`speed_mhz`) counted in one scope-aware pass, split by
+  type and by speed, plus a coverage line for how much of the register
+  has RAM recorded (new i18n keys EN+MM).
+- Tests: `test_specs.py` +94, `test_home.py` +58. First full-suite run
+  recorded afterwards (session 45's log, above): **440 passed + 98
+  subtests**.
+- **Verified live on production 2026-10-30**: the server's
+  `dashboard/views.py` carries the RAM card, `0013` shows `[X]` in
+  `showmigrations`, and all 4 categories declaring `ram_type` also
+  declare `ram_speed_mhz` (23 categories in total).
+
+### 2026-10-28 (session 43 — an asset tag may not carry another category's code)
+*Backfilled from git on 2026-10-30 — committed and pushed (`8e975d2`)
+but never given a log entry.*
+- **Problem** (production): `IT-HW-DSK-0010` filed under `IT-HW-LAP` —
+  register and taxonomy disagreeing about what the asset is.
+- **`services.tag_category_error`** — one shared check, three write
+  paths: `Asset.clean()` stops the pair in the create/edit form and the
+  admin (Django calls `full_clean` there); the DRF serializer repeats it
+  as a **400** (DRF never calls `full_clean`); the CSV importer reports
+  the row instead of landing it. A tag carrying no category code at all
+  (`W-1`, `PROBE-…`, imported historical ids) is left alone — only an
+  active contradiction is rejected.
+- Tests: `test_crud_views.py` +77 (both halves: create and
+  category-change), `test_api_hardening.py` +22, `test_import.py` +13
+  (row skipped, both codes in the message).
+- **Partly superseded by session 49** (above): the form, admin and API
+  now *repair* the mismatch on save — prefix follows the category,
+  sequence kept — while the importer keeps the row-level refusal.
+- **Verified live on production 2026-10-30**: the server's
+  `services.py` carries `tag_category_error`.
+
+### 2026-10-28 (session 42 — departments list counts members' held assets)
+*Backfilled from git on 2026-10-30 — committed and pushed (`83fe759`)
+but never given a log entry.*
+- **Problem** (user report, checked against production numbers): the
+  `/departments/` ASSETS column annotated only `Assignment.to_dept`
+  rows, so a department whose assets sat with its members read **0**
+  while its detail page and the `?department=` filter it links to
+  showed the real number (production: Finance 0 vs 3, IT 3 vs 5).
+- The annotation unions both open-only paths — dept-held plus
+  member-held (`to_person` whose person belongs to the department) —
+  counted as distinct assets and guarded by `distinct=True`, so the
+  `assignments` × `people` × `people__assignments` fan-out cannot
+  inflate it (the same guard as sessions 39/40). One query, no N+1: the
+  list number now equals the detail page's two cards' sum and what the
+  linked asset-list filter returns.
+- Tests: `test_dept_detail.py` +58 — both legs counted, the 2×2
+  fan-out stays 2 not 4, memberless department 0.
+- **Verified live on production 2026-10-30**: the server's
+  `apps/people/views.py` carries the union annotation.
 
 ### 2026-10-23 (session 39 — member count on the departments list)
 - **`DepartmentList`** (`apps/people/views.py`) gained a second

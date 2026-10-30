@@ -1,4 +1,4 @@
-"""Employee-no auto-assign + New person form UX (session 44).
+"""Employee-no auto-assign + New person form UX (session 47).
 
 Covers:
 - ``next_employee_no`` sequencing (series rows only, legacy keys ignored),

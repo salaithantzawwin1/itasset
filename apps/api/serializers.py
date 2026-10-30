@@ -112,7 +112,7 @@ class AssetSerializer(serializers.ModelSerializer):
         carrying another category's code (the production
         ``IT-HW-DSK-0010`` under ``IT-HW-LAP``) is re-filed onto the
         category's prefix with its sequence kept — never stored as-is
-        (session 46). The rewritten value rides back in the response.
+        (session 49). The rewritten value rides back in the response.
         """
         from apps.assets.services import retag_for_category, tag_category_error
 

@@ -1,4 +1,4 @@
-"""Per-category badge colours on the assets list (session 45).
+"""Per-category badge colours on the assets list (session 48).
 
 The CATEGORY column renders a coloured pill per category, so the column can
 be scanned by colour. Covers the auto-assigned ``Category.color`` (distinct

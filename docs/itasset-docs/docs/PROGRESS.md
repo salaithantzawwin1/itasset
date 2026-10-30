@@ -15,7 +15,7 @@
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
 | Last updated | 2026-10-30 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **509 passed + 100 subtests** (2026-10-30: local 308.4 s; server 507 + 100 at the session-51 deploy, 143.6 s — both exit 0) |
+| Test suite | **523 passed + 100 subtests** (2026-10-30: local 312.9 s; server 521 + 100 at the session-52 deploy, 150.1 s — both exit 0) |
 
 ---
 
@@ -185,6 +185,71 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-30 (session 52 — content-sized modals, New department, New site)
+- **Problem** (user screenshot of the New person modal): every modal
+  carried a dead panel beside its form. `.nb-modal-card` is a fixed
+  `min(920px, 100%)` while the framed forms cap themselves
+  (`form.frm { max-width: 520px }`; person/asset `760px`) and the modal
+  skin neutralized `#content` / `.page` / `.card` but not that cap.
+  Survey of every modal target: person, asset, request (`data-modal`),
+  admin changelist Add (`.object-tools .addlink`) and the dashboard Add
+  chips (`.dash-act.is-add`) — the admin forms fill, so only the capped
+  ones showed the void (person/asset ≈ 142 px, request ≈ 350 px).
+- **`fitWidth()`** (`templates/partials/modal.html`, commit `faa6176`):
+  hug the card to the framed form — form + the page's 32 px side
+  padding + 16 px slack, clamped to the old 920 px default and the
+  viewport; the iframe's scrollbar width is added back so a scrolling
+  form measures the same on every pass; a framed page without a form
+  keeps the default; `open()` resets the width while the loader shows.
+- **Visible form** (`c1c7e41`): the framed chrome carries its own
+  `/set-lang/` and `/accounts/logout/` forms, hidden at width 0 by the
+  skin — `querySelector("form")` measured 0 px and bailed, so the first
+  deploy did nothing. Scan for the first form with a real box.
+- **No oscillation** (`95fef12`): the `@media (max-width: 640px)` rule
+  flips `form.frm` to `max-width: 100%`, so measuring a narrowed frame
+  re-fed the shrink → grow → shrink and the ResizeObserver looped
+  (568 ↔ 652 px on the department/site/request modals, caught live).
+  The form's own px cap is now read **once per load from the default
+  width** and kept for that page (`frame._nbWidthCap`); width
+  recomputes only on load and window resize, and the observer re-fits
+  height alone (it is triggered by our own width change).
+- **New department modal** (commit `58e08a2`): departments could only
+  be created in the Django admin — no list button, no create route.
+  `DepartmentCreate` (admin role, scope re-checked against the chosen
+  site on save, mirroring `PersonCreate`) on `/departments/new/`, a
+  `data-modal` button in the list page head, `dept.new` /
+  `dept.new_title` in EN/MM. `department_form.html` switches its title
+  and cancel target between create and edit — cancel used to point at
+  `object.pk`, which would error on create.
+- **New site button** (commit `4117613`): `SiteCreate` existed but
+  nothing linked it. Same `data-modal` button + `site.new` label; the
+  shared form's create/edit title was already in place.
+- Tests: 7 + 7 in new `apps/people/test_department_create.py` /
+  `test_site_create.py` (modal link on the list, create render + POST →
+  redirect + row, duplicate rejected, non-admin 403, login required,
+  edit title/cancel intact). Local full suite **523 passed + 100
+  subtests** (312.9 s), `ruff check` + `format --check` clean; the two
+  JS-only commits checked with `node --check` on the extracted script +
+  `tests/test_smoke.py`.
+- Commits `faa6176` + `c1c7e41` (session's modal width) and `58e08a2` +
+  `4117613` + `95fef12` — **pushed** `1c291f3..95fef12`.
+- **Deploy 2026-10-30**: LF `git -c core.autocrlf=false archive` sync —
+  first the 8 files of the two features (all md5-identical
+  local↔server), then the one hotfix file after the oscillation was
+  caught live → `makemigrations --check` clean → server suite **521
+  passed + 100 subtests** on both runs (150.1 s / 149.0 s, exit 0 with
+  `SCOPE_ENFORCEMENT_ENABLED=1`) → `migrate` "no migrations to apply" →
+  `systemctl --user restart itasset-gunicorn` (active) → `/healthz`
+  `{"status": "ok", "db": "ok"}` → probe gate **16 ok / 0 failed**
+  each time (throttle + authed phases skipped: no `PROBE_USER`).
+- **Verified live** as `itadmin` at 1440×900: `/departments/` → `+ New
+  department` opens the modal titled **New department** (Name / Site /
+  Head, Save) with the card at **568 px, stable across 8 samples**, form
+  filling it (534 px, 16 px gutter); `/sites/` → `+ New site` →
+  `/sites/new/`; `/people/` New person still **808 / 760 / 30 px** and
+  admin Add still the 920 px default (no regression); at a ~669 px
+  viewport the card is 625 px with a 16 px gutter and no dead panel.
 
 ### 2026-10-30 (session 51 — People type-ahead, the option-list page, and tabbed detail pages)
 - **`/people/` type-ahead** (`apps/people/views.py`, `person_list.html` +

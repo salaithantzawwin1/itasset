@@ -31,16 +31,16 @@
     {% if can_delete %}<a class="btn danger" href="{% url 'department-delete' object.pk %}">{% t "asset.delete" %}</a>{% endif %}
   </div>
 </div>
-<div class="card" id="dept-detail-card">
+<div class="card" id="dept-detail-card" data-active-tab="{{ active_tab }}">
   <div class="ftabs" role="tablist" aria-label="{% t 'dept.tabs_label' %}">
     <button type="button" class="ftab" id="ftab-held" data-tab="held"
-            role="tab" aria-controls="panel-held" aria-selected="true">{% t "dept.held_now" %} <span class="count">({{ held_now|length }})</span></button>
+            role="tab" aria-controls="panel-held" aria-selected="{% if active_tab == 'held' %}true{% else %}false{% endif %}">{% t "dept.held_now" %} <span class="count">({{ held_now|length }})</span></button>
     <button type="button" class="ftab" id="ftab-member_held" data-tab="member_held"
-            role="tab" aria-controls="panel-member_held" aria-selected="false">{% t "dept.held_by_members" %} <span class="count">({{ member_held|length }})</span></button>
+            role="tab" aria-controls="panel-member_held" aria-selected="{% if active_tab == 'member_held' %}true{% else %}false{% endif %}">{% t "dept.held_by_members" %} <span class="count">({{ member_held|length }})</span></button>
     <button type="button" class="ftab" id="ftab-history" data-tab="history"
-            role="tab" aria-controls="panel-history" aria-selected="false">{% t "asset.history" %}</button>
+            role="tab" aria-controls="panel-history" aria-selected="{% if active_tab == 'history' %}true{% else %}false{% endif %}">{% t "asset.history" %}</button>
     <button type="button" class="ftab" id="ftab-members" data-tab="members"
-            role="tab" aria-controls="panel-members" aria-selected="false">{% t "dept.members" %} <span class="count">({{ members|length }})</span></button>
+            role="tab" aria-controls="panel-members" aria-selected="{% if active_tab == 'members' %}true{% else %}false{% endif %}">{% t "dept.members" %} <span class="count">({{ members|length }})</span></button>
   </div>
 
   <section class="ftab-panel" id="panel-held" data-tab-panel="held"
@@ -131,28 +131,36 @@
   var panels = Array.prototype.slice.call(card.querySelectorAll('.ftab-panel'));
   if (!tabs.length || !panels.length) return;
 
-  function activate(key) {
+  function activate(key, syncUrl) {
     tabs.forEach(function (t) {
       t.setAttribute('aria-selected', t.getAttribute('data-tab') === key ? 'true' : 'false');
     });
     panels.forEach(function (p) { p.hidden = p.getAttribute('data-tab-panel') !== key; });
+    if (syncUrl) {
+      // remember the choice in ?tab= so a refresh lands on the same section
+      var u = new URL(window.location.href);
+      u.searchParams.set('tab', key);
+      history.replaceState(null, '', u);
+    }
   }
 
   tabs.forEach(function (t, i) {
-    t.addEventListener('click', function () { activate(t.getAttribute('data-tab')); });
+    t.addEventListener('click', function () { activate(t.getAttribute('data-tab'), true); });
     t.addEventListener('keydown', function (e) {
       var dir = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
       if (!dir) return;
       e.preventDefault();
       var next = tabs[(i + dir + tabs.length) % tabs.length];
-      activate(next.getAttribute('data-tab'));
+      activate(next.getAttribute('data-tab'), true);
       next.focus();
     });
   });
 
   card.classList.add('tabs-on');
   card.querySelector('.ftabs').classList.add('on');
-  activate(tabs[0].getAttribute('data-tab'));
+  // start on the tab the URL asked for (?tab=, validated server-side) —
+  // no URL write on load, only user clicks keep it in sync
+  activate(card.getAttribute('data-active-tab') || tabs[0].getAttribute('data-tab'), false);
 })();
 </script>
 {% endblock %}

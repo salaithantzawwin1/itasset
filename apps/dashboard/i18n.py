@@ -323,6 +323,7 @@ STRINGS = {
     "person.detail_title": {"en": "Person", "my": "လုပ်သား"},
     "person.held": {"en": "Assets held", "my": "ထိန်းသိမ်းခဲ့သော ပိုင်ဆိုင်မှုများ"},
     "person.held_now": {"en": "Currently held", "my": "လက်ရှိ ကိုင်ဆောင်ထားသော"},
+    "person.tabs_label": {"en": "Person sections", "my": "လုပ်သား အပိုင်းများ"},
     "person.no_held": {
         "en": "No assets currently held.",
         "my": "လက်ရှိ ကိုင်ဆောင်ထားသော asset မရှိပါ။",

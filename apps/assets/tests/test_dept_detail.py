@@ -204,6 +204,66 @@ def test_dept_detail_sections_are_tabs(
     assert "IT-TAB-0001" in body and "IT-TAB-0003" in body and "Tab Member" in body
 
 
+def test_dept_detail_active_tab_comes_from_the_url(client, tech_user, dept_factory):
+    """?tab= remembers the open section across refreshes: the server marks
+    the requested tab active (the script collapses to it on load), a stray
+    value falls back to the first tab, and clicks keep the URL in sync —
+    so a refresh lands on the section the user was reading."""
+    dept = dept_factory(name="Url Tab Dept")
+    client.force_login(tech_user)
+
+    body = client.get(f"/departments/{dept.pk}/", {"tab": "members"}).content.decode()
+    assert 'data-active-tab="members"' in body
+    strip = body.split('role="tablist"', 1)[1].split("</div>", 1)[0]
+    # exactly one tab marked open — and it is the requested one (the CSS
+    # rule .ftab[aria-selected="true"] lives in <head>, hence the strip)
+    assert strip.count('aria-selected="true"') == 1
+    assert 'aria-selected="true">Department members' in strip
+
+    # a crafted/typo'd tab never activates a bogus panel
+    body = client.get(f"/departments/{dept.pk}/", {"tab": "bogus"}).content.decode()
+    assert 'data-active-tab="held"' in body  # falls back to the first tab
+
+    # the click handler writes ?tab= into the address bar (URL sync)
+    assert "searchParams.set('tab'" in body
+    assert "replaceState" in body
+
+
+def test_person_detail_sections_are_tabs(client, tech_user, asset_factory, person_factory):
+    """Person detail mirrors the department pattern: held + history ship as
+    a tabbed view — a tablist (held count on its label) over two server-
+    rendered, un-hidden panels that the script collapses, same progressive-
+    enhancement contract — plus the same ?tab= round-trip."""
+    import re
+
+    person = person_factory(name="Tab Person")
+    held = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-PT-0001")
+    Assignment.objects.create(asset=held, to_person=person)
+
+    client.force_login(tech_user)
+    body = client.get(f"/people/{person.pk}/").content.decode()
+
+    assert 'id="person-detail-card"' in body  # the CSS + JS hook
+    assert 'role="tablist"' in body
+    assert body.count('role="tab"') == 2
+    strip = body.split('role="tablist"', 1)[1].split("</div>", 1)[0]
+    assert "Currently held" in strip and "(1)" in strip
+    assert "Assignment history" in strip
+    for key in ("held", "history"):
+        assert f'data-tab-panel="{key}"' in body, key
+        assert f'aria-controls="panel-{key}"' in body, key
+    # both panels server-rendered visible (the script collapses them)
+    assert not re.search(r'<section class="ftab-panel"[^>]*\shidden', body)
+    assert "IT-PT-0001" in body  # content intact inside the panels
+
+    # ?tab= round-trip, same as the department page
+    body = client.get(f"/people/{person.pk}/", {"tab": "history"}).content.decode()
+    assert 'data-active-tab="history"' in body
+    strip = body.split('role="tablist"', 1)[1].split("</div>", 1)[0]
+    assert strip.count('aria-selected="true"') == 1
+    assert 'aria-selected="true">Assignment history' in strip
+
+
 # 2. access gates --------------------------------------------------------------
 
 

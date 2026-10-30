@@ -125,6 +125,10 @@ class PersonDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
+        # ?tab= round-trip, same contract as the department detail page
+        tab = self.request.GET.get("tab", "")
+        keys = ("held", "history")
+        ctx["active_tab"] = tab if tab in keys else keys[0]
         from apps.assets.models import Assignment
 
         # Held now: open rows only, one select_related so the table never
@@ -288,6 +292,12 @@ class DepartmentDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
+        # ?tab= remembers the open section across refreshes; a stray value
+        # falls back to the first tab, so the template only ever marks a
+        # validated key as selected
+        tab = self.request.GET.get("tab", "")
+        keys = ("held", "member_held", "history", "members")
+        ctx["active_tab"] = tab if tab in keys else keys[0]
         from apps.assets.models import Assignment
 
         ctx["head"] = (

@@ -129,9 +129,8 @@ body.nb-modal-open { overflow: hidden; }
       if (model) label = label + " " + model.textContent.trim();
     }
     return label;
-  }
+  }  function open(url, label, trigger) {
 
-  function open(url, label, trigger) {
     var href;
     try { href = new URL(url, window.location.href); } catch (e) { return; }
     lastTrigger = trigger || null;
@@ -142,6 +141,8 @@ body.nb-modal-open { overflow: hidden; }
     modal.hidden = false;
     var b0 = modal.querySelector(".nb-modal-body");
     if (b0) b0.style.height = "";  // back to the default while the frame loads
+    var c0 = modal.querySelector(".nb-modal-card");
+    if (c0) c0.style.width = "";  // …and to the default width while it loads
     document.body.classList.add("nb-modal-open");
     loader.hidden = false;
     frame.src = href.href;
@@ -174,6 +175,23 @@ body.nb-modal-open { overflow: hidden; }
     close(false);
   }
 
+  /* Width: a framed form caps itself (form.frm { max-width: 520/760px }), so
+     the card's fixed 920px left a dead panel beside it — measure the form
+     and hug the card to it (the framed page's 32px side padding + 16px
+     slack), never above the 920px default and never past the viewport.
+     The iframe's scrollbar width is added back so a scrolling form measures
+     the same on every pass — otherwise each re-fit would creep a pixel
+     narrower. A framed page with no form keeps the default width. */
+  function fitWidth(doc, win) {
+    var card = modal.querySelector(".nb-modal-card");
+    if (!card) return;
+    var form = doc.querySelector("form");
+    var w = form ? form.getBoundingClientRect().width : 0;
+    if (!w) { card.style.width = ""; return; }
+    var sb = Math.max(0, (win.innerWidth || 0) - doc.documentElement.clientWidth);
+    card.style.width = "min(" + Math.min(920, Math.ceil(w + sb) + 48) + "px, 100%)";
+  }
+
   /* Content-sized dialog: fit() measures the framed page and sets the body's
      height, so a short form no longer sits in a full-height box and a tall
      one scrolls exactly once — inside the frame. Caps at 88vh (full height
@@ -182,6 +200,7 @@ body.nb-modal-open { overflow: hidden; }
     var doc, win;
     try { doc = frame.contentDocument; win = frame.contentWindow; } catch (e) { return; }
     if (!doc || !doc.body || modal.hidden) return;
+    fitWidth(doc, win);
     var bodyEl = modal.querySelector(".nb-modal-body");
     var head = modal.querySelector(".nb-modal-head");
     if (!bodyEl) return;

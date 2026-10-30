@@ -15,7 +15,7 @@
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
 | Last updated | 2026-10-30 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **485 passed + 99 subtests** (2026-10-30: local 296.7 s, exit 0 — session 49, commit + push only, not yet deployed; server last ran 483 @ 2026-10-29) |
+| Test suite | **485 passed + 99 subtests** (2026-10-30: local 296.7 s + server 139.3 s, both exit 0 — session 49 deployed to 192.168.100.142) |
 
 ---
 
@@ -221,9 +221,25 @@ authenticated user; no company/branch scoping exists.
 - Gates: `ruff check` + `format --check` clean (200 files); local
   suite **485 passed + 99 subtests** (296.7 s, exit 0 — the portable
   Postgres needed starting first via `scripts/start-pg.ps1`);
-  `makemigrations --check` clean. Commit + push only, per request —
-  **not deployed** to 192.168.100.142.
-- Commit `4d3a36a` — **pushed** `9395844..4d3a36a`.
+  `makemigrations --check` clean. Commits `4d3a36a` (code) and
+  `098bab5` (log) — **pushed** `9395844..098bab5`; the backfill
+  `98bb296` pushed too.
+- **Deploy 2026-10-30**: pending set from `git diff 9395844..HEAD` =
+  9 files (the session's own 5 + PROGRESS + the three docstring-only
+  renumbers of `98bb296`); no new migrations (0015 is the latest and
+  already `[X]`), no template/static changes → no collectstatic.
+  LF sync `git -c core.autocrlf=false archive | ssh itasset-dev
+  tar -x` → all 9 files md5-identical to `git show` →
+  `makemigrations --check` clean → server suite **485 passed + 99
+  subtests** (139.3 s, exit 0, `SCOPE_ENFORCEMENT_ENABLED=1`) →
+  `systemctl --user restart itasset-gunicorn` (active) → `/healthz`
+  `{"status":"ok","db":"ok"}`, `/` 200 → probe gate **27 ok / 0
+  failed** (`SKIP_THROTTLE=1`, authed phase with break-glass creds
+  fetched at runtime over ssh, never echoed) → live retag check as
+  `itadmin` through the app itself: create with an `IT-HW-DSK-0999`
+  tag under **Laptop** saved **302** as `IT-HW-LAP-0999` (sequence
+  kept), editing that row to **Desktop** saved **302** as
+  `IT-HW-DSK-0999`, then the scratch row was deleted (exists: False).
 
 ### 2026-10-29 (session 48 — one badge colour per category on the assets list)
 - **Problem** (user screenshot): the CATEGORY column was monochrome

@@ -185,8 +185,13 @@ body.nb-modal-open { overflow: hidden; }
   function fitWidth(doc, win) {
     var card = modal.querySelector(".nb-modal-card");
     if (!card) return;
-    var form = doc.querySelector("form");
-    var w = form ? form.getBoundingClientRect().width : 0;
+    /* first form with a real box — the framed page's chrome (the topbar's
+       set-lang/logout forms) renders hidden at width 0 under the skin */
+    var forms = doc.querySelectorAll("form"), w = 0, i, r;
+    for (i = 0; i < forms.length; i++) {
+      r = forms[i].getBoundingClientRect();
+      if (r.width > 0) { w = r.width; break; }
+    }
     if (!w) { card.style.width = ""; return; }
     var sb = Math.max(0, (win.innerWidth || 0) - doc.documentElement.clientWidth);
     card.style.width = "min(" + Math.min(920, Math.ceil(w + sb) + 48) + "px, 100%)";

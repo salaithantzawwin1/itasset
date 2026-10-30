@@ -13,9 +13,9 @@
 |---|---|
 | Current milestone | M8 — Go-live |
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
-| Last updated | 2026-10-29 |
+| Last updated | 2026-10-30 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **483 passed + 99 subtests** (2026-10-29: local 301.9 s + server 135.6 s, both exit 0 — sessions 43–45 deployed to 192.168.100.142) |
+| Test suite | **485 passed + 99 subtests** (2026-10-30: local 296.7 s, exit 0 — session 46, commit + push only, not yet deployed; server last ran 483 @ 2026-10-29) |
 
 ---
 
@@ -185,6 +185,45 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-30 (session 46 — a category change re-files the asset tag, sequence kept)
+- **Problem** (user request): editing an asset's **category** left the
+  tag carrying the old code (`IT-HW-DSK-0010` under `IT-HW-LAP` —
+  production's own row), so `Asset.clean()` refused the save until the
+  tag was retyped by hand; nothing repaired the contradiction.
+- **`retag_for_category(tag, category)`** (`apps/assets/services.py`):
+  the prefix follows the new category while the *sequence* rides along
+  (`DSK-0010` → `LAP-0010`), so re-filing an asset never renumbers it
+  behind the operator's back. Two escapes keep the result valid: a
+  suffix that isn't numeric carries no sequence (→ the target's
+  `next_asset_tag`), and per-category counters overlap (both series
+  start at 0001) — a taken number continues the *target's* run
+  (`LAP-0011`), so `asset_tag` stays unique and both sequences keep
+  counting.
+- **Wired into every interactive write path**: `Asset.clean()` now
+  rewrites the tag instead of raising (create/edit form + admin;
+  `validate_unique` then checks the rewritten tag like any other, so a
+  lost race stays a normal form error), and the DRF serializer mirrors
+  it in `validate()` — a category-only PATCH re-files the tag and the
+  new value rides back in the response. The **CSV importer still
+  reports the mismatch** (unchanged): a CSV tag is the register's own
+  identity — rewriting it is an operator decision, not a save-time
+  fix. Legacy tags carrying no category code (`W-1`, `PROBE-…`,
+  imported historical ids) are still never touched — only an active
+  contradiction is repaired.
+- Tests: the two refusal tests became repair tests
+  (`test_create_re_files_a_tag_from_another_category`,
+  `test_changing_category_re_files_the_tag_and_keeps_the_sequence`) +
+  a new collision case (`…_continues_the_target_sequence`);
+  `tests/test_api_hardening.py` — the create test now expects **201**
+  with `{category.code}-7099`, plus a new PATCH test (category-only
+  change → tag re-filed). Import test untouched (still skips the row).
+- Gates: `ruff check` + `format --check` clean (200 files); local
+  suite **485 passed + 99 subtests** (296.7 s, exit 0 — the portable
+  Postgres needed starting first via `scripts/start-pg.ps1`);
+  `makemigrations --check` clean. Commit + push only, per request —
+  **not deployed** to 192.168.100.142.
+- Commit `4d3a36a` — **pushed** `9395844..4d3a36a`.
 
 ### 2026-10-29 (session 45 — one badge colour per category on the assets list)
 - **Problem** (user screenshot): the CATEGORY column was monochrome

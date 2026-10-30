@@ -157,6 +157,53 @@ def test_dept_detail_member_held_card(
     assert [a.asset_id for a in resp.context["held_now"]] == []
 
 
+def test_dept_detail_sections_are_tabs(
+    client, tech_user, asset_factory, person_factory, dept_factory
+):
+    """Session 50: the four sections ship as one tabbed view — a tablist
+    (labels carrying the live counts) over four server-rendered panels.
+    Panels arrive un-hidden so the page still reads stacked with JS off;
+    the inline script collapses them — the same progressive-enhancement
+    contract as the asset form's `.ftabs`."""
+    import re
+
+    dept = dept_factory(name="Tab Dept")
+    member = person_factory(name="Tab Member")
+    member.department = dept
+    member.save(update_fields=["department"])
+    held1 = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-TAB-0001")
+    Assignment.objects.create(asset=held1, to_dept=dept)
+    held2 = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-TAB-0002")
+    Assignment.objects.create(asset=held2, to_dept=dept)
+    personal = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-TAB-0003")
+    Assignment.objects.create(asset=personal, to_person=member)
+
+    client.force_login(tech_user)
+    body = client.get(f"/departments/{dept.pk}/").content.decode()
+
+    assert 'id="dept-detail-card"' in body  # the CSS + JS hook
+    assert 'role="tablist"' in body
+    # one button per section — role="tab" must not also match tablist/tabpanel
+    assert body.count('role="tab"') == 4
+    strip = body.split('role="tablist"', 1)[1].split("</div>", 1)[0]
+    for label in (
+        "Department-held assets",
+        "Held by department members",
+        "Assignment history",
+        "Department members",
+    ):
+        assert label in strip, label
+    assert "(2)" in strip  # dept-held count rides its label
+    assert "(1)" in strip  # member-held / members counts
+    for key in ("held", "member_held", "history", "members"):
+        assert f'data-tab-panel="{key}"' in body, key
+        assert f'aria-controls="panel-{key}"' in body, key
+    # all four panels server-rendered visible (the script collapses them)
+    assert not re.search(r'<section class="ftab-panel"[^>]*\shidden', body)
+    # …and each panel carries its own content
+    assert "IT-TAB-0001" in body and "IT-TAB-0003" in body and "Tab Member" in body
+
+
 # 2. access gates --------------------------------------------------------------
 
 

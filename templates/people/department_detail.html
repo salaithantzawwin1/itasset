@@ -1,6 +1,24 @@
 {% extends "base.html" %}
 {% load t %}
 {% block title %}{{ object.name }} — {% t "app.name" %}{% endblock %}
+{% block extra_css %}
+    /* ---------- tabbed department sections (session 50) ---------- */
+    /* Progressive enhancement: without JS the strip stays hidden and every
+       section renders stacked under its own heading — nothing is lost. */
+    #dept-detail-card .ftabs { display: none; gap: 2px; flex-wrap: wrap; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+    #dept-detail-card .ftabs.on { display: flex; }
+    #dept-detail-card .ftab { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
+            padding: 9px 13px; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--muted);
+            cursor: pointer; display: inline-flex; align-items: center; gap: 7px; border-radius: 8px 8px 0 0;
+            transition: color .15s ease, background-color .15s ease; }
+    #dept-detail-card .ftab:hover { color: var(--text); background: color-mix(in srgb, var(--primary) 8%, transparent); }
+    #dept-detail-card .ftab[aria-selected="true"] { color: var(--primary); border-bottom-color: var(--accent); }
+    #dept-detail-card .ftab:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+    #dept-detail-card .ftab .count { font-weight: 500; color: var(--muted); }
+    #dept-detail-card.tabs-on .ftab-panel > h2 { display: none; }
+    #dept-detail-card .ftab-panel + .ftab-panel { margin-top: 22px; }
+    #dept-detail-card .ftab-panel[hidden] { display: none; }
+{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
@@ -13,73 +31,128 @@
     {% if can_delete %}<a class="btn danger" href="{% url 'department-delete' object.pk %}">{% t "asset.delete" %}</a>{% endif %}
   </div>
 </div>
-<div class="card">
-  <h2>{% t "dept.held_now" %} <span class="muted" style="font-weight:400;">({{ held_now|length }})</span></h2>
-  <table class="data">
-    <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "asset.category" %}</th><th>{% t "asset.site" %}</th><th>{% t "asset.status" %}</th><th>{% t "asset.out_at" %}</th></tr></thead>
-    <tbody>
-    {% for a in held_now %}
-      <tr>
-        <td><a href="{% url 'asset-detail' a.asset_id %}">{{ a.asset.asset_tag }}</a></td>
-        <td>{{ a.asset.category.code }}</td>
-        <td>{{ a.asset.site.code }}</td>
-        <td><span class="pill pill-{{ a.asset.status }}">{{ a.asset.get_status_display }}</span></td>
-        <td>{{ a.out_at|date:"Y-m-d" }}</td>
-      </tr>
-    {% empty %}
-      <tr class="empty-row"><td colspan="5">{% t "dept.no_held" %}</td></tr>
-    {% endfor %}
-    </tbody>
-  </table>
+<div class="card" id="dept-detail-card">
+  <div class="ftabs" role="tablist" aria-label="{% t 'dept.tabs_label' %}">
+    <button type="button" class="ftab" id="ftab-held" data-tab="held"
+            role="tab" aria-controls="panel-held" aria-selected="true">{% t "dept.held_now" %} <span class="count">({{ held_now|length }})</span></button>
+    <button type="button" class="ftab" id="ftab-member_held" data-tab="member_held"
+            role="tab" aria-controls="panel-member_held" aria-selected="false">{% t "dept.held_by_members" %} <span class="count">({{ member_held|length }})</span></button>
+    <button type="button" class="ftab" id="ftab-history" data-tab="history"
+            role="tab" aria-controls="panel-history" aria-selected="false">{% t "asset.history" %}</button>
+    <button type="button" class="ftab" id="ftab-members" data-tab="members"
+            role="tab" aria-controls="panel-members" aria-selected="false">{% t "dept.members" %} <span class="count">({{ members|length }})</span></button>
+  </div>
+
+  <section class="ftab-panel" id="panel-held" data-tab-panel="held"
+           role="tabpanel" aria-labelledby="ftab-held" tabindex="0">
+    <h2>{% t "dept.held_now" %} <span class="muted" style="font-weight:400;">({{ held_now|length }})</span></h2>
+    <table class="data">
+      <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "asset.category" %}</th><th>{% t "asset.site" %}</th><th>{% t "asset.status" %}</th><th>{% t "asset.out_at" %}</th></tr></thead>
+      <tbody>
+      {% for a in held_now %}
+        <tr>
+          <td><a href="{% url 'asset-detail' a.asset_id %}">{{ a.asset.asset_tag }}</a></td>
+          <td>{{ a.asset.category.code }}</td>
+          <td>{{ a.asset.site.code }}</td>
+          <td><span class="pill pill-{{ a.asset.status }}">{{ a.asset.get_status_display }}</span></td>
+          <td>{{ a.out_at|date:"Y-m-d" }}</td>
+        </tr>
+      {% empty %}
+        <tr class="empty-row"><td colspan="5">{% t "dept.no_held" %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="ftab-panel" id="panel-member_held" data-tab-panel="member_held"
+           role="tabpanel" aria-labelledby="ftab-member_held" tabindex="0">
+    <h2>{% t "dept.held_by_members" %} <span class="muted" style="font-weight:400;">({{ member_held|length }})</span></h2>
+    <table class="data">
+      <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "person.name" %}</th><th>{% t "asset.category" %}</th><th>{% t "asset.site" %}</th><th>{% t "asset.status" %}</th><th>{% t "asset.out_at" %}</th></tr></thead>
+      <tbody>
+      {% for a in member_held %}
+        <tr>
+          <td><a href="{% url 'asset-detail' a.asset_id %}">{{ a.asset.asset_tag }}</a></td>
+          <td><a href="{% url 'person-detail' a.to_person_id %}">{{ a.to_person.name }}</a></td>
+          <td>{{ a.asset.category.code }}</td>
+          <td>{{ a.asset.site.code }}</td>
+          <td><span class="pill pill-{{ a.asset.status }}">{{ a.asset.get_status_display }}</span></td>
+          <td>{{ a.out_at|date:"Y-m-d" }}</td>
+        </tr>
+      {% empty %}
+        <tr class="empty-row"><td colspan="6">{% t "dept.no_member_held" %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="ftab-panel" id="panel-history" data-tab-panel="history"
+           role="tabpanel" aria-labelledby="ftab-history" tabindex="0">
+    <h2>{% t "asset.history" %}</h2>
+    <table class="data">
+      <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "asset.out_at" %}</th><th>{% t "asset.in_at" %}</th></tr></thead>
+      <tbody>
+      {% for a in history_recent %}
+        <tr>
+          <td><a href="{% url 'asset-detail' a.asset_id %}">{{ a.asset.asset_tag }}</a></td>
+          <td>{{ a.out_at|date:"Y-m-d" }}</td>
+          <td>{{ a.in_at|date:"Y-m-d"|default:"—" }}</td>
+        </tr>
+      {% empty %}
+        <tr class="empty-row"><td colspan="3">{% t "asset.none_yet" %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="ftab-panel" id="panel-members" data-tab-panel="members"
+           role="tabpanel" aria-labelledby="ftab-members" tabindex="0">
+    <h2>{% t "dept.members" %} <span class="muted" style="font-weight:400;">({{ members|length }})</span></h2>
+    <table class="data">
+      <thead><tr><th>{% t "person.staff_no" %}</th><th>{% t "person.name" %}</th><th>{% t "asset.site" %}</th></tr></thead>
+      <tbody>
+      {% for p in members %}
+        <tr><td>{{ p.employee_no }}</td><td><a href="{% url 'person-detail' p.pk %}">{{ p.name }}</a></td><td>{{ p.site.code }}</td></tr>
+      {% empty %}
+        <tr class="empty-row"><td colspan="3">{% t "common.empty" %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
 </div>
-<div class="card">
-  <h2>{% t "dept.held_by_members" %} <span class="muted" style="font-weight:400;">({{ member_held|length }})</span></h2>
-  <table class="data">
-    <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "person.name" %}</th><th>{% t "asset.category" %}</th><th>{% t "asset.site" %}</th><th>{% t "asset.status" %}</th><th>{% t "asset.out_at" %}</th></tr></thead>
-    <tbody>
-    {% for a in member_held %}
-      <tr>
-        <td><a href="{% url 'asset-detail' a.asset_id %}">{{ a.asset.asset_tag }}</a></td>
-        <td><a href="{% url 'person-detail' a.to_person_id %}">{{ a.to_person.name }}</a></td>
-        <td>{{ a.asset.category.code }}</td>
-        <td>{{ a.asset.site.code }}</td>
-        <td><span class="pill pill-{{ a.asset.status }}">{{ a.asset.get_status_display }}</span></td>
-        <td>{{ a.out_at|date:"Y-m-d" }}</td>
-      </tr>
-    {% empty %}
-      <tr class="empty-row"><td colspan="6">{% t "dept.no_member_held" %}</td></tr>
-    {% endfor %}
-    </tbody>
-  </table>
-</div>
-<div class="card">
-  <h2>{% t "asset.history" %}</h2>
-  <table class="data">
-    <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "asset.out_at" %}</th><th>{% t "asset.in_at" %}</th></tr></thead>
-    <tbody>
-    {% for a in history_recent %}
-      <tr>
-        <td><a href="{% url 'asset-detail' a.asset_id %}">{{ a.asset.asset_tag }}</a></td>
-        <td>{{ a.out_at|date:"Y-m-d" }}</td>
-        <td>{{ a.in_at|date:"Y-m-d"|default:"—" }}</td>
-      </tr>
-    {% empty %}
-      <tr class="empty-row"><td colspan="3">{% t "asset.none_yet" %}</td></tr>
-    {% endfor %}
-    </tbody>
-  </table>
-</div>
-<div class="card">
-  <h2>{% t "dept.members" %} <span class="muted" style="font-weight:400;">({{ members|length }})</span></h2>
-  <table class="data">
-    <thead><tr><th>{% t "person.staff_no" %}</th><th>{% t "person.name" %}</th><th>{% t "asset.site" %}</th></tr></thead>
-    <tbody>
-    {% for p in members %}
-      <tr><td>{{ p.employee_no }}</td><td><a href="{% url 'person-detail' p.pk %}">{{ p.name }}</a></td><td>{{ p.site.code }}</td></tr>
-    {% empty %}
-      <tr class="empty-row"><td colspan="3">{% t "common.empty" %}</td></tr>
-    {% endfor %}
-    </tbody>
-  </table>
-</div>
+<script>
+// Tab switching — progressive enhancement over the server-rendered panels
+// (without JS the strip stays hidden and all four sections render stacked
+// under their own headings; same pattern as the asset form's .ftabs).
+(function () {
+  var card = document.getElementById('dept-detail-card');
+  if (!card) return;
+  var tabs = Array.prototype.slice.call(card.querySelectorAll('.ftab'));
+  var panels = Array.prototype.slice.call(card.querySelectorAll('.ftab-panel'));
+  if (!tabs.length || !panels.length) return;
+
+  function activate(key) {
+    tabs.forEach(function (t) {
+      t.setAttribute('aria-selected', t.getAttribute('data-tab') === key ? 'true' : 'false');
+    });
+    panels.forEach(function (p) { p.hidden = p.getAttribute('data-tab-panel') !== key; });
+  }
+
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { activate(t.getAttribute('data-tab')); });
+    t.addEventListener('keydown', function (e) {
+      var dir = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (!dir) return;
+      e.preventDefault();
+      var next = tabs[(i + dir + tabs.length) % tabs.length];
+      activate(next.getAttribute('data-tab'));
+      next.focus();
+    });
+  });
+
+  card.classList.add('tabs-on');
+  card.querySelector('.ftabs').classList.add('on');
+  activate(tabs[0].getAttribute('data-tab'));
+})();
+</script>
 {% endblock %}

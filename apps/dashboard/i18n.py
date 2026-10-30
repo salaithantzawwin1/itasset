@@ -191,6 +191,7 @@ STRINGS = {
         "en": "Held by department members",
         "my": "ဌာနဝင်များ ကိုင်ဆောင်ထားသော ပိုင်ဆိုင်မှုများ",
     },
+    "dept.tabs_label": {"en": "Department sections", "my": "ဌာနအပိုင်းများ"},
     "dept.no_member_held": {
         "en": "No assets held by department members.",
         "my": "ဌာနဝင်များ ကိုင်ဆောင်ထားသော ပိုင်ဆိုင်မှု မရှိပါ။",

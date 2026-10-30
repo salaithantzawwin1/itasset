@@ -6,8 +6,9 @@ Reads open to any authenticated user (auditor/viewer included).
 
 from django.contrib import messages
 from django.db.models import Count, Q
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect
+from django.template.loader import render_to_string
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
@@ -83,7 +84,7 @@ class PersonList(RoleRequiredMixin, ListView):
     paginate_by = 50
 
     def get_queryset(self):
-        return scope_list(
+        qs = scope_list(
             self.request.user,
             super().get_queryset(),
             site_field="site",
@@ -91,6 +92,29 @@ class PersonList(RoleRequiredMixin, ListView):
             action="person_list",
             path=self.request.path,
         )
+        # type-ahead search by name — same live-search contract as the
+        # asset list: the JS fetches the same URL with `_fragment=1` and
+        # swaps count/rows/pagination; without JS the plain GET does the
+        # same filtering server-side.
+        q = (self.request.GET.get("q") or "").strip()
+        if q:
+            qs = qs.filter(name__icontains=q)
+        return qs
+
+    def render_to_response(self, context, **response):
+        if self.request.GET.get("_fragment") == "1":
+
+            def frag(partial):
+                return render_to_string(partial, context, request=self.request)
+
+            return JsonResponse(
+                {
+                    "count": frag("people/_person_count.html"),
+                    "rows": frag("people/_person_list_rows.html"),
+                    "pagination": frag("people/_person_list_pagination.html"),
+                }
+            )
+        return super().render_to_response(context)
 
 
 class PersonDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):

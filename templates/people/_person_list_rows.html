@@ -1,0 +1,13 @@
+{% load t %}
+{# table body rows — shared by the full page and the live-search fragment (`rows`) #}
+{% for p in object_list %}
+    <tr>
+      <td>{{ p.employee_no }}</td>
+      <td><a href="{% url 'person-detail' p.pk %}">{{ p.name }}</a></td>
+      <td>{{ p.site.code }}</td>
+      <td>{% if p.department_id %}<a href="{% url 'department-detail' p.department_id %}">{{ p.department }}</a>{% else %}—{% endif %}</td>
+      <td><a class="btn secondary sm" href="{% url 'person-update' p.pk %}">{% t "asset.edit" %}</a></td>
+    </tr>
+  {% empty %}
+    <tr class="empty-row"><td colspan="5">{% t "common.empty" %}</td></tr>
+  {% endfor %}

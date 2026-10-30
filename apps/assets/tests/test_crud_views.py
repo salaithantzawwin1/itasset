@@ -84,6 +84,63 @@ def test_person_list_offers_add_button(client, django_user_model, group_setup):
     assert "+ New person" in body
 
 
+def test_person_list_wires_typeahead_search(client, django_user_model, group_setup):
+    """The People page carries the live-search wiring the asset list has:
+    a q input in the filter bar plus the three fragment regions (count,
+    rows, pagination) the debounced fetch swaps in place."""
+    _login(client, _user(django_user_model, group_setup, "viewer"))
+    body = client.get(URLS["person_list"]).content.decode()
+    assert 'id="person-count"' in body
+    assert 'id="person-rows"' in body
+    assert 'id="person-pagination"' in body
+    assert 'name="q"' in body  # the search input
+    assert 'addEventListener("input"' in body
+    assert "var DELAY = 300" in body
+    assert '"_fragment"' in body
+
+
+def test_person_list_name_search_and_fragment(
+    client, django_user_model, group_setup, person_factory
+):
+    """Typing a name filters without a Search click: the same q drives the
+    plain GET (no-JS path) and the `_fragment=1` JSON regions, matching
+    case-insensitively and showing the empty state when nothing hits."""
+    person_factory(name="Thandar Aung")
+    person_factory(name="Hla Hla Win")
+    _login(client, _user(django_user_model, group_setup, "viewer"))
+
+    # full GET without JS: only the matching row renders
+    body = client.get(URLS["person_list"], {"q": "Thandar"}).content.decode()
+    assert "Thandar Aung" in body
+    assert "Hla Hla Win" not in body
+
+    # fragment: same filter, case-insensitive, JSON regions only
+    resp = client.get(URLS["person_list"], {"q": "thandar", "_fragment": "1"})
+    assert resp["Content-Type"].startswith("application/json")
+    data = resp.json()
+    assert set(data) == {"count", "rows", "pagination"}
+    assert "Thandar Aung" in data["rows"]
+    assert "Hla Hla Win" not in data["rows"]
+    assert "1 people" in data["count"]
+
+    # nothing matches → the shared empty row, zero count
+    empty = client.get(URLS["person_list"], {"q": "no-such-name", "_fragment": "1"}).json()
+    assert 'class="empty-row"' in empty["rows"]
+    assert "0 people" in empty["count"]
+
+
+def test_person_search_pagination_keeps_q(client, django_user_model, group_setup, person_factory):
+    for i in range(51):
+        person_factory(name=f"Pagz Person {i:02d}")
+    _login(client, _user(django_user_model, group_setup, "viewer"))
+
+    data = client.get(URLS["person_list"], {"q": "Pagz", "_fragment": "1"}).json()
+    assert data["rows"].count("<tr>") == 50  # page 1 of 51
+    assert "51 people" in data["count"]
+    # paging keeps the search (was: ?page=N alone dropped q)
+    assert 'href="?page=2&q=Pagz"' in data["pagination"]
+
+
 @pytest.mark.parametrize("page", ["asset_create", "site_create", "person_create"])
 def test_viewer_cannot_create(client, django_user_model, group_setup, page):
     _login(client, _user(django_user_model, group_setup, "viewer"))

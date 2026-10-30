@@ -11,6 +11,9 @@ scroll survive. Coverage:
    like the full page (same link contract), and honours the session
    language (the partials render through `{% t %}` with the request).
 3. Anonymous still gets the login redirect on the fragment URL.
+4. Match highlighting: every q hit is wrapped in <mark> — case-insensitive,
+   original casing kept, HTML escaped on both sides; without a query the
+   rows render exactly as before (no <mark> anywhere).
 """
 
 import pytest
@@ -72,7 +75,7 @@ def test_fragment_returns_filtered_rows_as_json(client, viewer_user, asset_facto
     assert resp["Content-Type"].startswith("application/json")
     data = resp.json()
     assert set(data) == {"count", "rows", "pagination"}
-    assert "IT-LS-7002" in data["rows"]
+    assert "IT-<mark>LS-7002</mark>" in data["rows"]  # row present, match highlighted
     assert "IT-LS-7003" not in data["rows"]
     assert "1 total" in data["count"]
     assert not data["pagination"].strip()  # one page → no controls
@@ -164,6 +167,72 @@ def test_fragment_honours_session_language(client, viewer_user, asset_factory):
     session.save()
     data = client.get(URL, {"_fragment": "1"}).json()
     assert "စုစုပေါင်း 1" in data["count"]  # `{% t %}` saw the request session
+
+
+# 2b. match highlighting -------------------------------------------------------
+
+
+def test_rows_highlight_matched_text(client, viewer_user, asset_factory):
+    """Every column q searched on wraps its hit in <mark> — tag match on
+    the first row, model match on the second (whose tag cell stays plain,
+    proving highlighting follows the actual match, not the whole row)."""
+    asset_factory(asset_tag="IT-LS-HL-100", model_name="ThinkPad X1")
+    asset_factory(asset_tag="IT-LS-PC-200", model_name="Elite HL-Box")
+
+    client.force_login(viewer_user)
+    rows = client.get(URL, {"_fragment": "1", "q": "hl"}).json()["rows"]
+    assert "IT-LS-<mark>HL</mark>-100" in rows  # case-insensitive, original casing
+    assert "Elite <mark>HL</mark>-Box" in rows
+    assert ">IT-LS-PC-200</a>" in rows  # the non-matching column stays unmarked
+
+    # no query → the rows render exactly as before (no stray <mark>)
+    plain = client.get(URL, {"_fragment": "1"}).json()["rows"]
+    assert "<mark>" not in plain
+
+    # the full page (no-JS path) highlights through the same partial
+    body = client.get(URL, {"q": "hl"}).content.decode()
+    assert "IT-LS-<mark>HL</mark>-100" in body
+
+
+def test_rows_highlight_holder_columns(client, viewer_user, asset_factory, person_factory, site):
+    """The holder cell's three shapes all highlight: the person's name,
+    that person's own department, and the department the asset is checked
+    out to — the exact branches the q filter matches on."""
+    from apps.assets.models import Assignment
+    from apps.people.models import Department
+
+    dept = Department.objects.create(site=site, name="Network Operations")
+    member = person_factory(name="Thandar Aung")
+    member.department = dept
+    member.save(update_fields=["department"])
+    held = asset_factory(asset_tag="IT-LS-HLD-1", status=Asset.Status.ASSIGNED)
+    Assignment.objects.create(asset=held, to_person=member)
+
+    shared = Department.objects.create(site=site, name="Shared Services")
+    dept_asset = asset_factory(asset_tag="IT-LS-HLD-2", status=Asset.Status.ASSIGNED)
+    Assignment.objects.create(asset=dept_asset, to_dept=shared)
+
+    client.force_login(viewer_user)
+    by_person = client.get(URL, {"_fragment": "1", "q": "thandar"}).json()["rows"]
+    assert "<mark>Thandar</mark>" in by_person
+
+    by_member_dept = client.get(URL, {"_fragment": "1", "q": "network operations"}).json()["rows"]
+    assert "<mark>Network Operations</mark>" in by_member_dept
+
+    by_to_dept = client.get(URL, {"_fragment": "1", "q": "shared services"}).json()["rows"]
+    assert "<mark>Shared Services</mark>" in by_to_dept
+
+
+def test_rows_highlight_escapes_html(client, viewer_user, asset_factory):
+    """Both the value and the query are HTML-escaped around <mark>, so no
+    markup in the data (or in what someone types) can ever reach the page
+    unescaped — <mark> is the only tag the highlighter emits."""
+    asset_factory(asset_tag="IT-LS-XSS-1", model_name="<script>alert(1)</script>")
+    client.force_login(viewer_user)
+    rows = client.get(URL, {"_fragment": "1", "q": "<script>"}).json()["rows"]
+    assert "<script>alert" not in rows
+    assert "<mark>&lt;script&gt;</mark>" in rows
+    assert "alert(1)&lt;/script&gt;" in rows
 
 
 # 3. access gate ---------------------------------------------------------------

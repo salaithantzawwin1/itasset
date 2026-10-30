@@ -3,26 +3,80 @@
 {% block title %}{% t "person.title" %} — {% t "app.name" %}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>{% t "person.title" %}</h1><div class="sub">{% t "person.count" n=paginator.count %}</div></div>
+  <div><h1>{% t "person.title" %}</h1>{% include "people/_person_count.html" %}</div>
   <div class="actions">
     <a class="btn" href="{% url 'person-create' %}" data-modal>{% t "person.new" %}</a>
   </div>
 </div>
+{# type-ahead name search — same live-search contract as the asset list #}
+<form id="personfilterform" class="filterbar" method="get">
+  <input type="text" name="q" placeholder="{% t "person.search_ph" %}" value="{{ request.GET.q }}">
+  <button class="btn" type="submit">{% t "asset.search_btn" %}</button>
+  {% if request.GET.q %}<a class="muted clear-link" href="{% url 'person-list' %}">{% t "asset.clear" %}</a>{% endif %}
+</form>
 <table class="data">
   <thead><tr><th>{% t "person.staff_no" %}</th><th>{% t "person.name" %}</th><th>{% t "asset.site" %}</th><th>{% t "person.dept" %}</th><th></th></tr></thead>
-  <tbody>
-  {% for p in object_list %}
-    <tr>
-      <td>{{ p.employee_no }}</td>
-      <td><a href="{% url 'person-detail' p.pk %}">{{ p.name }}</a></td>
-      <td>{{ p.site.code }}</td>
-      <td>{% if p.department_id %}<a href="{% url 'department-detail' p.department_id %}">{{ p.department }}</a>{% else %}—{% endif %}</td>
-      <td><a class="btn secondary sm" href="{% url 'person-update' p.pk %}">{% t "asset.edit" %}</a></td>
-    </tr>
-  {% empty %}
-    <tr class="empty-row"><td colspan="5">{% t "common.empty" %}</td></tr>
-  {% endfor %}
+  <tbody id="person-rows">
+  {% include "people/_person_list_rows.html" %}
   </tbody>
 </table>
-{% if is_paginated %}<div class="pagination">{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">{% t "common.prev" %}</a>{% endif %}<span class="muted" style="padding:7px;">{% t "common.page" n=page_obj.number m=page_obj.paginator.num_pages %}</span>{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">{% t "common.next" %}</a>{% endif %}</div>{% endif %}
+{# always rendered so live search can swap it; hidden while one page fits (inline style beats the flex CSS) #}
+<div class="pagination" id="person-pagination"{% if not is_paginated %} style="display:none"{% endif %}>
+  {% include "people/_person_list_pagination.html" %}
+</div>
+<script>
+  // search-as-you-type: debounce keystrokes, fetch the SAME url with
+  // _fragment=1 (server answers count/rows/pagination as JSON) and swap the
+  // DOM in place — no navigation, so focus and scroll survive. The Search
+  // button keeps doing a full GET (works without JS too).
+  (function () {
+    var form = document.getElementById("personfilterform");
+    var input = form && form.querySelector('input[name="q"]');
+    if (!input) return;
+    var DELAY = 300;
+    var timer = null;
+    var inflight = null;
+
+    function queryString(fragment) {
+      var p = new URLSearchParams(new FormData(form));
+      p.delete("page"); // a new query always starts at page 1
+      if (fragment) p.set("_fragment", "1");
+      else p.delete("_fragment");
+      return p.toString();
+    }
+
+    function run() {
+      if (timer) { clearTimeout(timer); timer = null; }
+      if (inflight) inflight.abort(); // an older keystroke's answer is stale
+      var ctrl = new AbortController();
+      inflight = ctrl;
+      fetch(location.pathname + "?" + queryString(true), { signal: ctrl.signal })
+        .then(function (r) { return r.json(); })
+        .then(function (frag) {
+          if (ctrl !== inflight) return; // superseded while decoding
+          var count = document.getElementById("person-count");
+          if (count) count.outerHTML = frag.count;
+          document.getElementById("person-rows").innerHTML = frag.rows;
+          var pag = document.getElementById("person-pagination");
+          pag.innerHTML = frag.pagination;
+          pag.style.display = frag.pagination.trim() ? "" : "none";
+          var qs = queryString(false);
+          history.replaceState(null, "", location.pathname + (qs ? "?" + qs : ""));
+        })
+        .catch(function (err) {
+          if (err && err.name === "AbortError") return;
+          // non-JSON (expired session → login HTML) or a network hiccup:
+          // leave the current rows alone; the Search button still works
+        });
+    }
+
+    input.addEventListener("input", function () {
+      clearTimeout(timer);
+      timer = setTimeout(run, DELAY);
+    });
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); run(); } // search now
+    });
+  })();
+</script>
 {% endblock %}

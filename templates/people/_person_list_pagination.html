@@ -1,0 +1,9 @@
+{% load t %}
+{# keep q when paging (was: ?page=N alone dropped the search) #}
+{% if is_paginated %}
+{% with f_q=request.GET.q|urlencode %}
+  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&q={{ f_q }}">{% t "common.prev" %}</a>{% endif %}
+  <span class="muted" style="padding:7px;">{% t "common.page" n=page_obj.number m=page_obj.paginator.num_pages %}</span>
+  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&q={{ f_q }}">{% t "common.next" %}</a>{% endif %}
+{% endwith %}
+{% endif %}

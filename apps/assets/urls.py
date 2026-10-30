@@ -13,6 +13,8 @@ urlpatterns = [
     path("assets/repair/", views.orphan_repair, name="orphan-repair"),
     # bulk check-out: many AVAILABLE assets → one department (session 36)
     path("assets/bulk-checkout/", views.bulk_dept_checkout, name="asset-bulk-checkout"),
+    # shared spec option lists (RAM Type / storage types …) — main-app CRUD
+    path("assets/spec-options/", views.spec_options, name="spec-options"),
     path("assets/<int:pk>/", views.AssetDetail.as_view(), name="asset-detail"),
     # bulk component ↔ workstation linking (§6.1 parent_asset)
     path("assets/<int:pk>/attach/", views.attach_components, name="asset-attach"),

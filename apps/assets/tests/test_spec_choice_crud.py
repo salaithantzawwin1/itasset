@@ -1,9 +1,12 @@
-"""SpecChoice CRUD — admin-maintained option lists for choice spec fields.
+"""SpecChoice CRUD — maintained option lists for choice spec fields.
 
-Covers: the 0014 seed (RAM Type + Primary Storage Type), engine authority
-(a maintained list *replaces* the schema's choices; keys without rows fall
-back to the schema), and the admin add/rename/delete flows including both
-in-use guards (single delete, bulk delete, rename).
+Covers: the 0014 seed (RAM Type + Primary Storage Type) and the 0016 seed
+(Secondary Storage Type), engine authority (a maintained list *replaces*
+the schema's choices; keys without rows fall back to the schema), the
+admin add/rename/delete flows with both in-use guards (single delete, bulk
+delete, rename), the admin key filter listing schema keys that have NO rows
+yet, and the main-app option-list page (technician-gated, same data guards
+as the admin — no admin hop for day-to-day edits).
 """
 
 import importlib
@@ -27,7 +30,7 @@ def _category(fields, code="IT-TEST"):
 
 
 class TestSpecChoiceSeed(TestCase):
-    """Migration 0014 ships the two requested lists."""
+    """Migrations 0014 + 0016 ship the three requested lists."""
 
     def test_ram_type_seed_is_the_catalogue_union_in_order(self):
         self.assertEqual(
@@ -43,6 +46,20 @@ class TestSpecChoiceSeed(TestCase):
 
     def test_seed_rerun_is_idempotent(self):
         mig = importlib.import_module("apps.assets.migrations.0014_specchoice")
+        before = SpecChoice.objects.count()
+        mig.seed_spec_choices(migration_apps, SimpleNamespace(connection=connection))
+        self.assertEqual(SpecChoice.objects.count(), before)
+
+    def test_secondary_storage_seed_is_the_catalogue_default(self):
+        """0016 backfills the third list with the same defaults the catalogue
+        schema declares — stored values can never leave the allowed set."""
+        self.assertEqual(
+            list(SpecChoice.objects.filter(key="storage_2_type").values_list("value", flat=True)),
+            ["HDD", "SATA SSD", "NVMe SSD", "Other"],
+        )
+
+    def test_secondary_storage_seed_rerun_is_idempotent(self):
+        mig = importlib.import_module("apps.assets.migrations.0016_seed_storage_2_type")
         before = SpecChoice.objects.count()
         mig.seed_spec_choices(migration_apps, SimpleNamespace(connection=connection))
         self.assertEqual(SpecChoice.objects.count(), before)
@@ -169,6 +186,16 @@ class TestSpecChoiceAdmin(TestCase):
         self.assertIn("storage_1_type: NVMe SSD", rows)
         self.assertEqual(rows["ram_type: DDR4"].assets_in_use(), 1)
 
+    def test_key_filter_shows_schema_keys_without_rows(self):
+        """The sidebar key filter must list schema keys with ZERO rows (a
+        freshly-added or emptied list) — the stock values-only filter hid
+        them, so such a key could never be filtered on."""
+        resp = self.client.get(self._url("changelist"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "?key=ram_type")  # keys with rows keep working
+        self.assertContains(resp, "?key=panel_type")  # a rowless schema key shows too
+        self.assertEqual(SpecChoice.objects.filter(key="panel_type").count(), 0)
+
     def test_add_form_offers_only_live_schema_keys(self):
         resp = self.client.get(self._url("add"))
         self.assertEqual(resp.status_code, 200)
@@ -264,3 +291,141 @@ class TestSpecChoiceAdmin(TestCase):
         resp = self.client.post(self._url("changelist"), {**selection, "post": "yes"})
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(SpecChoice.objects.filter(pk__in=[used.pk, unused.pk]).count(), 2)
+
+
+# ------------------------------------------------- main-app option-list page
+
+
+class TestSpecChoiceOptionPage(TestCase):
+    """/assets/spec-options/ — manage the lists without an admin hop.
+
+    Technician-gated like the other maintenance pages, renders a section
+    for every choice key (zero rows included), and runs the same
+    data-safety guards as the admin CRUD on add/save/delete.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.contrib.auth.models import Group
+
+        cls.site = Site.objects.get_or_create(code="yangon", defaults={"name": "Yangon HQ"})[0]
+        cls.dsk = Category.objects.get(code="IT-HW-DSK")
+        cls.tech = get_user_model().objects.create_user(
+            "spec_page_tech", "spec_page_tech@x.dev", "pass12345!"
+        )
+        cls.tech.groups.add(Group.objects.get_or_create(name="technician")[0])
+        cls.viewer = get_user_model().objects.create_user(
+            "spec_page_viewer", "spec_page_viewer@x.dev", "pass12345!"
+        )
+        cls.viewer.groups.add(Group.objects.get_or_create(name="viewer")[0])
+        cls.used = Asset.objects.create(
+            asset_tag="IT-HW-DSK-9101",
+            category=cls.dsk,
+            site=cls.site,
+            attrs={"ram_type": "DDR4"},
+        )
+
+    def _url(self):
+        return reverse("spec-options")
+
+    def test_anonymous_redirects_and_viewers_are_refused(self):
+        resp = self.client.get(self._url())
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("/accounts/login/", resp["Location"])
+
+        self.client.force_login(self.viewer)
+        self.assertEqual(self.client.get(self._url()).status_code, 403)
+
+    def test_page_lists_every_schema_key_even_without_rows(self):
+        self.client.force_login(self.tech)
+        resp = self.client.get(self._url())
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode()
+        # the three maintained lists render a section each …
+        self.assertIn("(ram_type)", body)
+        self.assertIn("(storage_1_type)", body)
+        self.assertIn("(storage_2_type)", body)
+        # … and so does a key with zero rows — that's where its list starts
+        self.assertEqual(SpecChoice.objects.filter(key="panel_type").count(), 0)
+        self.assertIn("(panel_type)", body)
+        self.assertIn('name="add_value"', body)  # add form per section
+        self.assertIn("NVMe SSD", body)  # seeded options visible
+
+    def test_add_option_from_the_page(self):
+        self.client.force_login(self.tech)
+        resp = self.client.post(
+            self._url(),
+            {"action": "add", "key": "ram_type", "add_value": "DDR6", "add_order": "60"},
+            follow=True,
+        )
+        self.assertEqual(resp.status_code, 200)
+        row = SpecChoice.objects.get(key="ram_type", value="DDR6")
+        self.assertEqual(row.order, 60)
+        self.assertContains(resp, "DDR6")  # shows on the redirected page
+        queued = list(resp.context["messages"])
+        self.assertEqual([m.level for m in queued], [messages.SUCCESS])
+
+    def test_add_refuses_case_duplicate_and_unknown_key(self):
+        self.client.force_login(self.tech)
+        resp = self.client.post(
+            self._url(),
+            {"action": "add", "key": "ram_type", "add_value": "ddr4", "add_order": "0"},
+            follow=True,
+        )
+        self.assertFalse(SpecChoice.objects.filter(key="ram_type", value="ddr4").exists())
+        self.assertIn("already exists", str(list(resp.context["messages"])[0]))
+
+        resp = self.client.post(
+            self._url(),
+            {"action": "add", "key": "bogus_key", "add_value": "X", "add_order": "0"},
+            follow=True,
+        )
+        self.assertFalse(SpecChoice.objects.filter(key="bogus_key").exists())
+        self.assertIn("Unknown option list", str(list(resp.context["messages"])[0]))
+
+    def test_save_updates_value_and_order(self):
+        self.client.force_login(self.tech)
+        row = SpecChoice.objects.get(key="ram_type", value="LPDDR")
+        resp = self.client.post(
+            self._url(),
+            {"action": f"save:{row.pk}", f"value_{row.pk}": "LPDDR4X", f"order_{row.pk}": "45"},
+            follow=True,
+        )
+        row.refresh_from_db()
+        self.assertEqual((row.value, row.order), ("LPDDR4X", 45))
+        self.assertContains(resp, "LPDDR4X")
+
+    def test_save_refuses_renaming_an_option_assets_still_record(self):
+        self.client.force_login(self.tech)
+        row = SpecChoice.objects.get(key="ram_type", value="DDR4")
+        resp = self.client.post(
+            self._url(),
+            {
+                "action": f"save:{row.pk}",
+                f"value_{row.pk}": "DDR4 Legacy",
+                f"order_{row.pk}": "20",
+            },
+            follow=True,
+        )
+        row.refresh_from_db()
+        self.assertEqual(row.value, "DDR4")  # unchanged — stored values keep matching
+        self.assertIn("still recorded by 1 asset", str(list(resp.context["messages"])[0]))
+
+    def test_delete_refuses_in_use_and_removes_unused(self):
+        self.client.force_login(self.tech)
+        used = SpecChoice.objects.get(key="ram_type", value="DDR4")
+        resp = self.client.post(self._url(), {"action": f"delete:{used.pk}"}, follow=True)
+        self.assertTrue(SpecChoice.objects.filter(pk=used.pk).exists())
+        self.assertIn("Cannot delete", str(list(resp.context["messages"])[0]))
+
+        unused = SpecChoice.objects.get(key="ram_type", value="LPDDR")
+        self.client.post(self._url(), {"action": f"delete:{unused.pk}"})
+        self.assertFalse(SpecChoice.objects.filter(pk=unused.pk).exists())
+
+    def test_crafted_action_is_ignored_not_a_500(self):
+        self.client.force_login(self.tech)
+        resp = self.client.post(self._url(), {"action": "save:not-a-pk", "value_x": "y"})
+        self.assertEqual(resp.status_code, 302)  # redirect, never a crash
+        self.assertEqual(
+            self.client.post(self._url(), {"action": "something-else"}).status_code, 302
+        )

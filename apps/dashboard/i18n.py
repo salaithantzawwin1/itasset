@@ -293,6 +293,32 @@ STRINGS = {
     "person.new": {"en": "+ New person", "my": "+ လုပ်သား အသစ်"},
     "person.staff_no": {"en": "Staff No", "my": "Staff No"},
     "person.name": {"en": "Name", "my": "နာမည်"},
+    "person.search_ph": {"en": "Search by name…", "my": "နာမည်ဖြင့် ရှာရန်…"},
+    # spec option-list management page (main app — no admin hop)
+    "specopts.title": {"en": "Spec option lists", "my": "Spec ရွေးချယ်စရာ စာရင်းများ"},
+    "specopts.sub": {
+        "en": (
+            "Shared dropdown options (RAM Type, Primary / Secondary Storage …) — "
+            "maintained here, offered in every category's spec form."
+        ),
+        "my": (
+            "အတူတူသုံးတဲ့ ရွေးချယ်စရာများ "
+            "(RAM Type, storage အမျိုးအစားများ …) — "
+            "ဒီမှာ စီမံပါတယ်။ "
+            "category အားလုံးရဲ့ spec form မှာ ပေါ်ပါမယ်။"
+        ),
+    },
+    "specopts.nav": {"en": "Option lists", "my": "ရွေးချယ်စရာ စာရင်း"},
+    "specopts.value": {"en": "Option", "my": "ရွေးချယ်စရာ"},
+    "specopts.order": {"en": "Order", "my": "အစီအစဉ်"},
+    "specopts.inuse": {"en": "In use", "my": "အသုံးပြုနေသည်"},
+    "specopts.add": {"en": "+ Add option", "my": "+ ထည့်ရန်"},
+    "specopts.empty": {
+        "en": "No options yet — add the first one below.",
+        "my": "ရွေးချယ်စရာ မရှိသေးပါ — အောက်တွင် ပထမဆုံးတစ်ခု ထည့်ပါ။",
+    },
+    "specopts.value_ph": {"en": "New option value", "my": "ရွေးချယ်စရာ အသစ်"},
+    "specopts.confirm_delete": {"en": "Remove this option?", "my": "ဒီရွေးချယ်စရာကို ဖျက်မှာလား?"},
     "person.dept": {"en": "Department", "my": "ဌာန"},
     "person.detail_title": {"en": "Person", "my": "လုပ်သား"},
     "person.held": {"en": "Assets held", "my": "ထိန်းသိမ်းခဲ့သော ပိုင်ဆိုင်မှုများ"},

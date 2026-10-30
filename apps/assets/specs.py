@@ -840,14 +840,39 @@ def validate_schema_dict(schema) -> None:
             )
 
 
+def spec_choice_key_labels(current: str | None = None) -> dict[str, str]:
+    """{key: label} for every choice/multi-choice field in the live schemas.
+
+    The single source behind the admin's ``key`` dropdown, the changelist
+    key filter and the main-app option-list page: a ``SpecChoice.key`` must
+    match a real spec field (a typo'd key would silently collect rows no
+    form ever shows), and keys with *no rows yet* stay visible so a list can
+    be started from the UI instead of schema JSON. Labels come from the
+    first schema declaring the key (categories order by code →
+    deterministic); insertion order follows that same walk, so sections
+    read in schema order. ``current`` keeps a key that fell out of every
+    schema selectable — its rows still exist and must stay manageable.
+    """
+    from .models import Category  # local: models imports this module at import time
+
+    labels: dict[str, str] = {}
+    for category in Category.objects.all().only("schema"):
+        for fdef in spec_fields(category):
+            if fdef.get("type") in ("choice", "multi-choice"):
+                labels.setdefault(fdef["key"], fdef.get("label") or fdef["key"])
+    if current and current not in labels:
+        labels[current] = f"{current} (no longer in any schema)"
+    return labels
+
+
 def managed_choice_options(keys) -> dict[str, list[str]]:
     """Option sets maintained as CRUD rows (``SpecChoice``) for these keys.
 
     A key with rows is authoritative: the admin-maintained list replaces the
     per-category ``choices`` everywhere the field appears — one place to add
-    ``DDR6`` instead of editing every category schema (both RAM Type and
-    Primary Storage Type ship seeded). Keys without rows are absent here and
-    fall back to the schema's declared ``choices``.
+    ``DDR6`` instead of editing every category schema (all three — RAM Type,
+    Primary and Secondary Storage Type — ship seeded). Keys without rows are
+    absent here and fall back to the schema's declared ``choices``.
 
     One query for the whole batch; ordering follows SpecChoice.Meta. The model
     import stays local: ``models`` loads this module at import time

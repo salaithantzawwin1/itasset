@@ -1,12 +1,17 @@
 {% extends "base.html" %}
 {% load t %}
 {% block title %}{% t "asset.title" %} — {% t "app.name" %}{% endblock %}
+{% block extra_css %}
+  /* live-search match highlight — the highlight tag wraps the matched run in <mark> */
+  mark { background: #ffd54d; color: #17212b; padding: 0 2px; border-radius: 3px; }
+{% endblock %}
 {% block content %}
 <div class="page-head">
   <div><h1>{% t "asset.title" %}</h1>{% include "assets/_asset_count.html" %}</div>
   <div class="actions">
     {% if can_repair %}<a class="btn secondary" href="{% url 'orphan-repair' %}">{% t "orphan.title" %}</a>{% endif %}
     {% if can_bulk %}<a class="btn secondary" href="{% url 'asset-bulk-checkout' %}">{% t "bulk.title" %}</a>{% endif %}
+    {% if can_spec_options %}<a class="btn secondary" href="{% url 'spec-options' %}">{% t "specopts.nav" %}</a>{% endif %}
     <a class="btn" href="{% url 'asset-create' %}" data-modal>{% t "asset.new" %}</a>
   </div>
 </div>

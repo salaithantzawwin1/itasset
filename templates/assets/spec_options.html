@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% load t %}
+{% block title %}{% t "specopts.title" %} — {% t "app.name" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{% t "specopts.title" %}</h1>
+    <div class="sub">{% t "specopts.sub" %}</div>
+  </div>
+  <div class="actions">
+    <a class="btn secondary" href="{% url 'asset-list' %}">{% t "asset.title" %}</a>
+  </div>
+</div>
+{% for s in sections %}
+<div class="card">
+  <h2>{{ s.label }} <span class="muted">({{ s.key }})</span></h2>
+  {# one form per section: row inputs + action buttons carry the pk #}
+  <form method="post">
+    {% csrf_token %}
+    <table class="data">
+      <thead>
+        <tr>
+          <th>{% t "specopts.value" %}</th>
+          <th>{% t "specopts.order" %}</th>
+          <th>{% t "specopts.inuse" %}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for o in s.options %}
+        <tr>
+          <td><input type="text" name="value_{{ o.pk }}" value="{{ o.value }}" maxlength="100" style="width:16rem"></td>
+          <td><input type="number" name="order_{{ o.pk }}" value="{{ o.order }}" min="0" style="width:6rem"></td>
+          <td>{% if o.assets_in_use %}<span class="pill">{{ o.assets_in_use }}</span>{% else %}<span class="muted">0</span>{% endif %}</td>
+          <td>
+            <button class="btn sm" type="submit" name="action" value="save:{{ o.pk }}">{% t "asset.save" %}</button>
+            <button class="btn secondary sm" type="submit" name="action" value="delete:{{ o.pk }}"
+                    onclick="return confirm('{% t "specopts.confirm_delete" %}')">{% t "asset.delete" %}</button>
+          </td>
+        </tr>
+      {% empty %}
+        <tr class="empty-row"><td colspan="4">{% t "specopts.empty" %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </form>
+  <form method="post" class="filterbar">
+    {% csrf_token %}
+    <input type="hidden" name="key" value="{{ s.key }}">
+    <input type="text" name="add_value" placeholder="{% t "specopts.value_ph" %}" maxlength="100" required>
+    <input type="number" name="add_order" value="0" min="0" title="{% t "specopts.order" %}" style="width:6rem">
+    <button class="btn sm" type="submit" name="action" value="add">{% t "specopts.add" %}</button>
+  </form>
+</div>
+{% empty %}
+<div class="card"><p class="muted">{% t "specopts.empty" %}</p></div>
+{% endfor %}
+{% endblock %}

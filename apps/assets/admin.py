@@ -24,7 +24,12 @@ from .models import (
     Transfer,
     WriteOff,
 )
-from .specs import SPEC_FIELD_PREFIX, build_spec_form_fields, schema_as_json, spec_fields
+from .specs import (
+    SPEC_FIELD_PREFIX,
+    build_spec_form_fields,
+    schema_as_json,
+    spec_choice_key_labels,
+)
 
 
 class PrettyJSONField(forms.JSONField):
@@ -93,19 +98,41 @@ def _spec_choice_key_choices(current: str | None = None) -> list[tuple[str, str]
     """(value, label) options for every choice field in the live category schemas.
 
     The ``key`` of a SpecChoice must match a real spec field — a typo'd key
-    would silently collect rows that no form ever shows. Labels use the first
-    schema that declares the key (deterministic: categories order by code).
+    would silently collect rows that no form ever shows. Labels come from
+    ``specs.spec_choice_key_labels`` (the shared source for the form, the
+    key filter and the main-app option page).
     """
-    labels: dict[str, str] = {}
-    for category in Category.objects.all().only("schema"):
-        for fdef in spec_fields(category):
-            if fdef.get("type") in ("choice", "multi-choice"):
-                labels.setdefault(fdef["key"], fdef.get("label") or fdef["key"])
-    if current and current not in labels:
-        labels[current] = f"{current} (no longer in any schema)"
     return sorted(
-        ((key, f"{label} ({key})") for key, label in labels.items()), key=lambda pair: pair[0]
+        ((key, f"{label} ({key})") for key, label in spec_choice_key_labels(current).items()),
+        key=lambda pair: pair[0],
     )
+
+
+class SpecChoiceKeyFilter(admin.SimpleListFilter):
+    """Key filter listing EVERY managed key — including ones with no rows.
+
+    The stock ``list_filter = ("key",)`` (AllValuesFieldListFilter) derives
+    its choices from existing rows, so a freshly-added key or one whose
+    options were all removed vanishes from the sidebar and its filter can
+    never be chosen. This one starts from the live schemas (zero rows or
+    not) and adds any row-only keys that fell out of every schema.
+    """
+
+    title = "spec key"
+    parameter_name = "key"
+
+    def lookups(self, request, model_admin):
+        schema_labels = spec_choice_key_labels()  # schema keys — rows or not
+        lookups = [(key, f"{label} ({key})") for key, label in schema_labels.items()]
+        for key in SpecChoice.objects.values_list("key", flat=True).distinct():
+            if key not in schema_labels:
+                lookups.append((key, f"{key} (no longer in any schema)"))
+        return sorted(lookups, key=lambda pair: pair[0])
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(key=self.value())
+        return queryset
 
 
 class SpecChoiceAdminForm(forms.ModelForm):
@@ -143,7 +170,7 @@ class SpecChoiceAdmin(admin.ModelAdmin):
 
     form = SpecChoiceAdminForm
     list_display = ("key", "value", "order", "assets_using")
-    list_filter = ("key",)
+    list_filter = (SpecChoiceKeyFilter,)
     search_fields = ("key", "value")
     ordering = ("key", "order", "value")
 

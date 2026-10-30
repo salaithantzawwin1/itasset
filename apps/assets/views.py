@@ -5,6 +5,7 @@ Detail page shows full assignment history (§3 handover trail).
 """
 
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 from django.db.models import Prefetch
 from django.http import Http404, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -25,8 +26,8 @@ from apps.people.models import Department, Person, Site
 
 from . import services
 from .forms import AssetForm, AssetRequestForm
-from .models import ApprovalDecision, Asset, AssetRequest, Assignment, Category
-from .specs import SPEC_FIELD_PREFIX, spec_rows
+from .models import ApprovalDecision, Asset, AssetRequest, Assignment, Category, SpecChoice
+from .specs import SPEC_FIELD_PREFIX, spec_choice_key_labels, spec_rows
 
 
 class AssetList(RoleRequiredMixin, ListView):
@@ -123,12 +124,17 @@ class AssetList(RoleRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
+        # the search term — the rows partial wraps its hits in <mark>
+        # through {% highlight %} with this (same value the q filter used)
+        ctx["q"] = (self.request.GET.get("q") or "").strip()
         ctx["statuses"] = Asset.Status.choices
         ctx["departments"] = Department.objects.select_related("site").order_by("name")
         # the orphan fix-up queue is technician-only — hide the link otherwise
         ctx["can_repair"] = is_technician_or_admin(self.request.user)
         # bulk dept check-out entry (same gate — both are technician writes)
         ctx["can_bulk"] = is_technician_or_admin(self.request.user)
+        # spec option-list maintenance page (same technician gate)
+        ctx["can_spec_options"] = is_technician_or_admin(self.request.user)
         return ctx
 
     def render_to_response(self, context, **response_kwargs):
@@ -610,6 +616,109 @@ def orphan_repair(request):
         "assets/orphan_repair.html",
         {"orphans": orphans, "people": people_qs, "departments": departments_qs},
     )
+
+
+def spec_options(request):
+    """Manage the shared option lists behind choice spec fields from the
+    main app (RAM Type, Primary / Secondary Storage Type …) — the admin
+    hop is no longer required for day-to-day list edits.
+
+    One page, one section per choice key of the live schemas; a key with
+    zero rows still renders its section, so a list can be started here
+    instead of through schema JSON. Rows edit value/order inline, and add,
+    save and delete all run ``SpecChoice.clean()``'s data-safety guards
+    (no blank, no case-duplicate, no rename/delete while assets still
+    record the value) — this page and the admin CRUD cannot diverge.
+    Technician-gated like the other maintenance pages.
+    """
+    if not request.user.is_authenticated:
+        return redirect("login")
+    denied = _guard_technician(request)
+    if denied:
+        return denied
+
+    labels = spec_choice_key_labels()
+
+    if request.method == "POST":
+        action, _, target = (request.POST.get("action") or "").partition(":")
+        if action in ("save", "delete") and not target.isdigit():
+            return redirect("spec-options")  # crafted pk → ignore, never 500
+
+        def _order(raw) -> int:
+            try:
+                return max(int(raw or 0), 0)
+            except (TypeError, ValueError):
+                return 0
+
+        def _fail(exc: ValidationError) -> None:
+            text = (
+                " ".join(" ".join(str(m) for m in msgs) for msgs in exc.message_dict.values())
+                if hasattr(exc, "message_dict")
+                else " ".join(str(m) for m in exc.messages)
+            )
+            messages.error(request, text)
+
+        if action == "add":
+            key = request.POST.get("key", "")
+            option = SpecChoice(
+                key=key,
+                value=(request.POST.get("add_value") or "").strip(),
+                order=_order(request.POST.get("add_order")),
+            )
+            if key not in labels:  # a typo'd key would collect invisible rows
+                messages.error(request, "Unknown option list.")
+            else:
+                try:
+                    option.full_clean()
+                    option.save()
+                except ValidationError as exc:
+                    _fail(exc)
+                else:
+                    messages.success(request, f"Added “{option.value}” to {labels[key]}.")
+            return redirect("spec-options")
+
+        if action == "save":
+            option = get_object_or_404(SpecChoice, pk=target)
+            option.value = (request.POST.get(f"value_{option.pk}") or "").strip()
+            option.order = _order(request.POST.get(f"order_{option.pk}"))
+            try:
+                option.full_clean()
+                option.save()
+            except ValidationError as exc:
+                _fail(exc)
+            else:
+                messages.success(request, f"Updated {option.key}: {option.value}.")
+            return redirect("spec-options")
+
+        if action == "delete":
+            option = get_object_or_404(SpecChoice, pk=target)
+            used = option.assets_in_use()
+            if used:
+                plural = "asset" if used == 1 else "assets"
+                messages.error(
+                    request,
+                    f"Cannot delete “{option.value}” — {used} {plural} still record it "
+                    f"under {option.key}. Edit those assets first, or keep the option.",
+                )
+            else:
+                messages.success(request, f"Removed “{option.value}” from {option.key}.")
+                option.delete()
+            return redirect("spec-options")
+
+        return redirect("spec-options")
+
+    grouped: dict[str, list[SpecChoice]] = {key: [] for key in labels}
+    for option in SpecChoice.objects.all():  # Meta order: key, order, value
+        grouped.setdefault(option.key, []).append(option)
+    sections = [
+        {
+            "key": key,
+            "label": labels.get(key, f"{key} (no longer in any schema)"),
+            "options": options,
+        }
+        for key, options in grouped.items()
+    ]
+    return render(request, "assets/spec_options.html", {"sections": sections})
 
 
 def attach_components(request, pk):

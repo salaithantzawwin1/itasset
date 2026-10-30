@@ -15,7 +15,7 @@
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
 | Last updated | 2026-10-30 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **523 passed + 100 subtests** (2026-10-30: local 312.9 s; server 521 + 100 at the session-52 deploy, 150.1 s — both exit 0) |
+| Test suite | **524 passed + 100 subtests** (2026-10-30: local 314.8 s; server 524 + 100 at both session-53 deploys — exit 0) |
 
 ---
 
@@ -185,6 +185,71 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-30 (session 53 — searchable spec keys, one panel skin for every breakdown)
+- **Spec-choice key, type-to-search** (user: “Key: မှာ Type လုပ်ပြီး ရှာလို့
+  ရအောင်”): the admin Add form offered the live schema keys as one long
+  `<select>` (~30 rows at 1920px), so picking `storage_2_type` meant
+  scrolling and reading. `SpecChoiceAdminForm` now renders `key` through
+  a new `SearchableSelect` (`forms.TextInput` + a `<datalist>` of the same
+  `_spec_choice_key_choices`): typing narrows the suggestions natively, no
+  JS, and the field stays a `ChoiceField` — `nosuchkey` is still refused
+  with “Select a valid choice”. `SpecChoice` model/DB unchanged (no
+  migration). Test `test_key_field_is_type_to_search` asserts the input +
+  datalist (incl. a rowless key) and that no `<select name="key">` is left.
+- **Live check on production** (`/admin/assets/specchoice/add/`, as
+  `itadmin`): the Add link opens the modal at **809px** (viewport 853) with
+  no dead panel and no inner scrollbar; `key` is `INPUT/text` +
+  `list="id_key"` with **30** suggestions; typing `s`,`t`,`o` narrowed them
+  to `storage_1_type` / `storage_2_type`; a bogus key re-rendered the
+  modal with the choice error and the typed value/order intact; a real
+  save (`panel_type: TN Panel Test`) closed the modal, refreshed the
+  changelist (14 rows), transplanted the flash message, and the throwaway
+  row was then removed through the bulk delete (back to 13 options).
+- **Production was 5 files behind** even though their commits were
+  pushed: a full md5 sweep of every tracked file (LF blob vs server)
+  found `templates/people/department_detail.html`,
+  `templates/people/person_detail.html`, `apps/assets/tests/test_dept_detail.py`,
+  `docs/runbooks/break-glass.md` and `PROGRESS.md` never synced — i.e. the
+  `?tab=` dept sections and the person-detail tabs were committed but not
+  live. They went out with this deploy and now verify live:
+  `/departments/11/?tab=members` marks the members tab active with only
+  that panel visible; `/people/10/` renders “Currently held (1)” /
+  “Assignment history”.
+- **Request modal** (the one still unchecked from the modal work):
+  `/me/` → “+ Request asset” opens at **585px** hugging the form (form
+  551px, ~18px side padding each side), Category/Site/Quantity/
+  Justification all render, Submit request + Cancel sit above the bottom
+  edge with no inner scroll, Cancel closes with no discard prompt and no
+  reload, no JS errors (only the known COOP-over-plain-HTTP notice).
+- **RAM type/speed split** (user screenshot: the two lists read as one
+  mixed table): the card’s two bare columns became separate panels, and
+  the longer speed labels (`2133 MHz`) can no longer drag the type bars
+  out of line — every bar starts at the same x. `By status` and `By
+  condition` then got the same skin (`.bd-panel`: tinted, bordered,
+  uppercase heading + divider, 120px label column, right-aligned count),
+  so all four breakdowns on the page are one style. Below 480px the label
+  column narrows to 96px and below 1024px everything stacks in one
+  column, so a phone still gets full-width bars.
+- **Count badges**: each breakdown heading carries a `.bd-count` pill —
+  `1` status, `1` condition, `2` types, `4` speeds on production today —
+  with `title`/`aria-label` from the new `dash.badge_hint` key (“Number of
+  groups listed in this breakdown”). Number-only, so no “1 groups”
+  plural bug in either language.
+- Tests: `apps/dashboard/test_home.py` asserts 4 `.bd-panel` blocks, 4
+  count badges and the hint text next to the existing RAM context
+  assertions.
+- Gates: local suite **524 passed + 100 subtests** (314.8 s, exit 0),
+  `ruff check` + `format --check` clean; server suite **524 + 100** on
+  both deploys (152.8 s / 151.1 s, exit 0, `SCOPE_ENFORCEMENT_ENABLED=1`),
+  `makemigrations --check` clean (no migration this session).
+- Commits `3812738` (searchable key), `5bcc241` (RAM panels), `d5575e8`
+  (status/condition panels + badges) — **pushed** `a5c5633..d5575e8`.
+- **Deploys 2026-10-30** (two, both LF `git archive` with
+  `core.autocrlf=false` and md5-identical checks): #1 the 7 pending files
+  → gunicorn restart → `/healthz` ok → probe **16 ok / 0 failed**; #2 the
+  3 dashboard files → restart → `/healthz` ok → probe **16 ok / 0
+  failed** (throttle + authed phases skipped both times).
 
 ### 2026-10-30 (session 52 — content-sized modals, New department, New site)
 - **Problem** (user screenshot of the New person modal): every modal

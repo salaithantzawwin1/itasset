@@ -109,14 +109,17 @@ def tag_category_error(tag, category) -> str | None:
 
     A tag that *claims* another existing category's code (the production
     bug: ``IT-HW-DSK-0010`` filed under ``IT-HW-LAP``) makes the register
-    and the taxonomy disagree about what the asset is, so it is refused.
-    A tag carrying no category code at all (legacy/manual ids, the
-    ``PROBE-…`` health check, imported historical registers) is left to
-    the caller's own rules — this only rejects an active contradiction.
+    and the taxonomy disagree about what the asset is. Detecting it is
+    shared by the model's ``clean()`` (create/edit form + admin), the API
+    serializer (DRF never calls ``full_clean``) and the CSV importer —
+    then the interactive paths *repair* it via ``retag_for_category``
+    (the prefix follows the category, session 46), while the importer
+    reports the row: a CSV tag is the register's own identity, so
+    rewriting it is an operator decision, not a save-time fix.
 
-    Shared by the model's ``clean()`` (create/edit form + admin), the API
-    serializer (DRF never calls ``full_clean``) and the CSV importer, so
-    every write path answers the same way.
+    A tag carrying no category code at all (legacy/manual ids, the
+    ``PROBE-…`` health check, imported historical registers) never
+    trips this — only an active contradiction does.
     """
     if not tag or category is None:
         return None
@@ -132,6 +135,32 @@ def tag_category_error(tag, category) -> str | None:
         f'belongs to "{category.code} — {category.name}". Use a {category.code}- tag '
         f"(next free: {next_asset_tag(category)}) or file it under {claimed}."
     )
+
+
+def retag_for_category(tag: str, category: Category) -> str:
+    """Follow a category change: ``IT-HW-DSK-0010`` → ``IT-HW-LAP-0010``.
+
+    The prefix follows the new category while the sequence — the asset's
+    number — survives (§13), so re-filing an asset never renumbers it
+    behind the operator's back. Two escapes keep the result valid:
+
+    - a suffix that isn't numeric carries no sequence, so the target
+      category's ``next_asset_tag`` is used instead;
+    - per-category counters overlap (both series start at 0001), so when
+      the carried number is already taken the tag continues the *target's*
+      own run — either way ``asset_tag`` stays unique and both sequences
+      keep counting.
+
+    Only called when the tag actively claims another existing category
+    (``tag_category_error``), so legacy tags that carry no category code
+    are never rewritten.
+    """
+    suffix = tag.rsplit("-", 1)[-1]
+    if suffix.isdigit():
+        candidate = f"{category.code}-{suffix}"
+        if not Asset.objects.filter(asset_tag=candidate).exists():
+            return candidate
+    return next_asset_tag(category)
 
 
 def active_assignment(asset: Asset) -> Assignment | None:
@@ -593,8 +622,11 @@ def import_assets_csv(
             skipped += 1
             errors.append(ImportRowError(row_no, f"duplicate asset_tag skipped: {tag}"))
             return None
-        # ---- tag ↔ category consistency (§13 format) — same rule as the
-        # form/API: a row claiming another category's code never lands
+        # ---- tag ↔ category consistency (§13 format): a row claiming
+        # another category's code never lands as-is. The form/API re-file
+        # the prefix on save (retag_for_category); an import can't — the
+        # CSV tag IS the register's identity, so a mismatch is an operator
+        # fix, not a save-time rewrite.
         message = tag_category_error(tag, values["category"])
         if message:
             errors.append(ImportRowError(row_no, message))

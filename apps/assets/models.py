@@ -244,30 +244,33 @@ class Asset(models.Model):
         return f"{self.asset_tag} ({self.get_status_display()})"
 
     def clean(self) -> None:
-        """The tag must belong to the category it is filed under (§13: tag
-        format `{category-code}-{seq}`).
+        """Keep the tag's prefix in step with the category (§13: tag format
+        `{category-code}-{seq}`).
 
         This is the bug behind production's `IT-HW-DSK-0010` sitting in
         category `IT-HW-LAP`: a Desktop tag on a Laptop row, so the register
-        and the category disagree about what the asset is. Runs in
-        ModelForms/admin (Django calls full_clean there) — the create/edit
-        form and the admin both stop on it; raw ORM writes (services,
-        migrations, seed) stay validation-free by the same design as
-        `Category.clean`. The API path repeats the check in its serializer,
-        which never calls `full_clean`.
+        and the category disagree about what the asset is. Changing the
+        category now re-files the tag *with* it — the prefix follows the new
+        category, the sequence (`0010`) is kept — instead of blocking the
+        save until the tag is retyped (session 46). Runs in ModelForms/admin
+        (Django calls full_clean there), and `validate_unique` then checks
+        the rewritten tag like any other, so a lost race surfaces as a normal
+        form error; raw ORM writes (services, migrations, seed) stay
+        validation-free by the same design as `Category.clean`. The API path
+        repeats the rewrite in its serializer, which never calls
+        `full_clean`.
 
         Tags that carry no category code at all (`W-1`, `SPEC-0001`, a
-        legacy hand-me-down) are left alone: the rule catches a tag that
+        legacy hand-me-down) are left alone: the rule only repairs a tag that
         actively claims a *different* category, which is the confusion that
         matters.
         """
         if not self.category_id or not self.asset_tag:
             return
-        from apps.assets.services import tag_category_error
+        from apps.assets.services import retag_for_category, tag_category_error
 
-        message = tag_category_error(self.asset_tag, self.category)
-        if message:
-            raise ValidationError({"asset_tag": message})
+        if tag_category_error(self.asset_tag, self.category):
+            self.asset_tag = retag_for_category(self.asset_tag, self.category)
 
     def bump_version(self) -> None:
         """Advance the optimistic-lock counter (pair with update_fields)."""

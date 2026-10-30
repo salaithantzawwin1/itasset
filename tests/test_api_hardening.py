@@ -80,12 +80,14 @@ def test_asset_create_without_site_is_400_not_500(api, django_user_model, group_
     assert "site_id" in r.json()
 
 
-def test_asset_create_rejects_a_tag_from_another_category(
+def test_asset_create_re_files_a_tag_from_another_category(
     api, django_user_model, group_setup, site, category
 ):
     """DRF never calls the model's full_clean, so the tag ↔ category rule
     (§13) is repeated in the serializer: a Desktop tag under the Laptop
-    category — the production `IT-HW-DSK-0010` — answers 400, not a bad row.
+    category — the production `IT-HW-DSK-0010` — is re-filed onto the
+    category's prefix with its sequence kept (session 46), never stored
+    as a bad row.
     """
     from apps.assets.models import Asset, Category
 
@@ -96,10 +98,34 @@ def test_asset_create_rejects_a_tag_from_another_category(
         {"asset_tag": "IT-HW-DSK-7099", "category_id": category.id, "site_id": site.id},
         format="json",
     )
-    assert r.status_code == 400
-    assert "asset_tag" in r.json()
-    assert "IT-HW-DSK" in str(r.json()["asset_tag"])
+    assert r.status_code == 201, r.json()
+    assert r.json()["asset_tag"] == f"{category.code}-7099"  # prefix followed
     assert not Asset.objects.filter(asset_tag="IT-HW-DSK-7099").exists()
+
+
+def test_patch_category_change_re_files_the_tag(
+    api, django_user_model, group_setup, asset_factory, category
+):
+    """The API's half of session 46: PATCHing only the category re-files the
+    tag's prefix too — the client doesn't resend asset_tag, and the
+    sequence rides along (`DSK-7040` → `LAP-7040`)."""
+    from apps.assets.models import Category
+
+    desk = Category.objects.get_or_create(
+        code="IT-HW-DSK", defaults={"name": "Desktop / Workstation"}
+    )[0]
+    _login_as(api, django_user_model, group_setup, "technician")
+    asset = asset_factory(asset_tag="IT-HW-DSK-7040", category=desk)
+
+    r = api.patch(
+        f"/api/v1/assets/{asset.asset_tag}/",
+        {"category_id": category.id, "version": asset.version},
+        format="json",
+    )
+    assert r.status_code == 200, r.json()
+    assert r.json()["asset_tag"] == f"{category.code}-7040"
+    asset.refresh_from_db()
+    assert asset.category_id == category.id and asset.asset_tag == f"{category.code}-7040"
 
 
 # --------------------------------------------------------------------------- version lock

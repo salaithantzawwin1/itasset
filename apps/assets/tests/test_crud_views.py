@@ -119,12 +119,13 @@ def test_technician_can_create_asset_but_not_site(client, django_user_model, gro
     assert r.status_code == 302, r.context["form"].errors
 
 
-def test_create_refuses_a_tag_from_another_category(client, django_user_model, group_setup):
+def test_create_re_files_a_tag_from_another_category(client, django_user_model, group_setup):
     """§13 tag format {category-code}-{seq} — the production bug.
 
-    `IT-HW-DSK-0010` was filed under `IT-HW-LAP`, so the register and the
-    taxonomy disagreed about what the asset is. `Asset.clean()` refuses it
-    on the way in: the form redisplays with the error and no row lands.
+    `IT-HW-DSK-0010` filed under `IT-HW-LAP` used to block the save until
+    the tag was retyped. Since session 46 the tag follows the category on
+    the way in: prefix swapped, sequence kept, and no row lands carrying
+    the contradiction.
     """
     tech = _user(django_user_model, group_setup, "technician")
     _login(client, tech)
@@ -142,19 +143,18 @@ def test_create_refuses_a_tag_from_another_category(client, django_user_model, g
             "condition": "GOOD",
         },
     )
-    assert r.status_code == 200  # form redisplayed, not saved
-    errors = r.context["form"].errors
-    assert "asset_tag" in errors
-    assert "IT-HW-DSK" in errors["asset_tag"][0]
+    assert r.status_code == 302, r.context["form"].errors
+    assert Asset.objects.filter(asset_tag="IT-HW-LAP-0010", category=lap).exists()
     assert not Asset.objects.filter(asset_tag="IT-HW-DSK-0010").exists()
 
 
-def test_retagging_onto_a_mismatched_category_is_blocked(
+def test_changing_category_re_files_the_tag_and_keeps_the_sequence(
     client, django_user_model, group_setup, asset_factory
 ):
     """The other half of the bug: an asset whose category is changed while
-    the tag keeps the old code. The row must not silently become a
-    Desktop-tagged Laptop again — the edit stops until the tag follows."""
+    the tag keeps the old code. The row must not become a Desktop-tagged
+    Laptop — and since session 46 the edit doesn't stop either: the prefix
+    follows the new category, the sequence (0010) rides along."""
     tech = _user(django_user_model, group_setup, "technician")
     _login(client, tech)
     desk = Category.objects.get_or_create(
@@ -173,25 +173,42 @@ def test_retagging_onto_a_mismatched_category_is_blocked(
             "condition": asset.condition,
         },
     )
-    assert r.status_code == 200
-    assert "asset_tag" in r.context["form"].errors
+    assert r.status_code == 302, r.context["form"].errors
     asset.refresh_from_db()
-    assert asset.category_id == desk.pk  # nothing changed on either axis
+    assert asset.asset_tag == "IT-HW-LAP-0010"  # prefix followed, sequence kept
+    assert asset.category_id == lap.pk
 
-    # …and the fixed pair saves cleanly
-    r2 = client.post(
+
+def test_category_change_onto_a_taken_number_continues_the_target_sequence(
+    client, django_user_model, group_setup, asset_factory
+):
+    """Per-category counters overlap (both series start at 0001), so the
+    carried number can already be taken in the target category. The move
+    still saves — it continues the *target's* run instead, keeping both
+    sequences unique and counting (session 46)."""
+    tech = _user(django_user_model, group_setup, "technician")
+    _login(client, tech)
+    desk = Category.objects.get_or_create(
+        code="IT-HW-DSK", defaults={"name": "Desktop / Workstation"}
+    )[0]
+    lap = Category.objects.get_or_create(code="IT-HW-LAP", defaults={"name": "Laptop"})[0]
+    asset_factory(asset_tag="IT-HW-LAP-0010", category=lap)  # already holds the number
+    asset = asset_factory(asset_tag="IT-HW-DSK-0010", category=desk)
+
+    r = client.post(
         f"/assets/{asset.pk}/edit/",
         {
-            "asset_tag": "IT-HW-LAP-0010",
+            "asset_tag": "IT-HW-DSK-0010",
             "category": lap.pk,
             "site": asset.site_id,
             "status": asset.status,
             "condition": asset.condition,
         },
     )
-    assert r2.status_code == 302, r2.context["form"].errors
+    assert r.status_code == 302, r.context["form"].errors
     asset.refresh_from_db()
-    assert asset.asset_tag == "IT-HW-LAP-0010" and asset.category_id == lap.pk
+    assert asset.asset_tag == "IT-HW-LAP-0011"  # next free in LAP, not a clash
+    assert asset.category_id == lap.pk
 
 
 def test_admin_can_manage_site(client, django_user_model, group_setup):

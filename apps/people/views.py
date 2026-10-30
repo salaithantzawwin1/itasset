@@ -262,6 +262,33 @@ class DepartmentList(RoleRequiredMixin, ListView):
         )
 
 
+class DepartmentCreate(RoleRequiredMixin, CreateView):
+    """Create a department in the main app (admin role, like Site/Person).
+
+    Opens in the shared modal from the Departments list; name + site are all
+    that is required — the head (တာဝန်ခံ) can be picked later on the edit
+    form. Scope re-checked against the chosen site on save, like PersonCreate.
+    """
+
+    roles_required = ("admin",)
+    model = Department
+    form_class = DepartmentForm
+    template_name = "people/department_form.html"
+    success_url = reverse_lazy("department-list")
+
+    def form_valid(self, form):
+        try:
+            check_scope(
+                self.request.user,
+                form.instance.site,
+                action="department_create",
+                path=self.request.path,
+            )
+        except OutOfScope:
+            return HttpResponseForbidden("That site is outside your scope.")
+        return super().form_valid(form)
+
+
 class DepartmentDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
     """One department: its head, its held assets, its members.
 

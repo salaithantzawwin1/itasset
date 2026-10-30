@@ -1,14 +1,18 @@
 {% extends "base.html" %}
 {% load t %}
-{% block title %}{% t "dept.edit_title" %} — {% t "app.name" %}{% endblock %}
+{% block title %}{% if object %}{% t "dept.edit_title" %}{% else %}{% t "dept.new_title" %}{% endif %} — {% t "app.name" %}{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>{% t "dept.edit_title" %}</h1></div></div>
+<div class="page-head"><div><h1>{% if object %}{% t "dept.edit_title" %}{% else %}{% t "dept.new_title" %}{% endif %}</h1></div></div>
 <div class="card">
   <form method="post" class="frm">
     {% csrf_token %}
     {{ form.as_p }}
     <button class="btn" type="submit">{% t "asset.save" %}</button>
+    {% if object %}
     <a class="btn secondary" href="{% url 'department-detail' object.pk %}">{% t "asset.cancel" %}</a>
+    {% else %}
+    <a class="btn secondary" href="{% url 'department-list' %}">{% t "asset.cancel" %}</a>
+    {% endif %}
   </form>
 </div>
 {% endblock %}

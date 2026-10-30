@@ -200,6 +200,8 @@ STRINGS = {
     "nav.departments": {"en": "Departments", "my": "ဌာနများ"},
     "dept.title": {"en": "Departments", "my": "ဌာနများ"},
     "dept.count": {"en": "{n} departments", "my": "ဌာန {n} ခု"},
+    "dept.new": {"en": "+ New department", "my": "+ ဌာန အသစ်"},
+    "dept.new_title": {"en": "New department", "my": "ဌာန အသစ်"},
     "dept.edit_title": {"en": "Edit department", "my": "ဌာန ပြင်ရန်"},
     # bulk department check-out (session 36)
     "bulk.title": {"en": "Bulk check-out", "my": "အစုလိုက် ပေးအပ်မည်"},
@@ -336,6 +338,7 @@ STRINGS = {
     "site.code": {"en": "Code", "my": "Code"},
     "site.people_n": {"en": "People", "my": "လုပ်သား အရေအတွက်"},
     "site.people_at": {"en": "People at this site", "my": "ဤစခန်းရှိ လုပ်သားများ"},
+    "site.new": {"en": "+ New site", "my": "+ စခန်း အသစ်"},
     "site.new_title": {"en": "New site", "my": "စခန်း အသစ်"},
     "site.edit_title": {"en": "Edit site", "my": "စခန်း ပြင်ရန်"},
     # login

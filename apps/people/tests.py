@@ -7,6 +7,9 @@ Covers:
 - the ``0007_renumber_employee_nos`` data migration that moves legacy rows
   (EMP1 / EMP02 / E201 / free text) onto the ``EMP-NNNN`` series without ever
   displacing a canonical row or tripping the unique constraint.
+- the Django admin Person add form doing the same auto-assign: a visible
+  ``next_employee_no()`` prefill, a server-side fill for a cleared field,
+  explicit values winning, and edits never rewriting the stored number.
 """
 
 import pytest
@@ -124,6 +127,54 @@ def test_person_form_renders_the_fine_tuned_layout(admin_client, db):
     assert "Auto-assigned (EMP-0001" in html  # help text explains the number
     assert html.count('class="req"') >= 3  # required marks on No / Name / Site
     assert "pactions" in html
+
+
+# ------------------------------------------------------- Django admin add form
+
+ADMIN_PERSON_ADD = "/admin/people/person/add/"
+
+
+def test_admin_add_form_prefills_the_next_number(admin_client, db, site):
+    """The Django admin's Person add page opens with the next free number
+    already in the field — same visible prefill as the main-app modal."""
+    Person.objects.create(employee_no="EMP-0005", name="Occupied", site=site)
+
+    resp = admin_client.get(ADMIN_PERSON_ADD)
+
+    assert resp.status_code == 200
+    assert resp.context["adminform"].form.initial["employee_no"] == "EMP-0006"
+
+
+def test_admin_blank_employee_no_is_assigned_server_side(admin_client, db, site):
+    """A cleared field still gets a number before validation runs — employee_no
+    is required at the model level, so without the fill the admin POST would
+    die on 'required' instead of auto-assigning (same contract as the
+    main-app create view)."""
+    resp = admin_client.post(ADMIN_PERSON_ADD, _payload(site, _save="Save"))
+
+    assert resp.status_code == 302
+    assert Person.objects.get(name="New Hire").employee_no == "EMP-0001"
+
+
+def test_admin_explicit_employee_no_wins_over_auto_assign(admin_client, db, site):
+    resp = admin_client.post(ADMIN_PERSON_ADD, _payload(site, employee_no="EMP-0777", _save="Save"))
+
+    assert resp.status_code == 302
+    assert Person.objects.get(name="New Hire").employee_no == "EMP-0777"
+
+
+def test_admin_edit_never_rewrites_the_stored_number(admin_client, db, site):
+    person = Person.objects.create(employee_no="EMP-0123", name="Steady", site=site)
+
+    resp = admin_client.post(
+        f"/admin/people/person/{person.pk}/change/",
+        _payload(site, employee_no="EMP-0123", name="Steady Renamed", _save="Save"),
+    )
+
+    assert resp.status_code == 302
+    person.refresh_from_db()
+    assert person.employee_no == "EMP-0123"
+    assert person.name == "Steady Renamed"
 
 
 # ------------------------------------------------------- 0007 renumber migration

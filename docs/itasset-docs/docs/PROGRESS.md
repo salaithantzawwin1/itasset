@@ -15,7 +15,7 @@
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
 | Last updated | 2026-10-30 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **485 passed + 99 subtests** (2026-10-30: local 296.7 s + server 139.3 s, both exit 0 — session 49 deployed to 192.168.100.142) |
+| Test suite | **486 passed + 99 subtests** (2026-10-30: local 301.7 s + server 136.4 s, both exit 0 — session 50 deployed to 192.168.100.142) |
 
 ---
 
@@ -185,6 +185,44 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-10-30 (session 50 — department detail becomes four tabs)
+- **Problem** (user screenshot): `/departments/<pk>/` stacked four
+  full cards — department-held assets, held by department members,
+  assignment history, department members — so the later sections sat
+  below the fold; the ask was one tab per section. The data and view
+  context were already complete on production (all four cards render,
+  verified by grep on the live template); only the presentation was
+  stacked.
+- **Template** (`templates/people/department_detail.html`): one
+  `#dept-detail-card` carrying a `role="tablist"` strip — labels carry
+  the live counts, history keeps its title-only form (capped at 20) —
+  over four `role="tabpanel"` sections. The inline script is the asset
+  form's progressive-enhancement pattern (sessions 22/23): without JS
+  the strip stays hidden and all four panels render stacked under
+  their own `<h2>` (nothing is lost); with JS the strip activates,
+  panels collapse and arrow keys move between tabs. New i18n key
+  `dept.tabs_label` (EN+MM) for the tablist's `aria-label`; every
+  other label reuses existing keys (incl. `asset.history`).
+- Tests: `test_dept_detail_sections_are_tabs` — tablist + exactly 4
+  `role="tab"` buttons (must not match `tablist`/`tabpanel`), counts on
+  the labels, four panels each with `aria-controls`, no panel hidden
+  server-side, per-panel content. The existing section tests stand
+  unchanged — every table stays in the DOM.
+- Gates: local `ruff check` + `format --check` clean; local suite
+  **486 passed + 99 subtests** (301.7 s, exit 0). Commit `b22dbb3` —
+  **pushed** `e9700b1..b22dbb3`.
+- **Deploy 2026-10-30**: pending set from `git diff e9700b1..HEAD` =
+  3 files (template, i18n, test), LF-synced md5-identical →
+  `makemigrations --check` clean → server suite **486 passed + 99
+  subtests** (136.4 s, exit 0, `SCOPE_ENFORCEMENT_ENABLED=1`) →
+  gunicorn restart (active) → `/healthz` `{"status":"ok","db":"ok"}` →
+  probe gate **27 ok / 0 failed** (`SKIP_THROTTLE=1`) → live as
+  `itadmin` on `/departments/11/`: **200**, tablist with 4 tabs reading
+  “Department-held assets (0)”, “Held by department members (3)”,
+  “Assignment history”, “Department members (3)”, all four panels
+  server-rendered un-hidden plus the 4 `<h2>` no-JS fallback
+  headings.
 
 ### 2026-10-30 (session 49 — a category change re-files the asset tag, sequence kept)
 - **Problem** (user request): editing an asset's **category** left the

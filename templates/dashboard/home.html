@@ -79,21 +79,26 @@
     .bar-row .bl { width: 96px; }
   }
 
-  /* RAM card: "by type" and "by speed" are two separate panels, side by side
-     when there is room and stacked when narrow. Each panel owns its rows, so
-     a longer label in one group ("2133 MHz") can no longer drag the other
-     group's bars out of line — every bar in both panels starts at the same x. */
-  .ram-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
-  .ram-group { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px 4px;
+  /* Breakdown blocks: one skin for every list on the dashboard — the RAM
+     card's type/speed panels and the status/condition cards. Tinted and
+     bordered, a small uppercase heading with a divider and a count badge,
+     and one shared label width so the bars line up from block to block. */
+  .bd-panel { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px 4px;
     background: color-mix(in srgb, var(--primary) 4%, transparent); }
-  .ram-sub { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted);
-    font-weight: 700; margin: 0 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
-  .ram-group .bar-row { margin-bottom: 8px; }
-  .ram-group .bar-row .bl { width: 86px; }
-  .ram-group .bar-row .bn { width: 34px; }
-  .ram-none { font-size: 12px; margin: 0 0 8px; }
+  .bd-panel > h2, .bd-panel > .bd-sub { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    margin: 0 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    font-size: 11px; line-height: 1.4; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .4px; color: var(--muted); }
+  .bd-count { flex: 0 0 auto; font-size: 11px; font-weight: 700; letter-spacing: 0; text-transform: none;
+    color: var(--text); background: color-mix(in srgb, var(--primary) 15%, transparent);
+    border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+  .ram-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .bd-panel .bar-row { margin-bottom: 8px; }
+  .bd-panel .bar-row .bl { width: 120px; }   /* same start line for every bar */
+  .bd-panel .bar-row .bn { width: 34px; }
+  .bd-none { font-size: 12px; margin: 0 0 8px; }
   .ram-coverage { font-size: 12px; margin: 12px 0 0; }
-  @media (max-width: 480px) { .ram-group .bar-row .bl { width: 76px; } }
+  @media (max-width: 480px) { .bd-panel .bar-row .bl { width: 96px; } }
 {% endblock %}
 {% block content %}
 <div class="dash-hero">
@@ -187,25 +192,26 @@
 </div>
 
 <div class="grid-2">
-  <div class="card">
-    <h2>{% t "dash.by_status" %}</h2>
+  <div class="bd-panel">
+    <h2>{% t "dash.by_status" %}<span class="bd-count" title="{% t "dash.badge_hint" %}" aria-label="{% t "dash.badge_hint" %}">{{ by_status|length }}</span></h2>
     {% for row in by_status %}
       <div class="bar-row">
         <span class="bl"><span class="pill pill-{{ row.status }}">{{ row.label }}</span></span>
         <span class="bar"><span style="width: {% widthratio row.n total_assets 100 %}%"></span></span>
         <span class="bn">{{ row.n }}</span>
       </div>
-    {% empty %}<p class="muted">{% t "common.empty" %}</p>
+    {% empty %}<p class="muted bd-none">{% t "common.empty" %}</p>
     {% endfor %}
-  </div>  <div class="card">
-    <h2>{% t "dash.by_condition" %}</h2>
+  </div>
+  <div class="bd-panel">
+    <h2>{% t "dash.by_condition" %}<span class="bd-count" title="{% t "dash.badge_hint" %}" aria-label="{% t "dash.badge_hint" %}">{{ by_condition|length }}</span></h2>
     {% for row in by_condition %}
       <div class="bar-row">
         <span class="bl">{{ row.label }}</span>
         <span class="bar"><span style="width: {% widthratio row.n total_assets 100 %}%"></span></span>
         <span class="bn">{{ row.n }}</span>
       </div>
-    {% empty %}<p class="muted">{% t "common.empty" %}</p>{% endfor %}
+    {% empty %}<p class="muted bd-none">{% t "common.empty" %}</p>{% endfor %}
   </div>
 </div>
 
@@ -213,25 +219,25 @@
   <h2>💾 {% t "dash.ram" %}</h2>
   {% if ram_types or ram_speeds %}
   <div class="ram-cols">
-    <div class="ram-group">
-      <div class="ram-sub">{% t "dash.ram.by_type" %}</div>
+    <div class="bd-panel">
+      <div class="bd-sub">{% t "dash.ram.by_type" %}<span class="bd-count" title="{% t "dash.badge_hint" %}" aria-label="{% t "dash.badge_hint" %}">{{ ram_types|length }}</span></div>
       {% for row in ram_types %}
       <div class="bar-row">
         <span class="bl">{{ row.label }}</span>
         <span class="bar"><span style="width: {% widthratio row.n total_assets 100 %}%"></span></span>
         <span class="bn">{{ row.n }}</span>
       </div>
-      {% empty %}<p class="muted ram-none">—</p>{% endfor %}
+      {% empty %}<p class="muted bd-none">—</p>{% endfor %}
     </div>
-    <div class="ram-group">
-      <div class="ram-sub">{% t "dash.ram.by_speed" %}</div>
+    <div class="bd-panel">
+      <div class="bd-sub">{% t "dash.ram.by_speed" %}<span class="bd-count" title="{% t "dash.badge_hint" %}" aria-label="{% t "dash.badge_hint" %}">{{ ram_speeds|length }}</span></div>
       {% for row in ram_speeds %}
       <div class="bar-row">
         <span class="bl">{{ row.label }}</span>
         <span class="bar"><span style="width: {% widthratio row.n total_assets 100 %}%"></span></span>
         <span class="bn">{{ row.n }}</span>
       </div>
-      {% empty %}<p class="muted ram-none">—</p>{% endfor %}
+      {% empty %}<p class="muted bd-none">—</p>{% endfor %}
     </div>
   </div>
   <p class="ram-coverage muted">{% t "dash.ram.coverage" n=ram_recorded m=total_assets %}</p>

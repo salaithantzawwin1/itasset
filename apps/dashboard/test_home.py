@@ -118,7 +118,10 @@ class DashboardRamCardTests(TestCase):
         self.assertContains(resp, "RAM recorded for 3 of 4 assets")
         # two distinct panels, so the type list and the speed list never read
         # as one mixed table and their bars can't push each other out of line
-        self.assertContains(resp, 'class="ram-group"', count=2)
+        self.assertContains(resp, 'class="bd-panel"', count=4)  # RAM 2 + status + condition
+        # every breakdown carries a count badge (groups listed in it)
+        self.assertContains(resp, 'class="bd-count"', count=4)
+        self.assertContains(resp, "Number of groups listed in this breakdown")
 
     def test_card_offers_the_setup_hint_when_nothing_is_recorded(self):
         self._asset("RAM-E", self.lap, {})

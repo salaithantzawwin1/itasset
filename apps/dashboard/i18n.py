@@ -92,6 +92,11 @@ STRINGS = {
     "dash.ram": {"en": "RAM type and speed", "my": "RAM အမျိုးအစားနှင့် အမြန်နှုန်း"},
     "dash.ram.by_type": {"en": "By type", "my": "အမျိုးအစားအလိုက်"},
     "dash.ram.by_speed": {"en": "By speed", "my": "အမြန်နှုန်းအလိုက်"},
+    # count badge on every breakdown block (how many groups it lists)
+    "dash.badge_hint": {
+        "en": "Number of groups listed in this breakdown",
+        "my": "ဤခွဲခြမ်းစာရင်းတွင် ပြထားသည့် အုပ်စု အရေအတွက်",
+    },
     "dash.ram.coverage": {
         "en": "RAM recorded for {n} of {m} assets",
         "my": "RAM မှတ်တမ်း ဖြည့်ထားသည့် ပစ္စည်း {n} / {m} ခု",

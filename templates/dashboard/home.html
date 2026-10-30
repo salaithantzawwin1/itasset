@@ -79,11 +79,21 @@
     .bar-row .bl { width: 96px; }
   }
 
-  /* RAM card: the two breakdowns share one card, stacking when narrow */
-  .ram-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 24px; }
+  /* RAM card: "by type" and "by speed" are two separate panels, side by side
+     when there is room and stacked when narrow. Each panel owns its rows, so
+     a longer label in one group ("2133 MHz") can no longer drag the other
+     group's bars out of line — every bar in both panels starts at the same x. */
+  .ram-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .ram-group { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px 4px;
+    background: color-mix(in srgb, var(--primary) 4%, transparent); }
   .ram-sub { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted);
-    font-weight: 700; margin: 4px 0 10px; }
+    font-weight: 700; margin: 0 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .ram-group .bar-row { margin-bottom: 8px; }
+  .ram-group .bar-row .bl { width: 86px; }
+  .ram-group .bar-row .bn { width: 34px; }
+  .ram-none { font-size: 12px; margin: 0 0 8px; }
   .ram-coverage { font-size: 12px; margin: 12px 0 0; }
+  @media (max-width: 480px) { .ram-group .bar-row .bl { width: 76px; } }
 {% endblock %}
 {% block content %}
 <div class="dash-hero">
@@ -203,7 +213,7 @@
   <h2>💾 {% t "dash.ram" %}</h2>
   {% if ram_types or ram_speeds %}
   <div class="ram-cols">
-    <div>
+    <div class="ram-group">
       <div class="ram-sub">{% t "dash.ram.by_type" %}</div>
       {% for row in ram_types %}
       <div class="bar-row">
@@ -211,9 +221,9 @@
         <span class="bar"><span style="width: {% widthratio row.n total_assets 100 %}%"></span></span>
         <span class="bn">{{ row.n }}</span>
       </div>
-      {% endfor %}
+      {% empty %}<p class="muted ram-none">—</p>{% endfor %}
     </div>
-    <div>
+    <div class="ram-group">
       <div class="ram-sub">{% t "dash.ram.by_speed" %}</div>
       {% for row in ram_speeds %}
       <div class="bar-row">
@@ -221,7 +231,7 @@
         <span class="bar"><span style="width: {% widthratio row.n total_assets 100 %}%"></span></span>
         <span class="bn">{{ row.n }}</span>
       </div>
-      {% endfor %}
+      {% empty %}<p class="muted ram-none">—</p>{% endfor %}
     </div>
   </div>
   <p class="ram-coverage muted">{% t "dash.ram.coverage" n=ram_recorded m=total_assets %}</p>

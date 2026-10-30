@@ -116,6 +116,9 @@ class DashboardRamCardTests(TestCase):
         self.assertContains(resp, "RAM type and speed")
         self.assertContains(resp, "4800 MHz")
         self.assertContains(resp, "RAM recorded for 3 of 4 assets")
+        # two distinct panels, so the type list and the speed list never read
+        # as one mixed table and their bars can't push each other out of line
+        self.assertContains(resp, 'class="ram-group"', count=2)
 
     def test_card_offers_the_setup_hint_when_nothing_is_recorded(self):
         self._asset("RAM-E", self.lap, {})

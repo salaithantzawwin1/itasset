@@ -178,15 +178,15 @@
       </tbody>
     </table>
   </div>
-  <div class="card">
-    <h2>{% t "dash.by_site" %}</h2>
+  <div class="bd-panel">
+    <h2>{% t "dash.by_site" %}<span class="bd-count" title="{% t "dash.badge_hint" %}" aria-label="{% t "dash.badge_hint" %}">{{ by_site|length }}</span></h2>
     {% for s in by_site %}
       <div class="bar-row">
         <span class="bl"><a href="{% url 'site-detail' s.pk %}" style="color:var(--primary);font-weight:600;text-decoration:none;">{{ s.name }}</a></span>
         <span class="bar"><span style="width: {% if total_assets %}{% widthratio s.n total_assets 100 %}{% else %}0{% endif %}%"></span></span>
         <span class="bn">{{ s.n }}</span>
       </div>
-    {% empty %}<p class="muted">{% t "common.empty" %}</p>
+    {% empty %}<p class="muted bd-none">{% t "common.empty" %}</p>
     {% endfor %}
   </div>
 </div>

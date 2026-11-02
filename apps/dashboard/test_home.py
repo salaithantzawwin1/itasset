@@ -1,5 +1,6 @@
 """Tests for the dashboard home page (root URL) and the staff-only Admin link."""
 
+import re
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
@@ -118,9 +119,10 @@ class DashboardRamCardTests(TestCase):
         self.assertContains(resp, "RAM recorded for 3 of 4 assets")
         # two distinct panels, so the type list and the speed list never read
         # as one mixed table and their bars can't push each other out of line
-        self.assertContains(resp, 'class="bd-panel"', count=4)  # RAM 2 + status + condition
+        # RAM 2 + status + condition + site
+        self.assertContains(resp, 'class="bd-panel"', count=5)
         # every breakdown carries a count badge (groups listed in it)
-        self.assertContains(resp, 'class="bd-count"', count=4)
+        self.assertContains(resp, 'class="bd-count"', count=5)
         self.assertContains(resp, "Number of groups listed in this breakdown")
 
     def test_card_offers_the_setup_hint_when_nothing_is_recorded(self):
@@ -133,6 +135,40 @@ class DashboardRamCardTests(TestCase):
         self.assertEqual(resp.context["ram_types"], [])
         self.assertEqual(resp.context["ram_speeds"], [])
         self.assertContains(resp, "No RAM details recorded yet")
+
+
+class DashboardBySitePanelTests(TestCase):
+    """By site is a breakdown panel like status/condition/RAM: same skin and a
+    count badge, instead of the lone `.card` that broke the dashboard's look."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.yangon = Site.objects.create(name="Yangon HQ", code="yangon")
+        cls.mandalay = Site.objects.create(name="Mandalay Branch", code="mandalay")
+        cls.cat = Category.objects.get_or_create(code="IT-HW-LAP", defaults={"name": "Laptop"})[0]
+
+    def _asset(self, tag, site):
+        return Asset.objects.create(asset_tag=tag, category=self.cat, site=site, attrs={})
+
+    def test_by_site_panel_carries_the_same_badge_and_order(self):
+        self._asset("SITE-A", self.yangon)
+        self._asset("SITE-B", self.yangon)
+        self._asset("SITE-C", self.mandalay)
+
+        _login_global(self.client)
+        resp = self.client.get("/")
+
+        self.assertEqual(
+            [(s.code, s.n) for s in resp.context["by_site"]],
+            [("yangon", 2), ("mandalay", 1)],
+        )
+        html = resp.content.decode()
+        # the badge on this panel counts the sites it lists, not the assets
+        badge = re.search(r"<h2>By site<span class=\"bd-count\"[^>]*>(\d+)</span>", html)
+        self.assertIsNotNone(badge, "By site panel header/badge missing")
+        self.assertEqual(badge.group(1), "2")
+        # no leftover plain card heading with the old 17px style
+        self.assertNotIn("<h2>By site</h2>", html)
 
 
 class DashboardKpiAlertTests(TestCase):

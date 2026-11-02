@@ -114,29 +114,77 @@ class DashboardView(TemplateView):
 
         type_counts: Counter = Counter()
         speed_counts: Counter = Counter()
+        cells: Counter = Counter()  # (type|None, speed label|None) → assets
         ram_recorded = 0
         for attrs in assets.values_list("attrs", flat=True)[:1000]:
             data = attrs if isinstance(attrs, dict) else {}
             kind = next((data.get(k) for k in ("ram_type", "memory_type") if data.get(k)), None)
             speed = next((data.get(k) for k in ("ram_speed_mhz", "speed_mhz") if data.get(k)), None)
-            if kind or speed is not None:
-                ram_recorded += 1
-            if kind:
-                type_counts[str(kind)] += 1
-            if speed is not None:
-                speed_counts[_speed_label(speed)] += 1
+            if not kind and speed is None:
+                continue
+            ram_recorded += 1
+            kind_key = str(kind) if kind else None
+            speed_key = _speed_label(speed) if speed is not None else None
+            if kind_key:
+                type_counts[kind_key] += 1
+            if speed_key:
+                speed_counts[speed_key] += 1
+            cells[(kind_key, speed_key)] += 1
 
         ctx["ram_recorded"] = ram_recorded
-        # types lead with the most common stick; speeds read as a spec sheet
-        # (fastest first) — neither needs a second pass over the register
-        ctx["ram_types"] = [
-            {"label": label, "n": n}
-            for label, n in sorted(type_counts.items(), key=lambda kv: (-kv[1], kv[0]))
-        ]
-        ctx["ram_speeds"] = [
-            {"label": label, "n": n}
-            for label, n in sorted(speed_counts.items(), key=lambda kv: -_mhz(kv[0]))
-        ]
+        # ---- RAM matrix: type × speed, totals on both edges --------------
+        # Two separate lists answered “how many DDR4?” and “how many
+        # 1600 MHz?” but never “how many DDR3 at 1600 MHz?”, and each list
+        # counted only the half it showed (10 types vs 10 speeds while 11
+        # assets had RAM). One cross-tab puts every asset in exactly one
+        # cell, so row/column totals reconcile with `ram_recorded`; an asset
+        # with only half the pair recorded lands on the “not recorded” edge
+        # of the other axis instead of vanishing.
+        type_order = [k for k, _ in sorted(type_counts.items(), key=lambda kv: (-kv[1], kv[0]))]
+        speed_order = [k for k, _ in sorted(speed_counts.items(), key=lambda kv: -_mhz(kv[0]))]
+        row_keys = type_order + ([None] if any(k is None for k, _ in cells) else [])
+        col_keys = speed_order + ([None] if any(s is None for _, s in cells) else [])
+
+        # cells are shaded by how many assets they hold, so the busy combos
+        # read at a glance: 0 → no tint, the fullest cell → 0.32 alpha
+        busiest = max(cells.values(), default=0)
+
+        def _heat(n: int) -> float:
+            if n <= 0 or busiest <= 0:
+                return 0.0
+            if busiest == 1:
+                return 0.22
+            return round(0.10 + 0.22 * (n - 1) / (busiest - 1), 3)
+
+        def _row(key):
+            counts = [cells.get((key, col), 0) for col in col_keys]
+            return {
+                "label": key,
+                "unknown": key is None,
+                "cells": [{"n": n, "heat": _heat(n)} for n in counts],
+                "total": sum(counts),
+            }
+
+        rows = [_row(k) for k in row_keys]
+        ctx["ram_matrix"] = {
+            "columns": [{"label": c, "unknown": c is None} for c in col_keys],
+            "rows": rows,
+            "col_totals": [sum(r["cells"][i]["n"] for r in rows) for i in range(len(col_keys))],
+            "total": ram_recorded,
+            # phone view: the non-empty cells as “DDR4 · 2133 MHz — 4”, in
+            # the same type-major / fastest-first order and shading as the table
+            "combos": [
+                {
+                    "type": r["label"],
+                    "speed": col,
+                    "n": r["cells"][i]["n"],
+                    "heat": r["cells"][i]["heat"],
+                }
+                for r in rows
+                for i, col in enumerate(col_keys)
+                if r["cells"][i]["n"]
+            ],
+        }
 
         # ---- mockup KPIs + alerts (live queries, caller-scoped) ----------
         today = timezone.localdate()

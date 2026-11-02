@@ -92,7 +92,42 @@
   .bd-count { flex: 0 0 auto; font-size: 11px; font-weight: 700; letter-spacing: 0; text-transform: none;
     color: var(--text); background: color-mix(in srgb, var(--primary) 15%, transparent);
     border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
-  .ram-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  /* RAM matrix: type × speed with totals on both edges. The table is the
+     desktop view; ≤640px the same numbers read as a combo list, because a
+     two-axis grid of 4+ speed columns can't stay legible on a phone. */
+  .ram-matrix-wrap { overflow-x: auto; }
+  /* heat tint: the rgb triplet of --primary, so the shade follows the theme
+     (inline `--heat` is the alpha baked by the view) */
+  .ram-matrix-wrap, .ram-combo { --ram-rgb: 15, 76, 129; }
+  [data-theme="dark"] .ram-matrix-wrap, [data-theme="dark"] .ram-combo { --ram-rgb: 74, 144, 200; }
+  .ram-matrix { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .ram-matrix th, .ram-matrix td { padding: 8px 10px; border-bottom: 1px solid var(--border);
+    text-align: right; white-space: nowrap; }
+  .ram-matrix thead th { font-size: 11px; font-weight: 700; letter-spacing: .4px;
+    text-transform: uppercase; color: var(--muted); background: var(--thead-bg); }
+  .ram-matrix thead th:first-child, .ram-matrix tbody th, .ram-matrix tfoot th { text-align: left; }
+  .ram-matrix thead th:first-child { border-radius: 8px 0 0 0; }
+  .ram-matrix thead th:last-child { border-radius: 0 8px 0 0; }
+  .ram-matrix tbody th { font-weight: 700; color: var(--text); }
+  .ram-matrix tbody tr:last-child th, .ram-matrix tbody tr:last-child td { border-bottom: 0; }
+  .ram-matrix .zero { color: var(--muted); font-weight: 400; }
+  .ram-matrix td.heat { background: rgba(var(--ram-rgb), var(--heat)); font-weight: 700; }
+  .ram-matrix .ram-total-col { font-weight: 800; border-left: 1px solid var(--border); }
+  .ram-matrix tfoot th, .ram-matrix tfoot td { font-weight: 800; color: var(--text);
+    background: color-mix(in srgb, var(--primary) 4%, transparent); border-bottom: 0; }
+  .ram-matrix tfoot th:first-child { border-radius: 0 0 0 8px; }
+  .ram-matrix tfoot td:last-child { border-radius: 0 0 8px 0; }
+  .ram-combo { display: none; list-style: none; margin: 0; padding: 0; }
+  .ram-combo li { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 8px 2px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .ram-combo li:last-child { border-bottom: 0; }
+  .ram-combo li.heat { background: rgba(var(--ram-rgb), var(--heat));
+    border-radius: 6px; padding-left: 8px; padding-right: 8px; }
+  .ram-combo .rc-n { font-weight: 800; }
+  @media (max-width: 640px) {
+    .ram-matrix-wrap { display: none; }
+    .ram-combo { display: block; }
+  }
   .bd-panel .bar-row { margin-bottom: 8px; }
   .bd-panel .bar-row .bl { width: 120px; }   /* same start line for every bar */
   .bd-panel .bar-row .bn { width: 34px; }
@@ -217,29 +252,42 @@
 
 <div class="card">
   <h2>💾 {% t "dash.ram" %}</h2>
-  {% if ram_types or ram_speeds %}
-  <div class="ram-cols">
-    <div class="bd-panel">
-      <div class="bd-sub">{% t "dash.ram.by_type" %}<span class="bd-count" title="{% t "dash.badge_hint" %}" aria-label="{% t "dash.badge_hint" %}">{{ ram_types|length }}</span></div>
-      {% for row in ram_types %}
-      <div class="bar-row">
-        <span class="bl">{{ row.label }}</span>
-        <span class="bar"><span style="width: {% widthratio row.n total_assets 100 %}%"></span></span>
-        <span class="bn">{{ row.n }}</span>
-      </div>
-      {% empty %}<p class="muted bd-none">—</p>{% endfor %}
-    </div>
-    <div class="bd-panel">
-      <div class="bd-sub">{% t "dash.ram.by_speed" %}<span class="bd-count" title="{% t "dash.badge_hint" %}" aria-label="{% t "dash.badge_hint" %}">{{ ram_speeds|length }}</span></div>
-      {% for row in ram_speeds %}
-      <div class="bar-row">
-        <span class="bl">{{ row.label }}</span>
-        <span class="bar"><span style="width: {% widthratio row.n total_assets 100 %}%"></span></span>
-        <span class="bn">{{ row.n }}</span>
-      </div>
-      {% empty %}<p class="muted bd-none">—</p>{% endfor %}
-    </div>
+  {% if ram_matrix.rows %}
+  <div class="ram-matrix-wrap">
+    <table class="ram-matrix">
+      <thead>
+        <tr>
+          <th scope="col">{% t "dash.ram.type" %}</th>
+          {% for col in ram_matrix.columns %}<th scope="col">{% if col.unknown %}{% t "dash.ram.unknown" %}{% else %}{{ col.label }}{% endif %}</th>{% endfor %}
+          <th scope="col" class="ram-total-col">{% t "dash.ram.total" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in ram_matrix.rows %}
+        <tr>
+          <th scope="row">{% if row.unknown %}{% t "dash.ram.unknown" %}{% else %}{{ row.label }}{% endif %}</th>
+          {% for cell in row.cells %}<td class="{% if cell.n %}heat{% else %}zero{% endif %}"{% if cell.n %} style="--heat: {{ cell.heat }}"{% endif %}>{% if cell.n %}{{ cell.n }}{% else %}–{% endif %}</td>{% endfor %}
+          <td class="ram-total-col">{{ row.total }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th scope="row">{% t "dash.ram.total" %}</th>
+          {% for n in ram_matrix.col_totals %}<td>{{ n }}</td>{% endfor %}
+          <td class="ram-total-col">{{ ram_matrix.total }}</td>
+        </tr>
+      </tfoot>
+    </table>
   </div>
+  <ul class="ram-combo">
+    {% for c in ram_matrix.combos %}
+      <li class="heat" style="--heat: {{ c.heat }}">
+        <span>{% if c.type %}{{ c.type }}{% else %}{% t "dash.ram.unknown" %}{% endif %} · {% if c.speed %}{{ c.speed }}{% else %}{% t "dash.ram.unknown" %}{% endif %}</span>
+        <span class="rc-n">{{ c.n }}</span>
+      </li>
+    {% endfor %}
+  </ul>
   <p class="ram-coverage muted">{% t "dash.ram.coverage" n=ram_recorded m=total_assets %}</p>
   {% else %}<p class="muted">{% t "dash.ram.none" %}</p>{% endif %}
 </div>

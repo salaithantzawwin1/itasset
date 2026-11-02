@@ -73,12 +73,14 @@ class DashboardHomeTests(TestCase):
 
 
 class DashboardRamCardTests(TestCase):
-    """RAM inventory card: type + speed breakdown from the §5 spec attrs.
+    """RAM inventory card: a type × speed cross-tab from the §5 spec attrs.
 
     Two key spellings feed one card — installed devices record
     `ram_type`/`ram_speed_mhz`, the RAM-module category records
     `memory_type`/`speed_mhz` — and the coverage line says how much of the
-    register actually has RAM recorded.
+    register actually has RAM recorded. The two old bar lists could not
+    answer “how many DDR3 at 1600 MHz?” and each counted only its own axis;
+    the matrix puts every asset in one cell so the totals reconcile.
     """
 
     @classmethod
@@ -92,7 +94,7 @@ class DashboardRamCardTests(TestCase):
     def _asset(self, tag, category, attrs):
         return Asset.objects.create(asset_tag=tag, category=category, site=self.site, attrs=attrs)
 
-    def test_card_groups_types_and_speeds_across_both_key_spellings(self):
+    def test_matrix_pairs_each_type_with_its_speeds_across_both_spellings(self):
         self._asset("RAM-A", self.lap, {"ram_type": "DDR4", "ram_speed_mhz": 3200})
         self._asset("RAM-B", self.lap, {"ram_type": "DDR4", "ram_speed_mhz": 2666})
         self._asset("RAM-C", self.mod, {"memory_type": "DDR5", "speed_mhz": 4800})
@@ -102,28 +104,56 @@ class DashboardRamCardTests(TestCase):
         resp = self.client.get("/")
 
         self.assertEqual(resp.context["ram_recorded"], 3)
-        self.assertEqual(
-            resp.context["ram_types"], [{"label": "DDR4", "n": 2}, {"label": "DDR5", "n": 1}]
-        )
+        matrix = resp.context["ram_matrix"]
         # speeds read fastest-first, like a spec sheet
         self.assertEqual(
-            resp.context["ram_speeds"],
-            [
-                {"label": "4800 MHz", "n": 1},
-                {"label": "3200 MHz", "n": 1},
-                {"label": "2666 MHz", "n": 1},
-            ],
+            [c["label"] for c in matrix["columns"]], ["4800 MHz", "3200 MHz", "2666 MHz"]
+        )
+        # rows lead with the most common type; every asset sits in exactly one cell
+        self.assertEqual(
+            [(r["label"], [c["n"] for c in r["cells"]], r["total"]) for r in matrix["rows"]],
+            [("DDR4", [0, 1, 1], 2), ("DDR5", [1, 0, 0], 1)],
+        )
+        self.assertEqual(matrix["col_totals"], [1, 1, 1])
+        self.assertEqual(matrix["total"], resp.context["ram_recorded"])
+        self.assertEqual(
+            [(c["type"], c["speed"], c["n"]) for c in matrix["combos"]],
+            [("DDR4", "3200 MHz", 1), ("DDR4", "2666 MHz", 1), ("DDR5", "4800 MHz", 1)],
         )
         self.assertContains(resp, "RAM type and speed")
         self.assertContains(resp, "4800 MHz")
         self.assertContains(resp, "RAM recorded for 3 of 4 assets")
-        # two distinct panels, so the type list and the speed list never read
-        # as one mixed table and their bars can't push each other out of line
-        # RAM 2 + status + condition + site
-        self.assertContains(resp, 'class="bd-panel"', count=5)
-        # every breakdown carries a count badge (groups listed in it)
-        self.assertContains(resp, 'class="bd-count"', count=5)
+        self.assertContains(resp, 'class="ram-matrix"')
+        self.assertContains(resp, 'class="ram-combo"')  # phone view, same numbers
+        self.assertContains(resp, "DDR4 · 2666 MHz")
+        # every non-empty cell is shaded; the empties stay a muted dash
+        self.assertContains(resp, 'class="zero"', count=3)
+        self.assertContains(resp, "--heat:", count=6)  # 3 table cells + 3 combos
+        # By site + status + condition are bar panels; RAM is the matrix now
+        self.assertContains(resp, 'class="bd-panel"', count=3)
+        self.assertContains(resp, 'class="bd-count"', count=3)
         self.assertContains(resp, "Number of groups listed in this breakdown")
+
+    def test_half_recorded_pair_lands_on_the_not_recorded_edge(self):
+        # a type with no speed, and a speed with no type: both are still RAM
+        # recorded, so they must not vanish from the matrix (the old two
+        # lists counted 10 types against 10 speeds for 11 assets)
+        self._asset("RAM-F", self.lap, {"ram_type": "DDR4"})
+        self._asset("RAM-G", self.lap, {"ram_speed_mhz": 2400})
+
+        _login_global(self.client)
+        resp = self.client.get("/")
+
+        self.assertEqual(resp.context["ram_recorded"], 2)
+        matrix = resp.context["ram_matrix"]
+        self.assertEqual([c["label"] for c in matrix["columns"]], ["2400 MHz", None])
+        self.assertEqual(
+            [(r["label"], [c["n"] for c in r["cells"]]) for r in matrix["rows"]],
+            [("DDR4", [0, 1]), (None, [1, 0])],
+        )
+        self.assertEqual(matrix["col_totals"], [1, 1])
+        self.assertEqual(matrix["total"], 2)
+        self.assertContains(resp, "Not recorded")
 
     def test_card_offers_the_setup_hint_when_nothing_is_recorded(self):
         self._asset("RAM-E", self.lap, {})
@@ -132,13 +162,14 @@ class DashboardRamCardTests(TestCase):
         resp = self.client.get("/")
 
         self.assertEqual(resp.context["ram_recorded"], 0)
-        self.assertEqual(resp.context["ram_types"], [])
-        self.assertEqual(resp.context["ram_speeds"], [])
+        self.assertEqual(resp.context["ram_matrix"]["rows"], [])
+        self.assertEqual(resp.context["ram_matrix"]["total"], 0)
+        self.assertNotContains(resp, 'class="ram-matrix"')
         self.assertContains(resp, "No RAM details recorded yet")
 
 
 class DashboardBySitePanelTests(TestCase):
-    """By site is a breakdown panel like status/condition/RAM: same skin and a
+    """By site is a breakdown panel like status/condition: same skin and a
     count badge, instead of the lone `.card` that broke the dashboard's look."""
 
     @classmethod

@@ -92,6 +92,11 @@ STRINGS = {
     "dash.ram": {"en": "RAM type and speed", "my": "RAM အမျိုးအစားနှင့် အမြန်နှုန်း"},
     "dash.ram.by_type": {"en": "By type", "my": "အမျိုးအစားအလိုက်"},
     "dash.ram.by_speed": {"en": "By speed", "my": "အမြန်နှုန်းအလိုက်"},
+    # RAM matrix (type × speed cross-tab): its axis + edge-total labels and
+    # the cell/row used when only half of the pair was recorded
+    "dash.ram.type": {"en": "Type", "my": "အမျိုးအစား"},
+    "dash.ram.total": {"en": "Total", "my": "စုစုပေါင်း"},
+    "dash.ram.unknown": {"en": "Not recorded", "my": "မဖြည့်ရသေး"},
     # count badge on every breakdown block (how many groups it lists)
     "dash.badge_hint": {
         "en": "Number of groups listed in this breakdown",

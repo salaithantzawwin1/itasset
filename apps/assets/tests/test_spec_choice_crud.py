@@ -213,8 +213,12 @@ class TestSpecChoiceAdmin(TestCase):
         resp = self.client.get(self._url("add"))
         self.assertEqual(resp.status_code, 200)
         body = resp.content.decode()
-        self.assertIn('list="id_key"', body)
-        self.assertIn('<datalist id="id_key">', body)
+        # Regression: the datalist reused the input's own id, so `list` pointed
+        # at the input and the browser offered no suggestions (typing looked
+        # broken). The list id must be its own element.
+        self.assertIn('list="id_key-list"', body)
+        self.assertIn('<datalist id="id_key-list">', body)
+        self.assertNotIn('<datalist id="id_key">', body)
         self.assertIn('<option value="ram_type">', body)
         self.assertIn('<option value="panel_type">', body)  # rowless keys suggest too
         self.assertIn("Type to search", body)

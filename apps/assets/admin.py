@@ -144,6 +144,11 @@ class SearchableSelect(forms.TextInput):
     meant scrolling to find one. Typing filters the suggestions natively
     (no JS); validation is unchanged, because the field stays a
     ``ChoiceField`` — a value that is not a live key is still refused.
+
+    The ``<datalist>`` needs its OWN id: reusing the input's id made the
+    document hold two elements with that id, and ``list="…"`` resolves to
+    the first one — the input itself — so the browser had no suggestions to
+    offer and typing appeared to do nothing.
     """
 
     def __init__(self, choices, attrs=None):
@@ -152,7 +157,7 @@ class SearchableSelect(forms.TextInput):
 
     def render(self, name, value, attrs=None, renderer=None):
         attrs = dict(attrs or {})
-        list_id = attrs.get("id") or f"datalist-{name}"
+        list_id = f"{attrs.get('id') or 'id_' + name}-list"
         attrs["list"] = list_id
         attrs.setdefault("autocomplete", "off")
         field_html = super().render(name, value, attrs, renderer)

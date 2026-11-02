@@ -225,9 +225,19 @@ body.nb-modal-open { overflow: hidden; }
     var full = window.innerWidth <= 640;  // the ≤640px fullscreen media query
     var max = full ? window.innerHeight : Math.min(window.innerHeight * 0.88, 880);
     var avail = Math.max(220, max - (head ? head.offsetHeight : 0) - 4);
-    /* body only: documentElement is the canvas (= the current iframe height),
-       which would round-trip the old measurement back into itself. */
-    var content = Math.max(doc.body.scrollHeight, 180);
+    /* The framed page's body is stretched to the frame's own height (the
+       admin layout wrapper is min-height:100vh), so body.scrollHeight just
+       echoes the current iframe height: a short form kept the dialog at full
+       height with a dead panel under the save row. Measure the blocks that
+       hold the content instead, and fall back to the body when a page has
+       neither. */
+    var content = 0, blocks = doc.querySelectorAll("#content, .page"), i, rb;
+    for (i = 0; i < blocks.length; i++) {
+      rb = blocks[i].getBoundingClientRect();
+      if (rb.height > 0) content = Math.max(content, rb.bottom + (win.pageYOffset || 0));
+    }
+    if (!content) content = doc.body.scrollHeight;
+    content = Math.max(content, 180);
     bodyEl.style.height = Math.min(content + 8, avail) + "px";
   }
 

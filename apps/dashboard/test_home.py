@@ -126,6 +126,11 @@ class DashboardRamCardTests(TestCase):
         self.assertContains(resp, 'class="ram-matrix"')
         self.assertContains(resp, 'class="ram-combo"')  # phone view, same numbers
         self.assertContains(resp, "DDR4 · 2666 MHz")
+        # every header, label and number drills into the filtered asset list
+        self.assertContains(resp, '?ram_type=DDR4"')
+        self.assertContains(resp, '?ram_speed=4800"')
+        self.assertContains(resp, '?ram_type=DDR4&ram_speed=2666"')
+        self.assertContains(resp, "Show matching assets")
         # every non-empty cell is shaded; the empties stay a muted dash
         self.assertContains(resp, 'class="zero"', count=3)
         self.assertContains(resp, "--heat:", count=6)  # 3 table cells + 3 combos
@@ -154,6 +159,9 @@ class DashboardRamCardTests(TestCase):
         self.assertEqual(matrix["col_totals"], [1, 1])
         self.assertEqual(matrix["total"], 2)
         self.assertContains(resp, "Not recorded")
+        # the half-recorded edges are reachable too
+        self.assertContains(resp, '?ram_type=none"')
+        self.assertContains(resp, '?ram_speed=none"')
 
     def test_card_offers_the_setup_hint_when_nothing_is_recorded(self):
         self._asset("RAM-E", self.lap, {})

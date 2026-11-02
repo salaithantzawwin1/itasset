@@ -112,6 +112,13 @@
   .ram-matrix tbody tr:last-child th, .ram-matrix tbody tr:last-child td { border-bottom: 0; }
   .ram-matrix .zero { color: var(--muted); font-weight: 400; }
   .ram-matrix td.heat { background: rgba(var(--ram-rgb), var(--heat)); font-weight: 700; }
+  /* every header, row label and number drills into the filtered list */
+  .ram-matrix a, .ram-combo a { color: inherit; text-decoration: none; }
+  .ram-matrix a:hover, .ram-combo a:hover { text-decoration: underline; }
+  .ram-matrix thead a { color: var(--muted); }
+  .ram-matrix tbody th a { color: var(--text); }
+  .ram-matrix a:focus-visible, .ram-combo a:focus-visible { outline: 2px solid var(--primary);
+    outline-offset: 2px; border-radius: 3px; }
   .ram-matrix .ram-total-col { font-weight: 800; border-left: 1px solid var(--border); }
   .ram-matrix tfoot th, .ram-matrix tfoot td { font-weight: 800; color: var(--text);
     background: color-mix(in srgb, var(--primary) 4%, transparent); border-bottom: 0; }
@@ -258,15 +265,15 @@
       <thead>
         <tr>
           <th scope="col">{% t "dash.ram.type" %}</th>
-          {% for col in ram_matrix.columns %}<th scope="col">{% if col.unknown %}{% t "dash.ram.unknown" %}{% else %}{{ col.label }}{% endif %}</th>{% endfor %}
+          {% for col in ram_matrix.columns %}<th scope="col"><a href="{% url 'asset-list' %}?ram_speed={{ col.key|urlencode }}" title="{% t "asset.ram_show" %}">{% if col.unknown %}{% t "dash.ram.unknown" %}{% else %}{{ col.label }}{% endif %}</a></th>{% endfor %}
           <th scope="col" class="ram-total-col">{% t "dash.ram.total" %}</th>
         </tr>
       </thead>
       <tbody>
         {% for row in ram_matrix.rows %}
         <tr>
-          <th scope="row">{% if row.unknown %}{% t "dash.ram.unknown" %}{% else %}{{ row.label }}{% endif %}</th>
-          {% for cell in row.cells %}<td class="{% if cell.n %}heat{% else %}zero{% endif %}"{% if cell.n %} style="--heat: {{ cell.heat }}"{% endif %}>{% if cell.n %}{{ cell.n }}{% else %}–{% endif %}</td>{% endfor %}
+          <th scope="row"><a href="{% url 'asset-list' %}?ram_type={{ row.key|urlencode }}" title="{% t "asset.ram_show" %}">{% if row.unknown %}{% t "dash.ram.unknown" %}{% else %}{{ row.label }}{% endif %}</a></th>
+          {% for cell in row.cells %}<td class="{% if cell.n %}heat{% else %}zero{% endif %}"{% if cell.n %} style="--heat: {{ cell.heat }}"{% endif %}>{% if cell.n %}<a href="{% url 'asset-list' %}?ram_type={{ row.key|urlencode }}&ram_speed={{ cell.speed_key|urlencode }}" title="{% t "asset.ram_show" %}">{{ cell.n }}</a>{% else %}–{% endif %}</td>{% endfor %}
           <td class="ram-total-col">{{ row.total }}</td>
         </tr>
         {% endfor %}
@@ -283,7 +290,7 @@
   <ul class="ram-combo">
     {% for c in ram_matrix.combos %}
       <li class="heat" style="--heat: {{ c.heat }}">
-        <span>{% if c.type %}{{ c.type }}{% else %}{% t "dash.ram.unknown" %}{% endif %} · {% if c.speed %}{{ c.speed }}{% else %}{% t "dash.ram.unknown" %}{% endif %}</span>
+        <a href="{% url 'asset-list' %}?ram_type={{ c.type_key|urlencode }}&ram_speed={{ c.speed_key|urlencode }}" title="{% t "asset.ram_show" %}">{% if c.type %}{{ c.type }}{% else %}{% t "dash.ram.unknown" %}{% endif %} · {% if c.speed %}{{ c.speed }}{% else %}{% t "dash.ram.unknown" %}{% endif %}</a>
         <span class="rc-n">{{ c.n }}</span>
       </li>
     {% endfor %}

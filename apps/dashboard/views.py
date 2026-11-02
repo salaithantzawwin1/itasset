@@ -156,18 +156,33 @@ class DashboardView(TemplateView):
                 return 0.22
             return round(0.10 + 0.22 * (n - 1) / (busiest - 1), 3)
 
+        def _speed_key(label):
+            """The value the asset list filters on: `2400` from “2400 MHz”.
+
+            A non-numeric label (some modules record “LPDDR4X-4266”) is used
+            as-is, and `none` reaches the matrix's “Not recorded” edge.
+            """
+            if label is None:
+                return "none"
+            head = label.split()[0]
+            return head if head.isdigit() else label
+
         def _row(key):
             counts = [cells.get((key, col), 0) for col in col_keys]
             return {
                 "label": key,
+                "key": key or "none",
                 "unknown": key is None,
-                "cells": [{"n": n, "heat": _heat(n)} for n in counts],
+                "cells": [
+                    {"n": n, "heat": _heat(n), "speed_key": _speed_key(col)}
+                    for n, col in zip(counts, col_keys, strict=True)
+                ],
                 "total": sum(counts),
             }
 
         rows = [_row(k) for k in row_keys]
         ctx["ram_matrix"] = {
-            "columns": [{"label": c, "unknown": c is None} for c in col_keys],
+            "columns": [{"label": c, "key": _speed_key(c), "unknown": c is None} for c in col_keys],
             "rows": rows,
             "col_totals": [sum(r["cells"][i]["n"] for r in rows) for i in range(len(col_keys))],
             "total": ram_recorded,
@@ -176,7 +191,9 @@ class DashboardView(TemplateView):
             "combos": [
                 {
                     "type": r["label"],
+                    "type_key": r["key"],
                     "speed": col,
+                    "speed_key": r["cells"][i]["speed_key"],
                     "n": r["cells"][i]["n"],
                     "heat": r["cells"][i]["heat"],
                 }

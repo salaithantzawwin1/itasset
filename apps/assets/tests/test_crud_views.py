@@ -401,6 +401,57 @@ def test_quick_filters_warranty_and_missing_serial(
     assert [a.pk for a in r.context["object_list"]] == [noserial.pk]
 
 
+def test_ram_drilldown_narrows_by_type_speed_and_cell(
+    client, django_user_model, group_setup, asset_factory
+):
+    """The dashboard RAM matrix links here: a type, a speed or one cell each
+    narrow the list, across both key spellings, and `none` reaches the
+    “Not recorded” edge so a row total never links to a list that hides a row.
+    """
+    _login(client, _user(django_user_model, group_setup, "viewer"))
+    asset_factory(asset_tag="RAM-1", attrs={"ram_type": "DDR4", "ram_speed_mhz": 2400})
+    asset_factory(asset_tag="RAM-2", attrs={"ram_type": "DDR4", "ram_speed_mhz": 1600})
+    asset_factory(asset_tag="RAM-3", attrs={"ram_type": "DDR3", "ram_speed_mhz": 1600})
+    asset_factory(asset_tag="RAM-4", attrs={"memory_type": "DDR5", "speed_mhz": 4800})
+    asset_factory(asset_tag="RAM-5", attrs={"ram_speed_mhz": 2400})  # no type
+    asset_factory(asset_tag="RAM-6", attrs={"ram_type": "DDR4"})  # no speed
+    asset_factory(asset_tag="RAM-7")  # no RAM recorded at all
+
+    def tags(params):
+        r = client.get(URLS["asset_list"], params)
+        return sorted(a.asset_tag for a in r.context["object_list"])
+
+    assert tags({"ram_type": "DDR3"}) == ["RAM-3"]
+    assert tags({"ram_type": "DDR5"}) == ["RAM-4"]  # memory_type spelling
+    assert tags({"ram_speed": "1600"}) == ["RAM-2", "RAM-3"]
+    assert tags({"ram_speed": "4800"}) == ["RAM-4"]  # speed_mhz spelling
+    assert tags({"ram_type": "DDR4", "ram_speed": "2400"}) == ["RAM-1"]
+    assert tags({"ram_type": "none"}) == ["RAM-5"]  # speed, but no type
+    assert tags({"ram_speed": "none"}) == ["RAM-6"]  # type, but no speed
+
+    # the list says why it is narrow, and keeps the filter in #filterform so
+    # a select change or a live-search keystroke cannot drop it
+    r = client.get(URLS["asset_list"], {"ram_type": "DDR4", "ram_speed": "2400"})
+    html = r.content.decode()
+    assert "RAM: DDR4 · 2400 MHz" in html
+    form = re.search(r'<form id="filterform".*?</form>', html, re.S).group(0)
+    assert 'name="ram_type" value="DDR4"' in form
+    assert 'name="ram_speed" value="2400"' in form
+
+
+def test_pagination_keeps_ram_drilldown(client, django_user_model, group_setup, asset_factory):
+    _login(client, _user(django_user_model, group_setup, "viewer"))
+    for i in range(51):
+        asset_factory(
+            asset_tag=f"RM-{i:03d}",
+            attrs={"ram_type": "DDR4", "ram_speed_mhz": 2400},
+        )
+    r = client.get(URLS["asset_list"], {"ram_type": "DDR4", "ram_speed": "2400"})
+    assert r.context["is_paginated"] is True
+    html = r.content.decode()
+    assert "ram_type=DDR4" in html and "ram_speed=2400" in html
+
+
 def test_pagination_link_keeps_filters(client, django_user_model, group_setup, asset_factory):
     """Regression: ?page=N used to drop q/status (audit list did it right)."""
     _login(client, _user(django_user_model, group_setup, "viewer"))

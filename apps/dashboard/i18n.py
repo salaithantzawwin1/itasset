@@ -97,6 +97,16 @@ STRINGS = {
     "dash.ram.type": {"en": "Type", "my": "အမျိုးအစား"},
     "dash.ram.total": {"en": "Total", "my": "စုစုပေါင်း"},
     "dash.ram.unknown": {"en": "Not recorded", "my": "မဖြည့်ရသေး"},
+    # RAM drill-down: matrix headers/numbers open the asset list filtered
+    "asset.ram_show": {
+        "en": "Show matching assets",
+        "my": "ကိုက်ညီသည့် ပစ္စည်းများ ကြည့်မည်",
+    },
+    "asset.ram_chip": {"en": "RAM", "my": "RAM"},
+    "asset.ram_hint": {
+        "en": "Filtered from the dashboard RAM matrix — Clear shows every asset.",
+        "my": "Dashboard ရဲ့ RAM matrix မှ စစ်ထားသည် — အားလုံးကြည့်ရန် Clear နှိပ်ပါ။",
+    },
     # count badge on every breakdown block (how many groups it lists)
     "dash.badge_hint": {
         "en": "Number of groups listed in this breakdown",

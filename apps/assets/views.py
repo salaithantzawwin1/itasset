@@ -51,6 +51,34 @@ class AssetList(RoleRequiredMixin, ListView):
             qs = qs.filter(status=status)
         if site:
             qs = qs.filter(site_id=site)
+        # RAM drill-down from the dashboard matrix: a type, a speed, or one
+        # type×speed cell. Two key spellings exist (`ram_type`/
+        # `ram_speed_mhz` on devices, `memory_type`/`speed_mhz` on RAM
+        # modules), so a hit on either spelling is the same asset. `none` is
+        # the matrix's “Not recorded” edge — a device with only half the
+        # pair filled must still be reachable from the row/column that
+        # counted it, otherwise the total links to a list that hides a row.
+        ram_type = self.request.GET.get("ram_type", "").strip()
+        ram_speed = self.request.GET.get("ram_speed", "").strip()
+        if ram_type == "none":
+            qs = qs.filter(
+                Q(attrs__ram_speed_mhz__isnull=False) | Q(attrs__speed_mhz__isnull=False)
+            ).filter(attrs__ram_type__isnull=True, attrs__memory_type__isnull=True)
+        elif ram_type:
+            qs = qs.filter(Q(attrs__ram_type=ram_type) | Q(attrs__memory_type=ram_type))
+        if ram_speed == "none":
+            qs = qs.filter(
+                Q(attrs__ram_type__isnull=False) | Q(attrs__memory_type__isnull=False)
+            ).filter(attrs__ram_speed_mhz__isnull=True, attrs__speed_mhz__isnull=True)
+        elif ram_speed:
+            # the spec form stores a number, but jsonb equality is type
+            # strict — accept the string a hand-edited row may carry too
+            speed_hit = Q(attrs__ram_speed_mhz=ram_speed) | Q(attrs__speed_mhz=ram_speed)
+            if ram_speed.isdigit():
+                speed_hit |= Q(attrs__ram_speed_mhz=int(ram_speed)) | Q(
+                    attrs__speed_mhz=int(ram_speed)
+                )
+            qs = qs.filter(speed_hit)
         if q:
             # holder search: the open assignment's person name, that
             # person's own department, or the department the asset is
@@ -127,6 +155,20 @@ class AssetList(RoleRequiredMixin, ListView):
         # the search term — the rows partial wraps its hits in <mark>
         # through {% highlight %} with this (same value the q filter used)
         ctx["q"] = (self.request.GET.get("q") or "").strip()
+        # a readable “RAM: DDR4 · 2400 MHz” chip so a narrow list from the
+        # dashboard matrix says why it is narrow (and Clear resets it)
+        ram_type = (self.request.GET.get("ram_type") or "").strip()
+        ram_speed = (self.request.GET.get("ram_speed") or "").strip()
+        if ram_type or ram_speed:
+            if not ram_speed:
+                speed_label = ""
+            elif ram_speed.isdigit():
+                speed_label = f"{ram_speed} MHz"
+            else:
+                speed_label = ram_speed
+            type_label = "—" if ram_type == "none" else ram_type
+            speed_label = "—" if ram_speed == "none" else speed_label
+            ctx["ram_filter_label"] = " · ".join(p for p in (type_label, speed_label) if p)
         ctx["statuses"] = Asset.Status.choices
         ctx["departments"] = Department.objects.select_related("site").order_by("name")
         # the orphan fix-up queue is technician-only — hide the link otherwise

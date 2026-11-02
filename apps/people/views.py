@@ -252,7 +252,7 @@ class DepartmentList(RoleRequiredMixin, ListView):
             )
             .order_by("name")
         )
-        return scope_list(
+        qs = scope_list(
             self.request.user,
             qs,
             site_field="site",
@@ -260,6 +260,33 @@ class DepartmentList(RoleRequiredMixin, ListView):
             action="department_list",
             path=self.request.path,
         )
+        # type-ahead search, same live-search contract as the People list:
+        # the JS fetches this URL with `_fragment=1` and swaps the count and
+        # rows; without JS the plain GET filters the same way. A department
+        # is known by its name, its site or its head, so all three match.
+        q = (self.request.GET.get("q") or "").strip()
+        if q:
+            qs = qs.filter(
+                Q(name__icontains=q)
+                | Q(site__code__icontains=q)
+                | Q(site__name__icontains=q)
+                | Q(head__name__icontains=q)
+            )
+        return qs
+
+    def render_to_response(self, context, **response):
+        if self.request.GET.get("_fragment") == "1":
+
+            def frag(partial):
+                return render_to_string(partial, context, request=self.request)
+
+            return JsonResponse(
+                {
+                    "count": frag("people/_department_count.html"),
+                    "rows": frag("people/_department_list_rows.html"),
+                }
+            )
+        return super().render_to_response(context)
 
 
 class DepartmentCreate(RoleRequiredMixin, CreateView):

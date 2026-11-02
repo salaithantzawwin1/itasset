@@ -3,11 +3,17 @@
 {% block title %}{% t "dept.title" %} — {% t "app.name" %}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>{% t "dept.title" %}</h1><div class="sub">{% t "dept.count" n=object_list|length %}</div></div>
+  <div><h1>{% t "dept.title" %}</h1>{% include "people/_department_count.html" %}</div>
   <div class="actions">
     <a class="btn" href="{% url 'department-create' %}" data-modal>{% t "dept.new" %}</a>
   </div>
 </div>
+{# type-ahead search — same live-search contract as the People list #}
+<form id="deptfilterform" class="filterbar" method="get">
+  <input type="text" name="q" placeholder="{% t "dept.search_ph" %}" value="{{ request.GET.q }}">
+  <button class="btn" type="submit">{% t "asset.search_btn" %}</button>
+  {% if request.GET.q %}<a class="muted clear-link" href="{% url 'department-list' %}">{% t "asset.clear" %}</a>{% endif %}
+</form>
 <table class="data">
   <thead>
     <tr>
@@ -19,19 +25,60 @@
       <th></th>
     </tr>
   </thead>
-  <tbody>
-  {% for d in object_list %}
-    <tr>
-      <td><a href="{% url 'department-detail' d.pk %}">{{ d.name }}</a></td>
-      <td>{{ d.site.code }}</td>
-      <td>{% if d.head_id %}<a href="{% url 'person-detail' d.head_id %}">{{ d.head }}</a>{% else %}<span class="muted">—</span>{% endif %}</td>
-      <td>{{ d.member_count }}</td>
-      <td><a href="{% url 'asset-list' %}?department={{ d.pk }}">{{ d.asset_count }}</a></td>
-      <td><a class="btn secondary sm" href="{% url 'department-update' d.pk %}">{% t "asset.edit" %}</a></td>
-    </tr>
-  {% empty %}
-    <tr class="empty-row"><td colspan="6">{% t "common.empty" %}</td></tr>
-  {% endfor %}
+  <tbody id="dept-rows">
+  {% include "people/_department_list_rows.html" %}
   </tbody>
 </table>
+<script>
+  // search-as-you-type: debounce keystrokes, fetch the SAME url with
+  // _fragment=1 (server answers count/rows as JSON) and swap the DOM in
+  // place — no navigation, so focus and scroll survive. The Search button
+  // keeps doing a full GET (works without JS too).
+  (function () {
+    var form = document.getElementById("deptfilterform");
+    var input = form && form.querySelector('input[name="q"]');
+    if (!input) return;
+    var DELAY = 300;
+    var timer = null;
+    var inflight = null;
+
+    function queryString(fragment) {
+      var p = new URLSearchParams(new FormData(form));
+      p.delete("page"); // a new query always starts at page 1
+      if (fragment) p.set("_fragment", "1");
+      else p.delete("_fragment");
+      return p.toString();
+    }
+
+    function run() {
+      if (timer) { clearTimeout(timer); timer = null; }
+      if (inflight) inflight.abort(); // an older keystroke's answer is stale
+      var ctrl = new AbortController();
+      inflight = ctrl;
+      fetch(location.pathname + "?" + queryString(true), { signal: ctrl.signal })
+        .then(function (r) { return r.json(); })
+        .then(function (frag) {
+          if (ctrl !== inflight) return; // superseded while decoding
+          var count = document.getElementById("dept-count");
+          if (count) count.outerHTML = frag.count;
+          document.getElementById("dept-rows").innerHTML = frag.rows;
+          var qs = queryString(false);
+          history.replaceState(null, "", location.pathname + (qs ? "?" + qs : ""));
+        })
+        .catch(function (err) {
+          if (err && err.name === "AbortError") return;
+          // non-JSON (expired session → login HTML) or a network hiccup:
+          // leave the current rows alone; the Search button still works
+        });
+    }
+
+    input.addEventListener("input", function () {
+      clearTimeout(timer);
+      timer = setTimeout(run, DELAY);
+    });
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); run(); } // search now
+    });
+  })();
+</script>
 {% endblock %}

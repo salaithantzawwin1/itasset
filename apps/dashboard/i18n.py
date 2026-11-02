@@ -222,6 +222,10 @@ STRINGS = {
     "dept.count": {"en": "{n} departments", "my": "ဌာန {n} ခု"},
     "dept.new": {"en": "+ New department", "my": "+ ဌာန အသစ်"},
     "dept.new_title": {"en": "New department", "my": "ဌာန အသစ်"},
+    "dept.search_ph": {
+        "en": "Search by name, site or head…",
+        "my": "ဌာနအမည်၊ ဆိုက် သို့မဟုတ် တာဝန်ခံဖြင့် ရှာရန်…",
+    },
     "dept.edit_title": {"en": "Edit department", "my": "ဌာန ပြင်ရန်"},
     # bulk department check-out (session 36)
     "bulk.title": {"en": "Bulk check-out", "my": "အစုလိုက် ပေးအပ်မည်"},

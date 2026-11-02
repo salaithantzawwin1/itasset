@@ -29,6 +29,7 @@ from .models import (
 from .specs import (
     SPEC_FIELD_PREFIX,
     build_spec_form_fields,
+    resolve_choice_key,
     schema_as_json,
     spec_choice_key_labels,
 )
@@ -170,7 +171,14 @@ class SearchableSelect(forms.TextInput):
 
 
 class SpecChoiceAdminForm(forms.ModelForm):
-    """``key`` as a type-to-search field over the live schemas' choice keys."""
+    """``key`` as a type-to-search field over the live schemas' choice keys.
+
+    Typed text is resolved leniently (``specs.resolve_choice_key``): the key
+    in any case, the human label or the ``Label (key)`` suggestion form all
+    land on the same list, and a typo is answered with the nearest keys
+    instead of Django's bare “Select a valid choice”. Valid keys are still
+    the only thing that can be saved — the value stored is the live key.
+    """
 
     class Meta:
         model = SpecChoice
@@ -180,14 +188,20 @@ class SpecChoiceAdminForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         current = self.instance.key if self.instance is not None and self.instance.pk else None
         original = self.fields["key"]
-        choices = [("", "---------")] + _spec_choice_key_choices(current)
-        self.fields["key"] = forms.ChoiceField(
-            choices=choices,
+        labels = spec_choice_key_labels(current)
+        self._key_labels = labels
+        self.fields["key"] = forms.CharField(
             label=original.label,
             help_text="Type to search the option lists, then pick one — e.g. “ram” or “storage”.",
             required=original.required,
-            widget=SearchableSelect(choices),
+            widget=SearchableSelect(_spec_choice_key_choices(current)),
         )
+
+    def clean_key(self):
+        key, error = resolve_choice_key(self._key_labels, self.cleaned_data.get("key", ""))
+        if not key:
+            raise forms.ValidationError(error)
+        return key  # always the live key, never the label that was typed
 
 
 @admin.register(SpecChoice)

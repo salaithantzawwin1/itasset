@@ -344,6 +344,14 @@ STRINGS = {
         "my": "ရွေးချယ်စရာ မရှိသေးပါ — အောက်တွင် ပထမဆုံးတစ်ခု ထည့်ပါ။",
     },
     "specopts.value_ph": {"en": "New option value", "my": "ရွေးချယ်စရာ အသစ်"},
+    "specopts.filter_ph": {
+        "en": "Filter these lists — a key, a label or a value…",
+        "my": "စာရင်းများကို စစ်ထုတ်ရန် — key၊ အမည် သို့မဟုတ် တန်ဖိုး…",
+    },
+    "specopts.filter_none": {
+        "en": "No list matches that filter.",
+        "my": "ဒီစစ်ထုတ်ချက်နှင့် ကိုက်ညီတဲ့ စာရင်း မရှိပါ။",
+    },
     "specopts.confirm_delete": {"en": "Remove this option?", "my": "ဒီရွေးချယ်စရာကို ဖျက်မှာလား?"},
     "person.dept": {"en": "Department", "my": "ဌာန"},
     "person.detail_title": {"en": "Person", "my": "လုပ်သား"},

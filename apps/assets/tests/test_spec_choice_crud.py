@@ -199,11 +199,38 @@ class TestSpecChoiceAdmin(TestCase):
     def test_add_form_offers_only_live_schema_keys(self):
         resp = self.client.get(self._url("add"))
         self.assertEqual(resp.status_code, 200)
-        keys = [value for value, _ in resp.context["adminform"].form.fields["key"].choices if value]
+        keys = [
+            value
+            for value, _ in resp.context["adminform"].form.fields["key"].widget.choices
+            if value
+        ]
         self.assertIn("ram_type", keys)
         self.assertIn("storage_1_type", keys)
         self.assertIn("panel_type", keys)  # any choice field of any schema
         self.assertNotIn("bogus_key", keys)  # a typo'd key can never be selected
+
+    def test_typed_key_is_resolved_from_a_label_or_another_case(self):
+        """The field is a type-ahead, so people type the label they see
+        ("RAM Type"), the bracketed suggestion form, or the key in caps. All
+        three mean ram_type — and the row is stored under the live key."""
+        for typed in ("RAM Type", "RAM Type (ram_type)", " RAM_TYPE ", "ram type"):
+            resp = self.client.post(
+                self._url("add"),
+                {"key": typed, "value": "DDR6", "order": "60", "_save": "Save"},
+            )
+            self.assertEqual(resp.status_code, 302, typed)
+            self.assertTrue(SpecChoice.objects.filter(key="ram_type", value="DDR6").exists(), typed)
+            SpecChoice.objects.filter(key="ram_type", value="DDR6").delete()
+
+    def test_typo_in_the_key_names_the_nearest_list(self):
+        resp = self.client.post(
+            self._url("add"),
+            {"key": "ram_tpyo", "value": "DDR6", "order": "0", "_save": "Save"},
+        )
+        self.assertEqual(resp.status_code, 200)  # re-rendered with an error
+        self.assertContains(resp, "did you mean")
+        self.assertContains(resp, "ram_type")
+        self.assertFalse(SpecChoice.objects.filter(value="DDR6").exists())
 
     def test_key_field_is_type_to_search(self):
         """The key control is a text input backed by a <datalist>: a couple of
@@ -401,6 +428,44 @@ class TestSpecChoiceOptionPage(TestCase):
         )
         self.assertFalse(SpecChoice.objects.filter(key="bogus_key").exists())
         self.assertIn("Unknown option list", str(list(resp.context["messages"])[0]))
+
+    def test_add_accepts_a_typed_label_and_suggests_on_a_typo(self):
+        """The page's add form posts a hidden exact key, but a hand-edited
+        request may carry the label — that still lands on the same list, and a
+        typo answers with the nearest keys instead of a bare refusal."""
+        self.client.force_login(self.tech)
+        resp = self.client.post(
+            self._url(),
+            {"action": "add", "key": "RAM Type", "add_value": "DDR6", "add_order": "60"},
+            follow=True,
+        )
+        self.assertEqual(SpecChoice.objects.get(value="DDR6").key, "ram_type")
+        self.assertEqual([m.level for m in resp.context["messages"]], [messages.SUCCESS])
+
+        resp = self.client.post(
+            self._url(),
+            {"action": "add", "key": "ram_tpyo", "add_value": "DDR7", "add_order": "70"},
+            follow=True,
+        )
+        self.assertFalse(SpecChoice.objects.filter(value="DDR7").exists())
+        self.assertIn("did you mean", str(list(resp.context["messages"])[0]))
+
+    def test_add_form_prefills_the_next_order_and_the_page_filters(self):
+        """A new option joins the end of its list (max order + 10) instead of
+        jumping to the top at 0; the page carries the filter box that narrows
+        the 30-odd cards in place."""
+        self.client.force_login(self.tech)
+        resp = self.client.get(self._url())
+        body = resp.content.decode()
+        last = max(o.order for o in SpecChoice.objects.filter(key="ram_type"))
+        self.assertEqual(
+            [s["next_order"] for s in resp.context["sections"] if s["key"] == "ram_type"],
+            [last + 10],
+        )
+        self.assertIn(f'name="add_order" value="{last + 10}"', body)
+        self.assertIn('id="spec-filter"', body)
+        self.assertIn("Filter these lists", body)
+        self.assertIn("No list matches that filter", body)
 
     def test_save_updates_value_and_order(self):
         self.client.force_login(self.tech)

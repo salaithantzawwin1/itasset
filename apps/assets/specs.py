@@ -865,6 +865,56 @@ def spec_choice_key_labels(current: str | None = None) -> dict[str, str]:
     return labels
 
 
+def resolve_choice_key(labels: dict[str, str], raw: str) -> tuple[str | None, str]:
+    """Best live key for what someone typed into a key field.
+
+    The key control is a type-ahead, so people type what they see or what
+    they remember: the key (``ram_type``, any case and with a stray space),
+    the label (``RAM Type``) or the ``RAM Type (ram_type)`` form the
+    suggestions show. All of those mean the same list here; anything else is
+    answered with the closest keys instead of a bare refusal.
+
+    Returns ``(key, "")`` on a hit, else ``(None, message)``.
+    """
+    from difflib import get_close_matches
+
+    text = " ".join((raw or "").split())
+    if not text:
+        return None, "Pick an option list."
+
+    # "RAM Type (ram_type)" — the bracketed key is authoritative
+    head, sep, tail = text.rpartition("(")
+    if sep and tail.endswith(")"):
+        bracketed = tail[:-1].strip()
+        if bracketed in labels:
+            return bracketed, ""
+
+    lowered = text.lower()
+    for key in labels:
+        if key.lower() == lowered:
+            return key, ""
+    for key, label in labels.items():
+        if (label or "").lower() == lowered:
+            return key, ""
+    spaced = lowered.replace(" ", "_").replace("-", "_")
+    for key in labels:
+        if key.lower() == spaced:
+            return key, ""
+
+    # no exact hit: name the nearest lists (by key or by label)
+    needles = {key.lower(): key for key in labels}
+    needles.update({(label or "").lower(): key for key, label in labels.items()})
+    near: list[str] = []
+    for hit in get_close_matches(lowered, list(needles), n=4, cutoff=0.5):
+        key = needles[hit]
+        if key not in near:
+            near.append(key)
+    if near:
+        shown = ", ".join(f"“{labels[k]}” ({k})" for k in near[:3])
+        return None, f"Unknown option list “{text}” — did you mean {shown}?"
+    return None, f"Unknown option list “{text}”."
+
+
 def managed_choice_options(keys) -> dict[str, list[str]]:
     """Option sets maintained as CRUD rows (``SpecChoice``) for these keys.
 

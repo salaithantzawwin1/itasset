@@ -27,7 +27,12 @@ from apps.people.models import Department, Person, Site
 from . import services
 from .forms import AssetForm, AssetRequestForm
 from .models import ApprovalDecision, Asset, AssetRequest, Assignment, Category, SpecChoice
-from .specs import SPEC_FIELD_PREFIX, spec_choice_key_labels, spec_rows
+from .specs import (
+    SPEC_FIELD_PREFIX,
+    resolve_choice_key,
+    spec_choice_key_labels,
+    spec_rows,
+)
 
 
 class AssetList(RoleRequiredMixin, ListView):
@@ -701,14 +706,18 @@ def spec_options(request):
             messages.error(request, text)
 
         if action == "add":
-            key = request.POST.get("key", "")
+            # the section's hidden key is exact, but a hand-typed key is
+            # resolved leniently (label, case, "Label (key)") so a near miss
+            # gets a suggestion instead of a row nobody can see
+            key_raw = request.POST.get("key", "")
+            key, key_error = resolve_choice_key(labels, key_raw)
             option = SpecChoice(
-                key=key,
+                key=key or key_raw,
                 value=(request.POST.get("add_value") or "").strip(),
                 order=_order(request.POST.get("add_order")),
             )
-            if key not in labels:  # a typo'd key would collect invisible rows
-                messages.error(request, "Unknown option list.")
+            if not key:  # a typo'd key would collect invisible rows
+                messages.error(request, key_error)
             else:
                 try:
                     option.full_clean()
@@ -757,6 +766,9 @@ def spec_options(request):
             "key": key,
             "label": labels.get(key, f"{key} (no longer in any schema)"),
             "options": options,
+            # a new option joins the END of its list instead of jumping to
+            # the top at order 0 — the add form shows this as its default
+            "next_order": max((o.order for o in options), default=0) + 10,
         }
         for key, options in grouped.items()
     ]

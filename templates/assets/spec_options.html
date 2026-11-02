@@ -1,6 +1,14 @@
 {% extends "base.html" %}
 {% load t %}
 {% block title %}{% t "specopts.title" %} — {% t "app.name" %}{% endblock %}
+{% block extra_css %}
+<style>
+  /* one page holds every list, so the filter hides whole cards (never
+     inside one: the rows of a hit list are what you came to edit) */
+  .spec-none { display: none; }
+  .spec-none.on { display: block; }
+</style>
+{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
@@ -11,9 +19,15 @@
     <a class="btn secondary" href="{% url 'asset-list' %}">{% t "asset.title" %}</a>
   </div>
 </div>
+{# 30+ lists on one page: typing narrows the cards in place (no page hop) #}
+<div class="filterbar">
+  <input type="text" id="spec-filter" placeholder="{% t "specopts.filter_ph" %}" autocomplete="off" aria-describedby="spec-filter-hint">
+  <span class="muted" id="spec-filter-hint" aria-live="polite"></span>
+</div>
+<div class="card spec-none" id="spec-filter-none"><p class="muted">{% t "specopts.filter_none" %}</p></div>
 {% for s in sections %}
-<div class="card">
-  <h2>{{ s.label }} <span class="muted">({{ s.key }})</span></h2>
+<div class="card" data-spec-card>
+  <h2>{{ s.label }} <span class="muted">({{ s.key }})</span> <span class="pill">{{ s.options|length }}</span></h2>
   {# one form per section: row inputs + action buttons carry the pk #}
   <form method="post">
     {% csrf_token %}
@@ -48,11 +62,41 @@
     {% csrf_token %}
     <input type="hidden" name="key" value="{{ s.key }}">
     <input type="text" name="add_value" placeholder="{% t "specopts.value_ph" %}" maxlength="100" required>
-    <input type="number" name="add_order" value="0" min="0" title="{% t "specopts.order" %}" style="width:6rem">
+    <input type="number" name="add_order" value="{{ s.next_order }}" min="0" title="{% t "specopts.order" %}" style="width:6rem">
     <button class="btn sm" type="submit" name="action" value="add">{% t "specopts.add" %}</button>
   </form>
 </div>
 {% empty %}
 <div class="card"><p class="muted">{% t "specopts.empty" %}</p></div>
 {% endfor %}
+<script>
+  // Filter the list cards by what a card holds — label, key and every
+  // option value — so "nvme" finds Primary Storage Type and "ram" finds
+  // RAM Type without scrolling the whole page. Matching is plain
+  // case-insensitive substring; the URL never changes.
+  (function () {
+    var box = document.getElementById("spec-filter");
+    if (!box) return;
+    var cards = [].slice.call(document.querySelectorAll("[data-spec-card]"));
+    var none = document.getElementById("spec-filter-none");
+    var hint = document.getElementById("spec-filter-hint");
+    var total = cards.length;
+    function apply() {
+      var q = box.value.trim().toLowerCase();
+      var shown = 0;
+      cards.forEach(function (card) {
+        var hit = !q || card.textContent.toLowerCase().indexOf(q) !== -1;
+        card.hidden = !hit;
+        if (hit) shown++;
+      });
+      if (none) none.classList.toggle("on", shown === 0);
+      if (hint) hint.textContent = q ? shown + " / " + total : "";
+    }
+    box.addEventListener("input", apply);
+    box.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") { box.value = ""; apply(); }
+    });
+    apply();
+  })();
+</script>
 {% endblock %}

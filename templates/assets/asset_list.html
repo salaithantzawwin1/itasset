@@ -17,8 +17,7 @@
 </div>
 {# inputs live INSIDE the form so submitting actually sends q/status/… (was an empty form) #}
 <form id="filterform" class="filterbar" method="get">
-  {# the RAM drill-down from the dashboard matrix rides along in the GET:
-     hidden here so a select change or a live-search keystroke keeps it #}
+  {# RAM drill-down rides along in the GET: hidden so search/select keeps it #}
   {% if request.GET.ram_type %}<input type="hidden" name="ram_type" value="{{ request.GET.ram_type }}">{% endif %}
   {% if request.GET.ram_speed %}<input type="hidden" name="ram_speed" value="{{ request.GET.ram_speed }}">{% endif %}
   <input type="text" name="q" placeholder="{% t "asset.search_ph_full" %}" value="{{ request.GET.q }}">

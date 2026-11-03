@@ -52,6 +52,17 @@ def test_post_creates_the_site_and_returns_to_the_list(admin_client, db, site):
     assert Site.objects.filter(code="kalaw", name="Kalaw Office").exists()
 
 
+def test_edit_opens_in_the_same_modal(admin_client, db, site):
+    """Edit is a framed form like New — the row button must not page-hop."""
+    body = admin_client.get(reverse("site-list")).content.decode()
+
+    edit_href = reverse("site-update", args=[site.pk])
+    assert f'href="{edit_href}" data-modal' in body
+
+    detail = admin_client.get(reverse("site-detail", args=[site.pk])).content.decode()
+    assert f'href="{edit_href}" data-modal' in detail
+
+
 def test_duplicate_code_is_rejected(admin_client, db, site):
     resp = admin_client.post(reverse("site-create"), _payload(code=site.code))
 

@@ -9,7 +9,7 @@
     </div>
     <h1>{{ object.name }} <span class="muted">({{ object.code }})</span></h1><div class="sub">{{ object.address }}</div>
   </div>
-  <a class="btn secondary" href="{% url 'site-update' object.pk %}">{% t "asset.edit" %}</a>
+  <a class="btn secondary" href="{% url 'site-update' object.pk %}" data-modal>{% t "asset.edit" %}</a>
 </div>
 {% if children %}
 <div class="card">

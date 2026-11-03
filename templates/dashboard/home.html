@@ -48,13 +48,16 @@
   @media (min-width: 2560px) { .cat-chart { height: 300px; } }
 
   /* category chart — pure CSS bars (CSP allows no CDN chart lib) */
-  .cat-chart { display: flex; gap: 14px; height: 210px; }
+  .cat-chart { display: flex; gap: 10px; height: 210px; }
   .cat-col { flex: 1; min-width: 0; display: grid; grid-template-rows: auto 1fr auto; gap: 6px; }
   .cat-col .cat-n { font-size: 12px; font-weight: 700; text-align: center; }
   .cat-track { display: flex; align-items: flex-end; justify-content: center; min-height: 0; }
-  .cat-bar { width: 62%; border-radius: 8px 8px 0 0; min-height: 4px; }
-  .cat-lbl { font-size: 11px; color: var(--muted); text-align: center; white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis; }
+  .cat-bar { width: 66%; border-radius: 8px 8px 0 0; min-height: 4px; }
+  /* every category gets a column now, so the label wraps to two lines instead
+     of being cut to “Desktop / Workstat…” */
+  .cat-lbl { font-size: 11px; color: var(--muted); text-align: center; line-height: 1.25;
+    overflow-wrap: anywhere; min-height: 2.5em; display: -webkit-box;
+    -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
   .alerts { list-style: none; margin: 0; padding: 0; }
   .alerts li { padding: 11px 12px; border-radius: 8px; margin-bottom: 8px; font-size: 12.5px;
@@ -180,7 +183,7 @@
       <div class="cat-col">
         <span class="cat-n">{{ c.n }}</span>
         <span class="cat-track"><span class="cat-bar" style="height:{{ c.pct }}%;background:{{ c.color }};" title="{{ c.label }}: {{ c.n }}"></span></span>
-        <span class="cat-lbl">{% if c.others %}{% t "dash.others" %}{% else %}{{ c.label }}{% endif %}</span>
+        <span class="cat-lbl" title="{{ c.label }}: {{ c.n }}">{{ c.label }}</span>
       </div>
       {% endfor %}
     </div>
@@ -297,6 +300,48 @@
   </ul>
   <p class="ram-coverage muted">{% t "dash.ram.coverage" n=ram_recorded m=total_assets %}</p>
   {% else %}<p class="muted">{% t "dash.ram.none" %}</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2>🧠 {% t "dash.cpu" %}</h2>
+  {% if cpu_matrix.rows %}
+  <div class="ram-matrix-wrap">
+    <table class="ram-matrix">
+      <thead>
+        <tr>
+          <th scope="col">{% t "dash.cpu.model" %}</th>
+          {% for col in cpu_matrix.columns %}<th scope="col"><a href="{% url 'asset-list' %}?cpu_cores={{ col.key|urlencode }}" title="{% t "asset.cpu_show" %}">{% if col.unknown %}{% t "dash.ram.unknown" %}{% else %}{{ col.label }}{% endif %}</a></th>{% endfor %}
+          <th scope="col" class="ram-total-col">{% t "dash.ram.total" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in cpu_matrix.rows %}
+        <tr>
+          <th scope="row"><a href="{% url 'asset-list' %}?cpu_model={{ row.key|urlencode }}" title="{% t "asset.cpu_show" %}">{% if row.unknown %}{% t "dash.ram.unknown" %}{% else %}{{ row.label }}{% endif %}</a></th>
+          {% for cell in row.cells %}<td class="{% if cell.n %}heat{% else %}zero{% endif %}"{% if cell.n %} style="--heat: {{ cell.heat }}"{% endif %}>{% if cell.n %}<a href="{% url 'asset-list' %}?cpu_model={{ row.key|urlencode }}&cpu_cores={{ cell.col_key|urlencode }}" title="{% t "asset.cpu_show" %}">{{ cell.n }}</a>{% else %}–{% endif %}</td>{% endfor %}
+          <td class="ram-total-col">{{ row.total }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th scope="row">{% t "dash.ram.total" %}</th>
+          {% for n in cpu_matrix.col_totals %}<td>{{ n }}</td>{% endfor %}
+          <td class="ram-total-col">{{ cpu_matrix.total }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  <ul class="ram-combo">
+    {% for c in cpu_matrix.combos %}
+      <li class="heat" style="--heat: {{ c.heat }}">
+        <a href="{% url 'asset-list' %}?cpu_model={{ c.model_key|urlencode }}&cpu_cores={{ c.cores_key|urlencode }}" title="{% t "asset.cpu_show" %}">{% if c.model %}{{ c.model }}{% else %}{% t "dash.ram.unknown" %}{% endif %} · {% if c.cores %}{{ c.cores }}{% else %}{% t "dash.ram.unknown" %}{% endif %}</a>
+        <span class="rc-n">{{ c.n }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+  <p class="ram-coverage muted">{% t "dash.cpu.coverage" n=cpu_recorded m=total_assets %}</p>
+  {% else %}<p class="muted">{% t "dash.cpu.none" %}</p>{% endif %}
 </div>
 
 <script>

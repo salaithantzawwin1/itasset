@@ -176,6 +176,86 @@ class DashboardRamCardTests(TestCase):
         self.assertContains(resp, "No RAM details recorded yet")
 
 
+class DashboardCpuCardTests(TestCase):
+    """CPU inventory card: the RAM matrix's shape, model × cores.
+
+    The §5 catalogue has no CPU-speed field, so the numeric axis is the core
+    count. Rows lead with the most common model and every asset with any CPU
+    detail lands in exactly one cell, so the totals reconcile with the
+    coverage line.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.site = Site.objects.create(name="Yangon HQ", code="yangon")
+        cls.lap = Category.objects.get_or_create(code="IT-HW-LAP", defaults={"name": "Laptop"})[0]
+
+    def _asset(self, tag, attrs):
+        return Asset.objects.create(asset_tag=tag, category=self.lap, site=self.site, attrs=attrs)
+
+    def test_matrix_pairs_each_model_with_its_core_counts(self):
+        self._asset("CPU-A", {"cpu_model": "Intel Core i5-1335U", "cpu_cores": 10})
+        self._asset("CPU-B", {"cpu_model": "Intel Core i5-1335U", "cpu_cores": 4})
+        self._asset("CPU-C", {"cpu_model": "Ryzen 7 7700", "cpu_cores": 8})
+        self._asset("CPU-D", {})  # CPU not recorded yet
+
+        _login_global(self.client)
+        resp = self.client.get("/")
+
+        self.assertEqual(resp.context["cpu_recorded"], 3)
+        matrix = resp.context["cpu_matrix"]
+        # cores read smallest-first; the model rows lead with the most common
+        self.assertEqual(
+            [c["label"] for c in matrix["columns"]], ["4 cores", "8 cores", "10 cores"]
+        )
+        self.assertEqual(
+            [(r["label"], [c["n"] for c in r["cells"]], r["total"]) for r in matrix["rows"]],
+            [("Intel Core i5-1335U", [1, 0, 1], 2), ("Ryzen 7 7700", [0, 1, 0], 1)],
+        )
+        self.assertEqual(matrix["col_totals"], [1, 1, 1])
+        self.assertEqual(matrix["total"], resp.context["cpu_recorded"])
+        self.assertEqual(
+            [(c["model"], c["cores"], c["n"]) for c in matrix["combos"]],
+            [
+                ("Intel Core i5-1335U", "4 cores", 1),
+                ("Intel Core i5-1335U", "10 cores", 1),
+                ("Ryzen 7 7700", "8 cores", 1),
+            ],
+        )
+        self.assertContains(resp, "CPU model and cores")
+        self.assertContains(resp, "CPU recorded for 3 of 4 assets")
+        # every header, label and number drills into the filtered asset list
+        self.assertContains(resp, '?cpu_model=Ryzen%207%207700"')
+        self.assertContains(resp, '?cpu_cores=8"')
+
+    def test_half_recorded_pair_lands_on_the_not_recorded_edge(self):
+        self._asset("CPU-E", {"cpu_cores": 6})  # cores but no model
+        self._asset("CPU-F", {"cpu_model": "Xeon Silver 4310"})  # model but no cores
+
+        _login_global(self.client)
+        resp = self.client.get("/")
+
+        self.assertEqual(resp.context["cpu_recorded"], 2)
+        matrix = resp.context["cpu_matrix"]
+        self.assertEqual([c["label"] for c in matrix["columns"]], ["6 cores", None])
+        self.assertEqual(
+            [(r["label"], [c["n"] for c in r["cells"]]) for r in matrix["rows"]],
+            [("Xeon Silver 4310", [0, 1]), (None, [1, 0])],
+        )
+        self.assertContains(resp, '?cpu_model=none"')
+        self.assertContains(resp, '?cpu_cores=none"')
+
+    def test_card_offers_the_setup_hint_when_nothing_is_recorded(self):
+        self._asset("CPU-G", {})
+
+        _login_global(self.client)
+        resp = self.client.get("/")
+
+        self.assertEqual(resp.context["cpu_recorded"], 0)
+        self.assertEqual(resp.context["cpu_matrix"]["rows"], [])
+        self.assertContains(resp, "No CPU details recorded yet")
+
+
 class DashboardBySitePanelTests(TestCase):
     """By site is a breakdown panel like status/condition: same skin and a
     count badge, instead of the lone `.card` that broke the dashboard's look."""
@@ -412,22 +492,33 @@ class DashboardKpiAlertTests(TestCase):
         self.assertEqual(len(overdue), 1)
         self.assertEqual(overdue[0]["href"], "/loans/overdue/")
 
-    def test_category_chart_counts_and_others_bucket(self):
+    def test_category_chart_lists_every_category_without_an_others_bucket(self):
+        """No top-5 + Others lump: Server/Switch must stay visible (regression)."""
         self._make("A-7")
         self._make("A-8")
-        Site2 = Site.objects.create(name="Mandalay", code="mandalay")
-        cat2 = Category.objects.get_or_create(code="IT-HW-DSK", defaults={"name": "Desktop"})[0]
-        Asset.objects.create(asset_tag="A-9", category=cat2, site=Site2, serial_no="SN-2")
+        mandalay = Site.objects.create(name="Mandalay", code="mandalay")
+        cats = [
+            Category.objects.get_or_create(code=code, defaults={"name": code})[0]
+            for code in ("IT-HW-DSK", "IT-HW-SRV", "IT-NET-SW")
+        ]
+        for i, cat in enumerate(cats, start=1):
+            Asset.objects.create(
+                asset_tag=f"A-{9 + i}", category=cat, site=mandalay, serial_no=f"SN-{i}"
+            )
         _login_global(self.client)
         resp = self.client.get("/")
         rows = resp.context["by_category"]
+        # every category is its own column — the old top-5 swallowed the tail
+        # into a grey “Others” bucket
         self.assertEqual(
-            [(r["label"], r["n"]) for r in rows], [("Laptop", 2), ("Desktop / Workstation", 1)]
+            [(r["label"], r["n"]) for r in rows],
+            [("Laptop", 2)] + [(name, 1) for name in sorted(c.name for c in cats)],
         )
         self.assertEqual(rows[0]["pct"], 100)
         self.assertEqual(rows[1]["pct"], 50)
-        self.assertFalse(any(r["others"] for r in rows))  # 2 categories → no bucket
         self.assertContains(resp, "Asset categories")
+        for cat in cats:
+            self.assertContains(resp, cat.name)
 
 
 class AdminLinkVisibilityTests(TestCase):

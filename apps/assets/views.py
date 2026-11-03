@@ -84,6 +84,23 @@ class AssetList(RoleRequiredMixin, ListView):
                     attrs__speed_mhz=int(ram_speed)
                 )
             qs = qs.filter(speed_hit)
+        # CPU drill-down from the dashboard CPU matrix: a model, a core
+        # count, or one model×cores cell. `none` is that matrix's “Not
+        # recorded” edge, so an asset with only half the pair filled stays
+        # reachable from the row or column that counted it.
+        cpu_model = self.request.GET.get("cpu_model", "").strip()
+        cpu_cores = self.request.GET.get("cpu_cores", "").strip()
+        if cpu_model == "none":
+            qs = qs.filter(attrs__cpu_cores__isnull=False).filter(attrs__cpu_model__isnull=True)
+        elif cpu_model:
+            qs = qs.filter(attrs__cpu_model=cpu_model)
+        if cpu_cores == "none":
+            qs = qs.filter(attrs__cpu_model__isnull=False).filter(attrs__cpu_cores__isnull=True)
+        elif cpu_cores:
+            cores_hit = Q(attrs__cpu_cores=cpu_cores)
+            if cpu_cores.isdigit():
+                cores_hit |= Q(attrs__cpu_cores=int(cpu_cores))
+            qs = qs.filter(cores_hit)
         if q:
             # holder search: the open assignment's person name, that
             # person's own department, or the department the asset is
@@ -174,6 +191,20 @@ class AssetList(RoleRequiredMixin, ListView):
             type_label = "—" if ram_type == "none" else ram_type
             speed_label = "—" if ram_speed == "none" else speed_label
             ctx["ram_filter_label"] = " · ".join(p for p in (type_label, speed_label) if p)
+        # same readable chip for the CPU matrix drill-down
+        cpu_model = (self.request.GET.get("cpu_model") or "").strip()
+        cpu_cores = (self.request.GET.get("cpu_cores") or "").strip()
+        if cpu_model or cpu_cores:
+            model_label = "—" if cpu_model == "none" else cpu_model
+            if not cpu_cores:
+                cores_label = ""
+            elif cpu_cores == "none":
+                cores_label = "—"
+            elif cpu_cores.isdigit():
+                cores_label = f"{cpu_cores} cores"
+            else:
+                cores_label = cpu_cores
+            ctx["cpu_filter_label"] = " · ".join(p for p in (model_label, cores_label) if p)
         ctx["statuses"] = Asset.Status.choices
         ctx["departments"] = Department.objects.select_related("site").order_by("name")
         # the orphan fix-up queue is technician-only — hide the link otherwise

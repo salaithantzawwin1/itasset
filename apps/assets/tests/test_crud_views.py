@@ -439,6 +439,39 @@ def test_ram_drilldown_narrows_by_type_speed_and_cell(
     assert 'name="ram_speed" value="2400"' in form
 
 
+def test_cpu_drilldown_narrows_by_model_cores_and_cell(
+    client, django_user_model, group_setup, asset_factory
+):
+    """The dashboard CPU matrix links here: a model, a core count or one cell
+    each narrow the list, and `none` reaches the “Not recorded” edge."""
+    _login(client, _user(django_user_model, group_setup, "viewer"))
+    asset_factory(asset_tag="CPU-1", attrs={"cpu_model": "Intel Core i5-1335U", "cpu_cores": 10})
+    asset_factory(asset_tag="CPU-2", attrs={"cpu_model": "Intel Core i5-1335U", "cpu_cores": 4})
+    asset_factory(asset_tag="CPU-3", attrs={"cpu_model": "Ryzen 7 7700", "cpu_cores": 8})
+    asset_factory(asset_tag="CPU-4", attrs={"cpu_cores": 8})  # no model
+    asset_factory(asset_tag="CPU-5", attrs={"cpu_model": "Ryzen 7 7700"})  # no cores
+    asset_factory(asset_tag="CPU-6")  # no CPU recorded at all
+
+    def tags(params):
+        r = client.get(URLS["asset_list"], params)
+        return sorted(a.asset_tag for a in r.context["object_list"])
+
+    assert tags({"cpu_model": "Ryzen 7 7700"}) == ["CPU-3", "CPU-5"]
+    assert tags({"cpu_cores": "8"}) == ["CPU-3", "CPU-4"]
+    assert tags({"cpu_model": "Intel Core i5-1335U", "cpu_cores": "10"}) == ["CPU-1"]
+    assert tags({"cpu_model": "none"}) == ["CPU-4"]  # cores, but no model
+    assert tags({"cpu_cores": "none"}) == ["CPU-5"]  # model, but no cores
+
+    # the list says why it is narrow, and keeps the filter in #filterform so
+    # a select change or a live-search keystroke cannot drop it
+    r = client.get(URLS["asset_list"], {"cpu_model": "Ryzen 7 7700", "cpu_cores": "8"})
+    html = r.content.decode()
+    assert "CPU: Ryzen 7 7700 · 8 cores" in html
+    form = re.search(r'<form id="filterform".*?</form>', html, re.S).group(0)
+    assert 'name="cpu_model" value="Ryzen 7 7700"' in form
+    assert 'name="cpu_cores" value="8"' in form
+
+
 def test_pagination_keeps_ram_drilldown(client, django_user_model, group_setup, asset_factory):
     _login(client, _user(django_user_model, group_setup, "viewer"))
     for i in range(51):

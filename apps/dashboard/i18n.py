@@ -87,7 +87,6 @@ STRINGS = {
         "en": "All clear — nothing needs attention.",
         "my": "အားလုံး ကောင်းမွန်ပါသည် — ဂရုပြုစရာ မရှိပါ။",
     },
-    "dash.others": {"en": "Others", "my": "အခြား"},
     # RAM inventory card (type + speed breakdown from the §5 spec attrs)
     "dash.ram": {"en": "RAM type and speed", "my": "RAM အမျိုးအစားနှင့် အမြန်နှုန်း"},
     "dash.ram.by_type": {"en": "By type", "my": "အမျိုးအစားအလိုက်"},
@@ -97,12 +96,32 @@ STRINGS = {
     "dash.ram.type": {"en": "Type", "my": "အမျိုးအစား"},
     "dash.ram.total": {"en": "Total", "my": "စုစုပေါင်း"},
     "dash.ram.unknown": {"en": "Not recorded", "my": "မဖြည့်ရသေး"},
+    # CPU inventory card — the same cross-tab shape (model × cores)
+    "dash.cpu": {"en": "CPU model and cores", "my": "CPU မော်ဒယ်နှင့် Core အရေအတွက်"},
+    "dash.cpu.model": {"en": "Model", "my": "မော်ဒယ်"},
+    "dash.cpu.coverage": {
+        "en": "CPU recorded for {n} of {m} assets",
+        "my": "CPU မှတ်တမ်း ဖြည့်ထားသည့် ပစ္စည်း {n} / {m} ခု",
+    },
+    "dash.cpu.none": {
+        "en": "No CPU details recorded yet — fill them in an asset's Specifications tab.",
+        "my": "CPU အသေးစိတ် မှတ်တမ်း မရှိသေးပါ — ပစ္စည်းရဲ့ သတ်မှတ်ချက် စာမျက်နှာမှာ ဖြည့်ပါ။",
+    },
     # RAM drill-down: matrix headers/numbers open the asset list filtered
     "asset.ram_show": {
         "en": "Show matching assets",
         "my": "ကိုက်ညီသည့် ပစ္စည်းများ ကြည့်မည်",
     },
     "asset.ram_chip": {"en": "RAM", "my": "RAM"},
+    "asset.cpu_show": {
+        "en": "Show matching assets",
+        "my": "ကိုက်ညီသည့် ပစ္စည်းများ ကြည့်မည်",
+    },
+    "asset.cpu_chip": {"en": "CPU", "my": "CPU"},
+    "asset.cpu_hint": {
+        "en": "Filtered from the dashboard CPU matrix — Clear shows every asset.",
+        "my": "Dashboard ရဲ့ CPU matrix မှ စစ်ထားသည် — အားလုံးကြည့်ရန် Clear နှိပ်ပါ။",
+    },
     "asset.ram_hint": {
         "en": "Filtered from the dashboard RAM matrix — Clear shows every asset.",
         "my": "Dashboard ရဲ့ RAM matrix မှ စစ်ထားသည် — အားလုံးကြည့်ရန် Clear နှိပ်ပါ။",

@@ -30,9 +30,8 @@ def set_lang(request):
 
 
 # Fixed palette for the category chart (mockup `docs/itasset-docs/index.html`);
-# the 6th slot is the aggregated "Others" bucket.
-_CHART_COLORS = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444"]
-_OTHERS_COLOR = "#6b7280"
+# it cycles, so every category gets its own colour however many there are.
+_CHART_COLORS = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444", "#6b7280", "#14b8a6"]
 
 
 class DashboardView(TemplateView):
@@ -203,6 +202,106 @@ class DashboardView(TemplateView):
             ],
         }
 
+        # ---- CPU card: the same cross-tab, model × cores -----------------
+        # There is no CPU-speed field in the §5 catalogue, so the numeric
+        # axis is the core count — the one number every CPU row carries.
+        # Model names are free text, so rows are ordered by how common they
+        # are (the fleet's workhorses first) exactly like RAM types.
+        cpu_cells: Counter = Counter()  # (model|None, cores|None) → assets
+
+        def _cores_key(value):
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return str(value).strip() or None
+
+        cpu_recorded = 0
+        for attrs in assets.values_list("attrs", flat=True)[:1000]:
+            data = attrs if isinstance(attrs, dict) else {}
+            model = data.get("cpu_model")
+            cores = data.get("cpu_cores")
+            if not model and cores is None:
+                continue
+            cpu_recorded += 1
+            model_key = str(model).strip() if model else None
+            cores_key = _cores_key(cores) if cores is not None else None
+            cpu_cells[(model_key, cores_key)] += 1
+
+        model_counts: Counter = Counter()
+        core_counts: Counter = Counter()
+        for (model, cores), n in cpu_cells.items():
+            if model:
+                model_counts[model] += n
+            if cores is not None:
+                core_counts[cores] += n
+        model_order = [m for m, _ in sorted(model_counts.items(), key=lambda kv: (-kv[1], kv[0]))]
+        core_order = sorted(
+            core_counts, key=lambda c: (0, c, "") if isinstance(c, int) else (1, 0, str(c))
+        )
+        cpu_rows = model_order + ([None] if any(m is None for m, _ in cpu_cells) else [])
+        cpu_cols = core_order + ([None] if any(c is None for _, c in cpu_cells) else [])
+
+        cpu_busiest = max(cpu_cells.values(), default=0)
+
+        def _cpu_heat(n: int) -> float:
+            if n <= 0 or cpu_busiest <= 0:
+                return 0.0
+            if cpu_busiest == 1:
+                return 0.22
+            return round(0.10 + 0.22 * (n - 1) / (cpu_busiest - 1), 3)
+
+        def _cores_label(value):
+            return None if value is None else f"{value} cores"
+
+        ctx["cpu_recorded"] = cpu_recorded
+        ctx["cpu_matrix"] = {
+            "columns": [
+                {
+                    "label": _cores_label(c),
+                    "key": "none" if c is None else str(c),
+                    "unknown": c is None,
+                }
+                for c in cpu_cols
+            ],
+            "rows": [
+                {
+                    "label": m,
+                    "key": m or "none",
+                    "unknown": m is None,
+                    "cells": [
+                        {
+                            "n": cpu_cells.get((m, c), 0),
+                            "heat": _cpu_heat(cpu_cells.get((m, c), 0)),
+                            "col_key": "none" if c is None else str(c),
+                        }
+                        for c in cpu_cols
+                    ],
+                    "total": sum(cpu_cells.get((m, c), 0) for c in cpu_cols),
+                }
+                for m in cpu_rows
+            ],
+            "col_totals": [sum(cpu_cells.get((m, c), 0) for m in cpu_rows) for c in cpu_cols],
+            "total": cpu_recorded,
+            # phone view: the non-empty combinations as “i5-1335U · 10 cores”
+            "combos": [
+                {
+                    "model": m,
+                    "model_key": m or "none",
+                    "cores": _cores_label(c),
+                    "cores_key": "none" if c is None else str(c),
+                    "n": n,
+                    "heat": _cpu_heat(n),
+                }
+                for (m, c), n in sorted(
+                    cpu_cells.items(),
+                    key=lambda kv: (
+                        cpu_rows.index(kv[0][0]),
+                        cpu_cols.index(kv[0][1]),
+                    ),
+                )
+            ],
+        }
+
         # ---- mockup KPIs + alerts (live queries, caller-scoped) ----------
         today = timezone.localdate()
         in_30 = today + timedelta(days=30)
@@ -335,26 +434,25 @@ class DashboardView(TemplateView):
             ]
         ctx["kpis"] = kpis
 
-        # ---- category chart (top 5 + Others, like the mockup) ------------
-        top5 = [
-            {"name": row["category__name"], "n": row["n"]}
+        # ---- category chart: one column per category, no “Others” bucket --
+        # The old top-5 + Others split hid real categories behind a grey
+        # lump (Server and Switch were both invisible). Every category the
+        # register actually uses now gets its own column, busiest first, and
+        # the palette cycles so even a wide catalogue stays readable.
+        rows = [
+            (row["category__name"], row["n"])
             for row in assets.values("category__name")
             .annotate(n=Count("pk"))
-            .order_by("-n", "category__name")[:5]
+            .order_by("-n", "category__name")
         ]
-        others_n = ctx["total_assets"] - sum(c["n"] for c in top5)
-        rows = [(c["name"], c["n"], False) for c in top5]
-        if others_n > 0:
-            rows.append(("Others", others_n, True))  # label localized in the template
-        top = max((n for _lbl, n, _o in rows), default=0)
+        top = max((n for _lbl, n in rows), default=0)
         ctx["by_category"] = [
             {
                 "label": lbl,
                 "n": n,
-                "others": others,
                 "pct": max(4, round(n * 100 / top)) if top else 0,
-                "color": _CHART_COLORS[i] if i < len(_CHART_COLORS) else _OTHERS_COLOR,
+                "color": _CHART_COLORS[i % len(_CHART_COLORS)],
             }
-            for i, (lbl, n, others) in enumerate(rows)
+            for i, (lbl, n) in enumerate(rows)
         ]
         return ctx

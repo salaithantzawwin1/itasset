@@ -1,14 +1,34 @@
 """Sites, departments, and the people assets are assigned to (DEVELOPMENT.md §9)."""
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
 class Site(models.Model):
-    """An office location. Mandatory on Asset/Person/Assignment (§9)."""
+    """An office location. Mandatory on Asset/Person/Assignment (§9).
+
+    Sites nest (``parent``): a head office can sit under its city/region, and
+    branch offices under the head office, e.g. Yangon → HQ → Chan Yin,
+    Fortune Office. Nesting is an org-chart detail only — every Asset, Person
+    and Assignment still points at exactly one concrete site (the leaf it
+    belongs to), so scope checks and reports are unchanged. A parent row may
+    also hold people/assets of its own; the tree view in the Sites list makes
+    the shape visible and each detail page links to its sub-sites.
+    """
 
     name = models.CharField(max_length=120, unique=True)
     code = models.SlugField(max_length=20, unique=True)
+    # PROTECT like the other org FKs: a site that still has sub-sites cannot
+    # be deleted out from under them; SiteDelete turns that into a message.
+    parent = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="children",
+        verbose_name="parent site",
+    )
     address = models.TextField(blank=True)
     # §4 scheduled reports ("monthly inventory snapshot per site → site lead"):
     # the per-site recipient; falls back to IT_LEAD_EMAIL when blank.
@@ -21,6 +41,39 @@ class Site(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+    def clean(self):
+        """Reject a self-parent and any cycle (the FK alone cannot)."""
+        super().clean()
+        if self.parent_id is None:
+            return
+        if self.pk is not None and self.parent_id == self.pk:
+            raise ValidationError({"parent": "A site cannot be its own parent."})
+        seen = set()
+        node = self.parent
+        while node is not None:
+            if node.pk in seen or (self.pk is not None and node.pk == self.pk):
+                raise ValidationError(
+                    {"parent": "That choice would create a loop in the site tree."}
+                )
+            seen.add(node.pk)
+            node = node.parent
+
+    @property
+    def ancestors(self) -> list["Site"]:
+        """Root-first chain above this site (empty for a top-level site)."""
+        chain, seen = [], set()
+        node = self.parent
+        while node is not None and node.pk not in seen:
+            seen.add(node.pk)
+            chain.append(node)
+            node = node.parent
+        return list(reversed(chain))
+
+    @property
+    def full_path(self) -> str:
+        """Breadcrumb label, e.g. ``Yangon / HQ / Chan Yin``."""
+        return " / ".join([s.name for s in self.ancestors] + [self.name])
 
 
 class Department(models.Model):

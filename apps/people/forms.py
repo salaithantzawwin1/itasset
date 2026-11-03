@@ -6,9 +6,36 @@ from .models import Department, Person, Site, next_employee_no
 
 
 class SiteForm(forms.ModelForm):
+    """Create/edit a site, optionally under a parent (Yangon → HQ → office).
+
+    The parent picker leaves out the site itself and everything below it, so
+    the one choice that would create a loop is never offered; ``Site.clean``
+    re-checks server-side for a crafted POST. Top-level stays the default.
+    """
+
     class Meta:
         model = Site
-        fields = ["name", "code", "address", "is_active"]
+        fields = ["name", "code", "parent", "address", "is_active"]
+        labels = {"parent": "Parent site"}
+        help_texts = {
+            "parent": "Leave blank for a top-level site (e.g. Yangon); pick the "
+            "head office to nest a branch under it."
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        qs = Site.objects.select_related("parent").order_by("name")
+        if self.instance.pk:
+            excluded, pending = {self.instance.pk}, [self.instance.pk]
+            while pending:
+                children = Site.objects.filter(parent_id=pending.pop()).values_list("pk", flat=True)
+                for child in children:
+                    if child not in excluded:
+                        excluded.add(child)
+                        pending.append(child)
+            qs = qs.exclude(pk__in=excluded)
+        self.fields["parent"].queryset = qs
+        self.fields["parent"].empty_label = "— None (top level) —"
 
 
 class DepartmentForm(forms.ModelForm):

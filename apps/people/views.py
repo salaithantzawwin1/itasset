@@ -24,19 +24,62 @@ from .models import Department, Person, Site
 
 
 class SiteList(RoleRequiredMixin, ListView):
+    """Sites as a tree: parents first, each child indented under its parent.
+
+    Scope still filters the rows themselves (sites ARE the org rows); the
+    tree is then built from whatever rows survive, so an out-of-scope parent
+    simply leaves its in-scope children at the top level instead of hiding
+    them. Each rendered row carries ``tree_depth`` for the template.
+    """
+
     roles_required = ()
     model = Site
     template_name = "people/site_list.html"
 
     def get_queryset(self):
         # Sites ARE the org rows: scope filter runs on the pk itself.
-        return scope_list(
+        qs = scope_list(
             self.request.user,
-            super().get_queryset(),
+            super().get_queryset().select_related("parent"),
             site_field="pk",
             action="site_list",
             path=self.request.path,
         )
+        return _site_tree(list(qs))
+
+
+def _site_tree(sites: list[Site]) -> list[Site]:
+    """Order sites depth-first and stamp ``tree_depth`` on each row.
+
+    A row whose parent is not in the (scoped) set is treated as a root, and a
+    visited set breaks any accidental loop so the page can never recurse
+    forever. Costs no extra query — parents come from ``select_related``.
+    """
+    known = {s.pk for s in sites}
+    by_parent: dict[int | None, list[Site]] = {}
+    for s in sites:
+        key = s.parent_id if s.parent_id in known else None
+        by_parent.setdefault(key, []).append(s)
+
+    ordered: list[Site] = []
+    visited: set[int] = set()
+
+    def walk(parent_key, depth: int) -> None:
+        for site in sorted(by_parent.get(parent_key, []), key=lambda s: s.name.lower()):
+            if site.pk in visited:
+                continue
+            visited.add(site.pk)
+            site.tree_depth = depth
+            ordered.append(site)
+            walk(site.pk, depth + 1)
+
+    walk(None, 0)
+    # any row stranded by a loop still gets shown, at the top level
+    for site in sites:
+        if site.pk not in visited:
+            site.tree_depth = 0
+            ordered.append(site)
+    return ordered
 
 
 class SiteDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
@@ -44,6 +87,17 @@ class SiteDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
     scope_action = "site_detail"
     model = Site
     template_name = "people/site_detail.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        # the branch under this site (people counts in the same query), and
+        # the breadcrumb upward — both read-only org-chart context
+        ctx["children"] = self.object.children.select_related("parent").annotate(
+            people_count=Count("people")
+        )
+        ctx["child_people_total"] = sum(c.people_count for c in ctx["children"])
+        ctx["parent_site"] = self.object.parent
+        return ctx
 
 
 class SiteCreate(RoleRequiredMixin, CreateView):
@@ -64,12 +118,41 @@ class SiteUpdate(ScopeGuardMixin, RoleRequiredMixin, UpdateView):
 
 
 class SiteDelete(ScopeGuardMixin, RoleRequiredMixin, DeleteView):
+    """Delete a site — admin only, and never while sub-sites hang off it.
+
+    ``Site.parent`` is PROTECT, and so are the Asset/Person/Assignment FKs;
+    the guard turns the common case (a parent with branches) into a message
+    and a bounce back to the detail page instead of a 500.
+    """
+
     roles_required = ("admin",)
     scope_action = "site_delete"
     model = Site
     template_name = "people/confirm_delete.html"
     success_url = reverse_lazy("site-list")
     cancel_url = "site-list"
+
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        children = self.object.children.count()
+        if children:
+            messages.error(
+                request,
+                f'Cannot delete "{self.object.name}": {children} sub-site(s) still belong to it.',
+            )
+            return redirect("site-detail", pk=self.object.pk)
+        return super().get(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        self.object = self.get_object()
+        children = self.object.children.count()
+        if children:
+            messages.error(
+                self.request,
+                f'Cannot delete "{self.object.name}": {children} sub-site(s) still belong to it.',
+            )
+            return redirect("site-detail", pk=self.object.pk)
+        return super().form_valid(form)
 
 
 # ----------------------------------------------------------------------------

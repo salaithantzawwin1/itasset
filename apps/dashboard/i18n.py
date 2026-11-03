@@ -370,6 +370,8 @@ STRINGS = {
     "site.code": {"en": "Code", "my": "Code"},
     "site.people_n": {"en": "People", "my": "လုပ်သား အရေအတွက်"},
     "site.people_at": {"en": "People at this site", "my": "ဤစခန်းရှိ လုပ်သားများ"},
+    "site.subsites": {"en": "Sub-sites", "my": "စခန်းခွဲများ"},
+    "site.subsites_n": {"en": "{n} under this site", "my": "ဤစခန်းအောက်တွင် {n} ခု"},
     "site.new": {"en": "+ New site", "my": "+ စခန်း အသစ်"},
     "site.new_title": {"en": "New site", "my": "စခန်း အသစ်"},
     "site.edit_title": {"en": "Edit site", "my": "စခန်း ပြင်ရန်"},

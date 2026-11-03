@@ -14,7 +14,12 @@
   {% for s in object_list %}
     <tr>
       <td>{{ s.code }}</td>
-      <td><a href="{% url 'site-detail' s.pk %}">{{ s.name }}</a></td>
+      <td>
+        <span class="tree-cell" style="padding-left: {{ s.tree_depth|add:"0" }}rem">
+          {% if s.tree_depth %}<span class="muted">└ </span>{% endif %}<a href="{% url 'site-detail' s.pk %}">{{ s.name }}</a>
+          {% if s.tree_depth %}<span class="muted">— {{ s.parent.name }}</span>{% endif %}
+        </span>
+      </td>
       <td>{{ s.people.count }}</td>
       <td><a class="btn secondary sm" href="{% url 'site-update' s.pk %}">{% t "asset.edit" %}</a></td>
     </tr>

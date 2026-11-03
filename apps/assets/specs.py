@@ -349,6 +349,38 @@ CATALOGUE = {
             ],
         },
     },
+    "IT-HW-AIO": {
+        "name": "All-in-One (PC + Monitor)",
+        # A single unit that is both the workstation and its screen, so the
+        # desktop field set is reused (never duplicated — §5.3) plus the
+        # monitor-only specs that a separate monitor row would otherwise hold.
+        "schema": {
+            "version": 1,
+            "fields": _desktop_fields()
+            + [
+                _f(
+                    "screen_size_in",
+                    "Screen Size",
+                    "decimal",
+                    unit="inches",
+                    min=5,
+                    max=100,
+                    level="recommended",
+                ),
+                _f("native_resolution", "Native Resolution", "string", help="e.g. 1920x1080"),
+                _f(
+                    "panel_type",
+                    "Panel Type",
+                    "choice",
+                    choices=["IPS", "TN", "VA", "OLED", "Other"],
+                ),
+                _f("refresh_rate_hz", "Refresh Rate", "integer", unit="Hz", min=1),
+                _f("touchscreen", "Touchscreen", "boolean"),
+                _f("built_in_speakers", "Built-in Speakers", "boolean"),
+                _f("webcam_included", "Built-in Webcam", "boolean"),
+            ],
+        },
+    },
     "IT-HW-MON": {
         "name": "Monitor",
         "schema": {
@@ -913,6 +945,39 @@ def resolve_choice_key(labels: dict[str, str], raw: str) -> tuple[str | None, st
         shown = ", ".join(f"“{labels[k]}” ({k})" for k in near[:3])
         return None, f"Unknown option list “{text}” — did you mean {shown}?"
     return None, f"Unknown option list “{text}”."
+
+
+def seed_choices_from_schema(key: str) -> int:
+    """Copy a key's schema choices into SpecChoice rows when it has none.
+
+    A maintained list is authoritative, so the first row added to a key that
+    had no rows at all used to replace the schema's declared choices in every
+    dropdown — the previously offered options “disappeared”. Seeding first
+    keeps them, and the new option then joins the end of the same list. Runs
+    only while the key is still empty, so it is idempotent and never touches
+    a list the operator already maintains.
+
+    Choices are the union across categories declaring the key, in first-seen
+    schema order (Category.Meta orders by code, so it is deterministic).
+    Returns the number of rows created.
+    """
+    from .models import Category, SpecChoice
+
+    if not key or SpecChoice.objects.filter(key=key).exists():
+        return 0
+    values: list[str] = []
+    for category in Category.objects.only("schema"):
+        for fdef in spec_fields(category):
+            if fdef.get("key") != key or fdef.get("type") not in ("choice", "multi-choice"):
+                continue
+            for value in fdef.get("choices") or []:
+                if value not in values:
+                    values.append(value)
+    created = 0
+    for i, value in enumerate(values, start=1):
+        _, made = SpecChoice.objects.get_or_create(key=key, value=value, defaults={"order": i * 10})
+        created += int(made)
+    return created
 
 
 def managed_choice_options(keys) -> dict[str, list[str]]:

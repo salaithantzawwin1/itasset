@@ -158,7 +158,10 @@ class DashboardRamCardTests(TestCase):
         )
         self.assertEqual(matrix["col_totals"], [1, 1])
         self.assertEqual(matrix["total"], 2)
-        self.assertContains(resp, "Not recorded")
+        # each missing edge names what it lacks, instead of one ambiguous
+        # “Not recorded” heading on both axes
+        self.assertContains(resp, "Type not recorded")
+        self.assertContains(resp, "Speed not recorded")
         # the half-recorded edges are reachable too
         self.assertContains(resp, '?ram_type=none"')
         self.assertContains(resp, '?ram_speed=none"')

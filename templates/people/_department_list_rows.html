@@ -12,7 +12,12 @@
       <td>{% if d.head_id %}<a href="{% url 'person-detail' d.head_id %}">{{ d.head }}</a>{% else %}<span class="muted">—</span>{% endif %}</td>
       <td>{{ d.member_count }}</td>
       <td><a href="{% url 'asset-list' %}?department={{ d.pk }}">{{ d.asset_count }}</a></td>
-      <td><a class="btn secondary sm" href="{% url 'department-update' d.pk %}">{% t "asset.edit" %}</a></td>
+      <td>
+        <a class="btn secondary sm" href="{% url 'department-update' d.pk %}">{% t "asset.edit" %}</a>
+        {% if can_manage and not d.member_count and not d.child_count %}
+        <a class="btn danger sm" href="{% url 'department-delete' d.pk %}">{% t "asset.delete" %}</a>
+        {% endif %}
+      </td>
     </tr>
   {% empty %}
     <tr class="empty-row"><td colspan="6">{% t "common.empty" %}</td></tr>

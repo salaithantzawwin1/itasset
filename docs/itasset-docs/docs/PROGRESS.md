@@ -13,9 +13,9 @@
 |---|---|
 | Current milestone | M8 — Go-live |
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
-| Last updated | 2026-10-30 |
+| Last updated | 2026-11-03 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **524 passed + 100 subtests** (2026-10-30: local 314.8 s; server 524 + 100 at both session-53 deploys — exit 0) |
+| Test suite | **569 passed + 102 subtests** (2026-11-03: local full run 568 passed + 1 fixed assertion, 338 s; server 569 + 102 at the session-54 deploy — exit 0) |
 
 ---
 
@@ -185,6 +185,46 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-11-03 (session 54 — compact site modal, deletes, All-in-One, spec seeding, site-wide accent)
+- **New/Edit site modal compacted** (`people/site_form.html`): the five
+  fields sat in one tall column inside the shared modal. A two-column grid
+  puts Name + Code on the first row, Parent + Is active on the second and
+  Address across the third, with a 640px form cap — the modal now measures
+  688×558 at 1440×900 (was a full-height card with a dead panel).
+- **Department delete** now follows the requested rule: only People (and
+  sub-departments) block it. `Assignment.to_dept` is still PROTECT, so the
+  view clears the department pointer on the row instead of 500ing — the
+  asset/dates history stays and the confirm page says so; the list rows
+  also offer Delete to admins on empty departments.
+- **Person delete**: added the missing delete button (detail page) and a
+  `PersonDelete` guard — any assignment (`to_person`/`assigned_by`) blocks
+  the delete with a message instead of a ProtectedError, matching the
+  requested “People with assets cannot be deleted”.
+- **All-in-One (PC + Monitor)** category added to the catalogue
+  (`IT-HW-AIO`, desktop fields + screen/panel/touch specs) with migration
+  `assets.0017`; it now appears in the asset category picker and tag
+  series (`IT-HW-AIO-0001…`).
+- **Spec option add no longer hides the old list**: the first row added to
+  a schema-only key (e.g. Panel Type) made `SpecChoice` authoritative and
+  dropped every schema choice from the dropdowns. `seed_choices_from_schema()`
+  copies the declared choices first (idempotent; only while the key is
+  empty), wired into the main-app option page and the admin add form.
+- **Dashboard “Not recorded”** checked: it is the RAM/CPU matrix edge for
+  assets with only half the pair recorded (live data: 6 laptops have
+  `ram_type` DDR4 but no `ram_speed_mhz`). The ambiguous single label is
+  now axis-specific — “Type / Speed / Model / Cores not recorded” — so the
+  missing value is named instead of guessed.
+- **Accent colour is site-wide**: the six palettes moved from the dashboard
+  page into `base.html` (light + dark variants), the `<html data-accent>`
+  choice is restored in the head before first paint, and the dashboard
+  hero/KPIs use the shared `--primary` vars. Picking a colour on the
+  dashboard now re-themes every page and survives navigation.
+- Gates: `ruff check` + `format --check` clean, `makemigrations --check`
+  clean, `check` clean; suite 569 passed + 102 subtests locally (the one
+  dashboard assertion updated for the new labels). Browser checks: modal
+  688×558/no inner scroll, accent purple→green→purple across `/`, `/assets/`,
+  `/sites/` in both themes, AIO in the picker, dept/person delete links.
 
 ### 2026-10-30 (session 53 — searchable spec keys, one panel skin for every breakdown)
 - **Spec-choice key, type-to-search** (user: “Key: မှာ Type လုပ်ပြီး ရှာလို့

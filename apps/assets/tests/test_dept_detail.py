@@ -593,23 +593,34 @@ def test_delete_refused_while_department_has_members(
     assert Person.objects.filter(pk=member.pk).exists()
 
 
-def test_delete_refused_when_assignment_history_exists(
+def test_delete_detaches_assignment_history_instead_of_refusing(
     client, django_user_model, asset_factory, dept_factory
 ):
+    """Only People (and sub-departments) block a delete.
+
+    An assignment row still pointing at an otherwise-empty department must
+    not stop the delete and must not 500 on its PROTECT: the row keeps its
+    asset and dates and loses only the department holder.
+    """
     from apps.people.models import Department
 
     dept = dept_factory(name="History Dept")
     done = asset_factory(status=Asset.Status.AVAILABLE, asset_tag="IT-DEL-9001")
-    Assignment.objects.create(asset=done, to_dept=dept, in_at=done.updated_at)  # closed
+    row = Assignment.objects.create(asset=done, to_dept=dept, in_at=done.updated_at)  # closed
     admin = _admin_user(django_user_model)
     client.force_login(admin)
 
-    # closed rows count too — no delete button on the detail page
+    # the delete button is offered (no members, no sub-departments) and the
+    # confirm page says what happens to the assignment rows
     body = client.get(f"/departments/{dept.pk}/").content.decode()
-    assert f"/departments/{dept.pk}/delete/" not in body
-    # POST refuses without tripping Assignment.to_dept's PROTECT (no 500)
-    resp = client.post(f"/departments/{dept.pk}/delete/", follow=True)
-    assert resp.status_code == 200
-    assert any("assignment record(s) still reference" in str(m) for m in resp.context["messages"])
-    assert Department.objects.filter(pk=dept.pk).exists()
-    assert Assignment.objects.filter(to_dept=dept).exists()
+    assert f"/departments/{dept.pk}/delete/" in body
+    confirm = client.get(f"/departments/{dept.pk}/delete/")
+    assert confirm.status_code == 200
+    assert "lose only the department holder" in confirm.content.decode()
+
+    resp = client.post(f"/departments/{dept.pk}/delete/")
+    assert resp.status_code == 302
+    assert not Department.objects.filter(pk=dept.pk).exists()
+    row.refresh_from_db()
+    assert row.to_dept_id is None  # history kept, holder cleared
+    assert row.asset_id == done.pk

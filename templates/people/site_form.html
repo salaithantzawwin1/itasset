@@ -1,14 +1,55 @@
 {% extends "base.html" %}
 {% load t %}
 {% block title %}{% if object %}{% t "site.edit_title" %}{% else %}{% t "site.new_title" %}{% endif %} — {% t "app.name" %}{% endblock %}
+{% block extra_css %}
+  /* Site create/edit: compact two-up field grid, so the modal is as small
+     as its five fields allow instead of one tall column. Name + code share
+     a row, then parent / active, with the address spanning the full width. */
+  .site-form form.frm { max-width: 640px; }
+  .site-form .sgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; align-items: start; }
+  @media (max-width: 560px) { .site-form .sgrid { grid-template-columns: 1fr; } }
+  .site-form .scell { margin: 12px 0; min-width: 0; }
+  .site-form .req { color: var(--danger); }
+  .site-form .scell label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .3px; }
+  .site-form .scell input, .site-form .scell select, .site-form .scell textarea { width: 100%; padding: 8px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 14px; }
+  .site-form .scell input:focus, .site-form .scell select:focus, .site-form .scell textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 14%, transparent); }
+  .site-form .scell textarea { min-height: 62px; resize: vertical; }
+  .site-form .span { grid-column: 1 / -1; }
+  .site-form .scell.chk { display: flex; align-items: center; gap: 8px; align-self: center; }
+  .site-form .scell.chk input { width: auto; }
+  .site-form .scell.chk label { margin: 0; font-size: 13px; color: var(--text); text-transform: none; letter-spacing: 0; }
+  .site-form .sactions { display: flex; gap: 10px; margin-top: 6px; }
+  .site-form .sactions .btn { width: auto; }
+  @media (max-width: 520px) { .site-form .sactions .btn { flex: 1; justify-content: center; } }
+{% endblock %}
 {% block content %}
 <div class="page-head"><div><h1>{% if object %}{% t "site.edit_title" %}{% else %}{% t "site.new_title" %}{% endif %}</h1></div></div>
-<div class="card">
+<div class="card site-form">
   <form method="post" class="frm">
     {% csrf_token %}
-    {{ form.as_p }}
-    <button class="btn" type="submit">{% t "asset.save" %}</button>
-    <a class="btn secondary" href="{% url 'site-list' %}">{% t "asset.cancel" %}</a>
+    {% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
+    <div class="sgrid">
+      {# address last: it spans both columns, so the two short rows sit above it #}
+      {% for field in form.visible_fields %}{% if field.name != "address" %}
+      <div class="scell{% if field.field.widget.input_type == "checkbox" %} chk{% endif %}">
+        {{ field.errors }}
+        <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<span class="req"> *</span>{% endif %}</label>
+        {{ field }}
+        {% if field.help_text %}<div class="muted">{{ field.help_text }}</div>{% endif %}
+      </div>
+      {% endif %}{% endfor %}
+      {% for field in form.visible_fields %}{% if field.name == "address" %}
+      <div class="scell span">
+        {{ field.errors }}
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+      </div>
+      {% endif %}{% endfor %}
+    </div>
+    <div class="sactions">
+      <button class="btn" type="submit">{% t "asset.save" %}</button>
+      <a class="btn secondary" href="{% url 'site-list' %}">{% t "asset.cancel" %}</a>
+    </div>
   </form>
 </div>
 {% endblock %}

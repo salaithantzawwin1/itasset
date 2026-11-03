@@ -467,6 +467,27 @@ class TestSpecChoiceOptionPage(TestCase):
         self.assertIn("Filter these lists", body)
         self.assertIn("No list matches that filter", body)
 
+    def test_first_option_keeps_the_schema_choices(self):
+        """Adding an option to a key with no rows used to make every schema
+        choice disappear (the new row made the maintained list authoritative).
+        The schema list is seeded first, so the new value is an addition."""
+        self.client.force_login(self.tech)
+        self.assertEqual(SpecChoice.objects.filter(key="panel_type").count(), 0)
+        resp = self.client.post(
+            self._url(),
+            {"action": "add", "key": "panel_type", "add_value": "Mini-LED", "add_order": "60"},
+            follow=True,
+        )
+        self.assertEqual(resp.status_code, 200)
+        values = list(SpecChoice.objects.filter(key="panel_type").values_list("value", flat=True))
+        # the catalogue's Panel Type options survive, plus the new one
+        for expected in ("IPS", "TN", "VA", "OLED", "Other", "Mini-LED"):
+            self.assertIn(expected, values)
+        fields = build_spec_form_fields(Category.objects.get(code="IT-HW-MON"))
+        options = [value for value, _ in fields["spec__panel_type"].choices]
+        self.assertIn("IPS", options)
+        self.assertIn("Mini-LED", options)
+
     def test_save_updates_value_and_order(self):
         self.client.force_login(self.tech)
         row = SpecChoice.objects.get(key="ram_type", value="LPDDR")

@@ -31,6 +31,7 @@ from .specs import (
     build_spec_form_fields,
     resolve_choice_key,
     schema_as_json,
+    seed_choices_from_schema,
     spec_choice_key_labels,
 )
 
@@ -227,6 +228,17 @@ class SpecChoiceAdmin(admin.ModelAdmin):
     @admin.display(description="assets")
     def assets_using(self, obj) -> int:
         return obj.assets_in_use()
+
+    def save_model(self, request, obj, form, change):
+        """First row for a schema-only key keeps that key's declared choices.
+
+        A maintained list is authoritative, so adding one option to a key
+        that had none would hide every option the category schema declared;
+        seeding them first makes the new value an addition, not a replacement.
+        """
+        if not change:
+            seed_choices_from_schema(obj.key)
+        super().save_model(request, obj, form, change)
 
     def delete_view(self, request, object_id, extra_context=None):
         """Refuse an in-use option *before* the confirmation page, with a

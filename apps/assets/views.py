@@ -30,6 +30,7 @@ from .models import ApprovalDecision, Asset, AssetRequest, Assignment, Category,
 from .specs import (
     SPEC_FIELD_PREFIX,
     resolve_choice_key,
+    seed_choices_from_schema,
     spec_choice_key_labels,
     spec_rows,
 )
@@ -742,6 +743,10 @@ def spec_options(request):
             # gets a suggestion instead of a row nobody can see
             key_raw = request.POST.get("key", "")
             key, key_error = resolve_choice_key(labels, key_raw)
+            if key:
+                # first row for a schema-only key: keep the declared choices
+                # instead of replacing them with just the new value
+                seed_choices_from_schema(key)
             option = SpecChoice(
                 key=key or key_raw,
                 value=(request.POST.get("add_value") or "").strip(),

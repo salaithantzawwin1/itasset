@@ -226,3 +226,40 @@ def test_renumber_is_idempotent(db, site):
 def test_renumber_on_empty_table_is_a_noop(db):
     _run_renumber()
     assert not Person.objects.exists()
+
+
+# --------------------------------------------------------------- delete person
+
+
+def test_person_delete_removes_a_person_with_no_assets(admin_client, site, person_factory):
+    person = person_factory(name="Leaving Person")
+
+    confirm = admin_client.get(reverse("person-delete", args=[person.pk]))
+    assert confirm.status_code == 200
+    assert "Leaving Person" in confirm.content.decode()
+
+    resp = admin_client.post(reverse("person-delete", args=[person.pk]))
+    assert resp.status_code == 302
+    assert resp["Location"] == reverse("person-list")
+    assert not Person.objects.filter(pk=person.pk).exists()
+
+
+def test_person_delete_is_refused_while_an_assignment_references_them(
+    admin_client, site, person_factory, asset_factory
+):
+    """An employee holding (or having held) an asset keeps accountability:
+    the delete button is hidden and a crafted POST bounces back with a reason
+    instead of a ProtectedError 500."""
+    from apps.assets.models import Assignment
+
+    person = person_factory(name="Asset Holder")
+    asset = asset_factory()
+    Assignment.objects.create(asset=asset, to_person=person)
+
+    body = admin_client.get(reverse("person-detail", args=[person.pk])).content.decode()
+    assert reverse("person-delete", args=[person.pk]) not in body
+
+    resp = admin_client.post(reverse("person-delete", args=[person.pk]), follow=True)
+    assert resp.status_code == 200
+    assert any("assignment record(s) still reference" in str(m) for m in resp.context["messages"])
+    assert Person.objects.filter(pk=person.pk).exists()

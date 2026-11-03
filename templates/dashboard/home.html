@@ -3,15 +3,11 @@
 {% block title %}{% t "dash.title" %} — {% t "app.name" %}{% endblock %}
 {% block extra_css %}
   /* ---------- dashboard (mockup: docs/itasset-docs/index.html) ---------- */
-  :root { --hero-1: #1e3a8a; --hero-2: #3b82f6; --dash-accent: #3b82f6; }
-  [data-accent="green"]  { --hero-1: #064e3b; --hero-2: #10b981; --dash-accent: #10b981; }
-  [data-accent="purple"] { --hero-1: #4c1d95; --hero-2: #8b5cf6; --dash-accent: #8b5cf6; }
-  [data-accent="orange"] { --hero-1: #78350f; --hero-2: #f59e0b; --dash-accent: #f59e0b; }
-  [data-accent="pink"]   { --hero-1: #831843; --hero-2: #ec4899; --dash-accent: #ec4899; }
-  [data-accent="teal"]   { --hero-1: #134e4a; --hero-2: #14b8a6; --dash-accent: #14b8a6; }
-
+  /* The accent palette lives in base.html now: choosing a colour here sets
+     <html data-accent>, so the topbar, buttons and cards of every page
+     follow it, not just this hero. */
   .dash-hero { display: flex; justify-content: space-between; align-items: center; gap: 14px;
-    background: linear-gradient(135deg, var(--hero-1), var(--hero-2)); color: #fff;
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary)); color: #fff;
     padding: 18px 24px; border-radius: 12px; margin-bottom: 20px;
     box-shadow: 0 4px 20px rgba(0,0,0,.15); }
   .dash-hero h1 { margin: 0; font-size: 20px; }
@@ -33,7 +29,7 @@
      floor fits 6 tracks from 1100px up, and auto-fit still stretches 4 cards
      across the whole row when the conditional KPIs aren't shown. */
   @media (min-width: 1100px) { .kpi-row { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } }
-  .kpi { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--dash-accent);
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--primary);
     border-radius: 12px; padding: 16px 18px; box-shadow: var(--shadow); }
   .kpi.critical { border-left-color: var(--danger); }
   .kpi.warning  { border-left-color: #f59e0b; }
@@ -268,14 +264,14 @@
       <thead>
         <tr>
           <th scope="col">{% t "dash.ram.type" %}</th>
-          {% for col in ram_matrix.columns %}<th scope="col"><a href="{% url 'asset-list' %}?ram_speed={{ col.key|urlencode }}" title="{% t "asset.ram_show" %}">{% if col.unknown %}{% t "dash.ram.unknown" %}{% else %}{{ col.label }}{% endif %}</a></th>{% endfor %}
+          {% for col in ram_matrix.columns %}<th scope="col"><a href="{% url 'asset-list' %}?ram_speed={{ col.key|urlencode }}" title="{% t "asset.ram_show" %}">{% if col.unknown %}{% t "dash.ram.speed_unknown" %}{% else %}{{ col.label }}{% endif %}</a></th>{% endfor %}
           <th scope="col" class="ram-total-col">{% t "dash.ram.total" %}</th>
         </tr>
       </thead>
       <tbody>
         {% for row in ram_matrix.rows %}
         <tr>
-          <th scope="row"><a href="{% url 'asset-list' %}?ram_type={{ row.key|urlencode }}" title="{% t "asset.ram_show" %}">{% if row.unknown %}{% t "dash.ram.unknown" %}{% else %}{{ row.label }}{% endif %}</a></th>
+          <th scope="row"><a href="{% url 'asset-list' %}?ram_type={{ row.key|urlencode }}" title="{% t "asset.ram_show" %}">{% if row.unknown %}{% t "dash.ram.type_unknown" %}{% else %}{{ row.label }}{% endif %}</a></th>
           {% for cell in row.cells %}<td class="{% if cell.n %}heat{% else %}zero{% endif %}"{% if cell.n %} style="--heat: {{ cell.heat }}"{% endif %}>{% if cell.n %}<a href="{% url 'asset-list' %}?ram_type={{ row.key|urlencode }}&ram_speed={{ cell.speed_key|urlencode }}" title="{% t "asset.ram_show" %}">{{ cell.n }}</a>{% else %}–{% endif %}</td>{% endfor %}
           <td class="ram-total-col">{{ row.total }}</td>
         </tr>
@@ -293,7 +289,7 @@
   <ul class="ram-combo">
     {% for c in ram_matrix.combos %}
       <li class="heat" style="--heat: {{ c.heat }}">
-        <a href="{% url 'asset-list' %}?ram_type={{ c.type_key|urlencode }}&ram_speed={{ c.speed_key|urlencode }}" title="{% t "asset.ram_show" %}">{% if c.type %}{{ c.type }}{% else %}{% t "dash.ram.unknown" %}{% endif %} · {% if c.speed %}{{ c.speed }}{% else %}{% t "dash.ram.unknown" %}{% endif %}</a>
+        <a href="{% url 'asset-list' %}?ram_type={{ c.type_key|urlencode }}&ram_speed={{ c.speed_key|urlencode }}" title="{% t "asset.ram_show" %}">{% if c.type %}{{ c.type }}{% else %}{% t "dash.ram.type_unknown" %}{% endif %} · {% if c.speed %}{{ c.speed }}{% else %}{% t "dash.ram.speed_unknown" %}{% endif %}</a>
         <span class="rc-n">{{ c.n }}</span>
       </li>
     {% endfor %}
@@ -310,14 +306,14 @@
       <thead>
         <tr>
           <th scope="col">{% t "dash.cpu.model" %}</th>
-          {% for col in cpu_matrix.columns %}<th scope="col"><a href="{% url 'asset-list' %}?cpu_cores={{ col.key|urlencode }}" title="{% t "asset.cpu_show" %}">{% if col.unknown %}{% t "dash.ram.unknown" %}{% else %}{{ col.label }}{% endif %}</a></th>{% endfor %}
+          {% for col in cpu_matrix.columns %}<th scope="col"><a href="{% url 'asset-list' %}?cpu_cores={{ col.key|urlencode }}" title="{% t "asset.cpu_show" %}">{% if col.unknown %}{% t "dash.cpu.cores_unknown" %}{% else %}{{ col.label }}{% endif %}</a></th>{% endfor %}
           <th scope="col" class="ram-total-col">{% t "dash.ram.total" %}</th>
         </tr>
       </thead>
       <tbody>
         {% for row in cpu_matrix.rows %}
         <tr>
-          <th scope="row"><a href="{% url 'asset-list' %}?cpu_model={{ row.key|urlencode }}" title="{% t "asset.cpu_show" %}">{% if row.unknown %}{% t "dash.ram.unknown" %}{% else %}{{ row.label }}{% endif %}</a></th>
+          <th scope="row"><a href="{% url 'asset-list' %}?cpu_model={{ row.key|urlencode }}" title="{% t "asset.cpu_show" %}">{% if row.unknown %}{% t "dash.cpu.model_unknown" %}{% else %}{{ row.label }}{% endif %}</a></th>
           {% for cell in row.cells %}<td class="{% if cell.n %}heat{% else %}zero{% endif %}"{% if cell.n %} style="--heat: {{ cell.heat }}"{% endif %}>{% if cell.n %}<a href="{% url 'asset-list' %}?cpu_model={{ row.key|urlencode }}&cpu_cores={{ cell.col_key|urlencode }}" title="{% t "asset.cpu_show" %}">{{ cell.n }}</a>{% else %}–{% endif %}</td>{% endfor %}
           <td class="ram-total-col">{{ row.total }}</td>
         </tr>
@@ -335,7 +331,7 @@
   <ul class="ram-combo">
     {% for c in cpu_matrix.combos %}
       <li class="heat" style="--heat: {{ c.heat }}">
-        <a href="{% url 'asset-list' %}?cpu_model={{ c.model_key|urlencode }}&cpu_cores={{ c.cores_key|urlencode }}" title="{% t "asset.cpu_show" %}">{% if c.model %}{{ c.model }}{% else %}{% t "dash.ram.unknown" %}{% endif %} · {% if c.cores %}{{ c.cores }}{% else %}{% t "dash.ram.unknown" %}{% endif %}</a>
+        <a href="{% url 'asset-list' %}?cpu_model={{ c.model_key|urlencode }}&cpu_cores={{ c.cores_key|urlencode }}" title="{% t "asset.cpu_show" %}">{% if c.model %}{{ c.model }}{% else %}{% t "dash.cpu.model_unknown" %}{% endif %} · {% if c.cores %}{{ c.cores }}{% else %}{% t "dash.cpu.cores_unknown" %}{% endif %}</a>
         <span class="rc-n">{{ c.n }}</span>
       </li>
     {% endfor %}

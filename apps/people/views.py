@@ -230,6 +230,11 @@ class PersonDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
             .select_related("asset", "asset__category")
             .order_by("-out_at")[:20]
         )
+        # delete button: admin AND no assignment row points at the person
+        references_person = Assignment.objects.filter(
+            Q(to_person=self.object) | Q(assigned_by=self.object)
+        )
+        ctx["can_delete"] = is_admin(self.request.user) and not references_person.exists()
         return ctx
 
 
@@ -275,12 +280,51 @@ class PersonUpdate(ScopeGuardMixin, RoleRequiredMixin, UpdateView):
 
 
 class PersonDelete(ScopeGuardMixin, RoleRequiredMixin, DeleteView):
+    """Delete a person — admin only, and only while no asset references them.
+
+    ``Assignment.to_person`` and ``Assignment.assigned_by`` are PROTECT, so
+    an employee with any assignment (open or historical) cannot be removed
+    without losing accountability. The guard turns that into a message and a
+    bounce back to the detail page instead of a ProtectedError 500.
+    """
+
     roles_required = ("admin",)
     scope_action = "person_delete"
     model = Person
     template_name = "people/confirm_delete.html"
     success_url = reverse_lazy("person-list")
     cancel_url = "person-list"
+
+    @staticmethod
+    def _block_reason(person: Person) -> str | None:
+        from apps.assets.models import Assignment
+
+        rows = Assignment.objects.filter(Q(to_person=person) | Q(assigned_by=person)).count()
+        if rows:
+            return (
+                f'Cannot delete "{person.name}": {rows} asset assignment record(s) '
+                "still reference this person. Check the assets back in first, or "
+                "deactivate the person instead."
+            )
+        return None
+
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        reason = self._block_reason(self.object)
+        if reason:
+            messages.error(request, reason)
+            return redirect("person-detail", pk=self.object.pk)
+        return super().get(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        reason = self._block_reason(self.object)
+        if reason:
+            messages.error(self.request, reason)
+            return redirect("person-detail", pk=self.object.pk)
+        name = self.object.name
+        response = super().form_valid(form)
+        messages.success(self.request, f'Person "{name}" deleted.')
+        return response
 
 
 # ---------------------------------------------------------------------------
@@ -337,6 +381,7 @@ class DepartmentList(RoleRequiredMixin, ListView):
                     distinct=True,
                 ),
                 member_count=Count("people", distinct=True),
+                child_count=Count("children", distinct=True),
             )
             .order_by("name")
         )
@@ -364,6 +409,13 @@ class DepartmentList(RoleRequiredMixin, ListView):
         # the filtered rows are then laid out as a tree (parent, then each
         # branch indented under it) — same helper the Sites list uses
         return _tree_order(list(qs))
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        # rows offer Delete only to admins, and only where the row is empty
+        # (the server-side guard in DepartmentDelete is the real gate)
+        ctx["can_manage"] = is_admin(self.request.user)
+        return ctx
 
     def render_to_response(self, context, **response):
         if self.request.GET.get("_fragment") == "1":
@@ -479,12 +531,11 @@ class DepartmentDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
             .select_related("asset")
             .order_by("-out_at")[:20]
         )
-        # delete button: admin AND nothing references the row (PROTECT FKs);
+        # delete button: admin AND no member / sub-department blocks it;
+        # assignment rows are detached in DepartmentDelete, not a blocker;
         # short-circuits so non-admins pay no extra queries
         ctx["can_delete"] = is_admin(self.request.user) and not (
-            self.object.people.exists()
-            or self.object.assignments.exists()
-            or self.object.children.exists()
+            self.object.people.exists() or self.object.children.exists()
         )
         return ctx
 
@@ -545,10 +596,19 @@ class DepartmentDelete(ScopeGuardMixin, RoleRequiredMixin, DeleteView):
         members = dept.people.count()
         if members:
             return f'Cannot delete "{dept.name}": {members} member(s) still belong to it.'
-        rows = dept.assignments.count()
-        if rows:
-            return f'Cannot delete "{dept.name}": {rows} assignment record(s) still reference it.'
         return None
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        rows = self.object.assignments.count()
+        if rows:
+            # assignment rows stay (they are accountability history) but the
+            # department pointer is cleared on delete — say so up front
+            ctx["delete_note"] = (
+                f"{rows} assignment record(s) reference this department; they keep "
+                "their asset and dates and lose only the department holder."
+            )
+        return ctx
 
     def get(self, request, *args, **kwargs):
         self.object = self.get_object()
@@ -563,7 +623,21 @@ class DepartmentDelete(ScopeGuardMixin, RoleRequiredMixin, DeleteView):
         if reason:
             messages.error(self.request, reason)
             return redirect("department-detail", pk=self.object.pk)
+        from apps.assets.models import Assignment
+        from apps.audit.models import ActivityLog
+
         name = self.object.name
+        # Assignment.to_dept is PROTECT: no people, but an old assignment row
+        # may still point here. The row is history and stays; only its
+        # department holder is cleared, so the delete the user asked for does
+        # not 500 and the asset trail survives.
+        detached = Assignment.objects.filter(to_dept=self.object).update(to_dept=None)
         response = super().form_valid(form)
+        ActivityLog.record(
+            actor=self.request.user,
+            action="delete_department",
+            object_repr=name,
+            details={"detached_assignments": detached},
+        )
         messages.success(self.request, f'Department "{name}" deleted.')
         return response

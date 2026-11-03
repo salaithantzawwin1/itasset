@@ -96,6 +96,12 @@ STRINGS = {
     "dash.ram.type": {"en": "Type", "my": "အမျိုးအစား"},
     "dash.ram.total": {"en": "Total", "my": "စုစုပေါင်း"},
     "dash.ram.unknown": {"en": "Not recorded", "my": "မဖြည့်ရသေး"},
+    # the two axes name what each edge actually misses, so a lone “Not
+    # recorded” heading no longer leaves people guessing which value is absent
+    "dash.ram.type_unknown": {"en": "Type not recorded", "my": "အမျိုးအစား မဖြည့်ရသေး"},
+    "dash.ram.speed_unknown": {"en": "Speed not recorded", "my": "အမြန်နှုန်း မဖြည့်ရသေး"},
+    "dash.cpu.model_unknown": {"en": "Model not recorded", "my": "မော်ဒယ် မဖြည့်ရသေး"},
+    "dash.cpu.cores_unknown": {"en": "Cores not recorded", "my": "Core အရေအတွက် မဖြည့်ရသေး"},
     # CPU inventory card — the same cross-tab shape (model × cores)
     "dash.cpu": {"en": "CPU model and cores", "my": "CPU မော်ဒယ်နှင့် Core အရေအတွက်"},
     "dash.cpu.model": {"en": "Model", "my": "မော်ဒယ်"},

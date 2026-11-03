@@ -225,6 +225,12 @@ authenticated user; no company/branch scoping exists.
   dashboard assertion updated for the new labels). Browser checks: modal
   688×558/no inner scroll, accent purple→green→purple across `/`, `/assets/`,
   `/sites/` in both themes, AIO in the picker, dept/person delete links.
+- Commit `0d70074` — **pushed** `c8c6829..0d70074`. Deployed to
+  192.168.100.142 (LF `git archive` sync; `assets.0017` applied; gunicorn
+  restart → `/healthz` ok): server suite **569 + 102** (170.2 s, exit 0,
+  `SCOPE_ENFORCEMENT_ENABLED=1`), probe gate **16 ok / 0 failed**
+  (throttle + authed phases skipped), synced files md5-identical, and the
+  `IT-HW-AIO` row verified in production with 29 spec fields.
 
 ### 2026-10-30 (session 53 — searchable spec keys, one panel skin for every breakdown)
 - **Spec-choice key, type-to-search** (user: “Key: မှာ Type လုပ်ပြီး ရှာလို့

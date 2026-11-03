@@ -77,8 +77,27 @@ class Site(models.Model):
 
 
 class Department(models.Model):
+    """A department, optionally under a parent department.
+
+    Nesting mirrors the org chart: ``Finance`` sits at Yangon and its
+    sub-departments (Chan Yin, Mining, TPT) hang below it, each with its own
+    site. Every Person and Assignment still points at exactly one department
+    row, so the existing counts, filters and reports keep working; the tree
+    only adds an indent on the list and a sub-department card on the detail.
+    """
+
     name = models.CharField(max_length=120)
     site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name="departments")
+    # PROTECT like the other org FKs: a department that still has a branch
+    # cannot be deleted out from under it (DepartmentDelete explains why).
+    parent = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="children",
+        verbose_name="parent department",
+    )
     # Department head (တာဝန်ခံ): the person accountable for this department's
     # assets — shown on the dept detail page next to the department-held
     # inventory. SET_NULL keeps the department intact when the person goes.
@@ -97,6 +116,39 @@ class Department(models.Model):
 
     def __str__(self) -> str:
         return f"{self.name} ({self.site.code})"
+
+    def clean(self):
+        """Reject a self-parent and any cycle (the FK alone cannot)."""
+        super().clean()
+        if self.parent_id is None:
+            return
+        if self.pk is not None and self.parent_id == self.pk:
+            raise ValidationError({"parent": "A department cannot be its own parent."})
+        seen = set()
+        node = self.parent
+        while node is not None:
+            if node.pk in seen or (self.pk is not None and node.pk == self.pk):
+                raise ValidationError(
+                    {"parent": "That choice would create a loop in the department tree."}
+                )
+            seen.add(node.pk)
+            node = node.parent
+
+    @property
+    def ancestors(self) -> list["Department"]:
+        """Root-first chain above this department (empty when top level)."""
+        chain, seen = [], set()
+        node = self.parent
+        while node is not None and node.pk not in seen:
+            seen.add(node.pk)
+            chain.append(node)
+            node = node.parent
+        return list(reversed(chain))
+
+    @property
+    def full_path(self) -> str:
+        """Breadcrumb label, e.g. ``Finance / Chan Yin``."""
+        return " / ".join([d.name for d in self.ancestors] + [self.name])
 
 
 class Person(models.Model):

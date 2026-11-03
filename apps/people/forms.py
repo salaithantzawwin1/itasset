@@ -39,20 +39,44 @@ class SiteForm(forms.ModelForm):
 
 
 class DepartmentForm(forms.ModelForm):
-    """Main-app department edit (name/site + the head from session 32).
+    """Main-app department edit (name/site/head, plus the parent for nesting).
 
     The head picker lists every person with their site preloaded for the
     label; it is optional (a department without a head renders
-    "No head assigned" on the detail page).
+    "No head assigned" on the detail page). ``parent`` is optional too — a
+    branch such as Finance/Chan Yin simply picks its parent, and may sit at a
+    different site than that parent (its own site FK stays free).
     """
 
     class Meta:
         model = Department
-        fields = ["name", "site", "head"]
+        fields = ["name", "site", "parent", "head"]
+        labels = {"parent": "Parent department"}
+        help_texts = {
+            "parent": "Leave blank for a top-level department (e.g. Finance); "
+            "pick the department it belongs under to nest it."
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["head"].queryset = Person.objects.select_related("site", "department")
+        # the parent picker never offers the row itself or its branches, so
+        # the one choice that would make a loop is not on the list; the model
+        # clean() re-checks a crafted POST
+        qs = Department.objects.select_related("site").order_by("name")
+        if self.instance.pk:
+            excluded, pending = {self.instance.pk}, [self.instance.pk]
+            while pending:
+                children = Department.objects.filter(parent_id=pending.pop()).values_list(
+                    "pk", flat=True
+                )
+                for child in children:
+                    if child not in excluded:
+                        excluded.add(child)
+                        pending.append(child)
+            qs = qs.exclude(pk__in=excluded)
+        self.fields["parent"].queryset = qs
+        self.fields["parent"].empty_label = "— None (top level) —"
 
 
 class PersonForm(forms.ModelForm):

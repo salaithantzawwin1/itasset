@@ -22,6 +22,9 @@
 {% block content %}
 <div class="page-head">
   <div>
+    <div class="sub">
+      <a href="{% url 'department-list' %}">{% t "dept.title" %}</a>{% for a in object.ancestors %} / <a href="{% url 'department-detail' a.pk %}">{{ a.name }}</a>{% endfor %}
+    </div>
     <h1>{{ object.name }} <span class="muted">({{ object.site.code }})</span></h1>
     <div class="sub">{% t "dept.head" %}: {% if head %}<a href="{% url 'person-detail' head.pk %}">{{ head.name }}</a> <span class="muted">({{ head.employee_no }})</span>{% else %}<span class="muted">{% t "dept.no_head" %}</span>{% endif %}</div>
   </div>
@@ -31,6 +34,29 @@
     {% if can_delete %}<a class="btn danger" href="{% url 'department-delete' object.pk %}">{% t "asset.delete" %}</a>{% endif %}
   </div>
 </div>
+{% if parent_dept or children %}
+<div class="card">
+  {% if parent_dept %}
+    <div class="sub" style="margin-bottom:10px;">{% t "dept.parent" %}: <a href="{% url 'department-detail' parent_dept.pk %}">{{ parent_dept.name }}</a></div>
+  {% endif %}
+  {% if children %}
+    <h2>{% t "dept.subdepts" %} <span class="muted" style="font-weight:400;">({{ children|length }})</span></h2>
+    <table class="data">
+      <thead><tr><th>{% t "person.dept" %}</th><th>{% t "asset.site" %}</th><th>{% t "dept.head" %}</th><th>{% t "dept.members" %}</th></tr></thead>
+      <tbody>
+      {% for c in children %}
+        <tr>
+          <td><a href="{% url 'department-detail' c.pk %}">{{ c.name }}</a></td>
+          <td>{{ c.site.code }}</td>
+          <td>{% if c.head_id %}<a href="{% url 'person-detail' c.head_id %}">{{ c.head }}</a>{% else %}<span class="muted">—</span>{% endif %}</td>
+          <td>{{ c.member_count }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</div>
+{% endif %}
 <div class="card" id="dept-detail-card" data-active-tab="{{ active_tab }}">
   <div class="ftabs" role="tablist" aria-label="{% t 'dept.tabs_label' %}">
     <button type="button" class="ftab" id="ftab-held" data-tab="held"

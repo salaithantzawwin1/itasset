@@ -45,40 +45,46 @@ class SiteList(RoleRequiredMixin, ListView):
             action="site_list",
             path=self.request.path,
         )
-        return _site_tree(list(qs))
+        return _tree_order(list(qs))
 
 
 def _site_tree(sites: list[Site]) -> list[Site]:
-    """Order sites depth-first and stamp ``tree_depth`` on each row.
+    """Site rows in tree order (thin name kept for the site tests)."""
+    return _tree_order(sites)
 
+
+def _tree_order(rows: list) -> list:
+    """Order org rows depth-first and stamp ``tree_depth`` on each.
+
+    Works for both Site and Department rows (both carry ``parent_id``/``name``).
     A row whose parent is not in the (scoped) set is treated as a root, and a
     visited set breaks any accidental loop so the page can never recurse
     forever. Costs no extra query — parents come from ``select_related``.
     """
-    known = {s.pk for s in sites}
-    by_parent: dict[int | None, list[Site]] = {}
-    for s in sites:
-        key = s.parent_id if s.parent_id in known else None
-        by_parent.setdefault(key, []).append(s)
+    known = {row.pk for row in rows}
+    by_parent: dict[int | None, list] = {}
+    for row in rows:
+        key = row.parent_id if row.parent_id in known else None
+        by_parent.setdefault(key, []).append(row)
 
-    ordered: list[Site] = []
+    ordered: list = []
     visited: set[int] = set()
 
     def walk(parent_key, depth: int) -> None:
-        for site in sorted(by_parent.get(parent_key, []), key=lambda s: s.name.lower()):
-            if site.pk in visited:
+        for row in sorted(by_parent.get(parent_key, []), key=lambda r: r.name.lower()):
+            if row.pk in visited:
                 continue
-            visited.add(site.pk)
-            site.tree_depth = depth
-            ordered.append(site)
-            walk(site.pk, depth + 1)
+            visited.add(row.pk)
+            row.tree_depth = depth
+            ordered.append(row)
+            walk(row.pk, depth + 1)
 
     walk(None, 0)
     # any row stranded by a loop still gets shown, at the top level
-    for site in sites:
-        if site.pk not in visited:
-            site.tree_depth = 0
-            ordered.append(site)
+    for row in rows:
+        if row.pk not in visited:
+            row.tree_depth = 0
+            ordered.append(row)
     return ordered
 
 
@@ -96,7 +102,6 @@ class SiteDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
             people_count=Count("people")
         )
         ctx["child_people_total"] = sum(c.people_count for c in ctx["children"])
-        ctx["parent_site"] = self.object.parent
         return ctx
 
 
@@ -314,7 +319,7 @@ class DepartmentList(RoleRequiredMixin, ListView):
         qs = (
             super()
             .get_queryset()
-            .select_related("site", "head")
+            .select_related("site", "head", "parent")
             .annotate(
                 # dept-held open rows + the members' own open rows — the same
                 # two cards the detail page shows; counted as distinct assets,
@@ -354,8 +359,11 @@ class DepartmentList(RoleRequiredMixin, ListView):
                 | Q(site__code__icontains=q)
                 | Q(site__name__icontains=q)
                 | Q(head__name__icontains=q)
+                | Q(parent__name__icontains=q)
             )
-        return qs
+        # the filtered rows are then laid out as a tree (parent, then each
+        # branch indented under it) — same helper the Sites list uses
+        return _tree_order(list(qs))
 
     def render_to_response(self, context, **response):
         if self.request.GET.get("_fragment") == "1":
@@ -443,6 +451,15 @@ class DepartmentDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
             .first()
         )
         ctx["members"] = self.object.people.all()
+        # org-chart context: the branch under this department and the chain
+        # above it (people counts for the branch in the same query)
+        ctx["children"] = self.object.children.select_related("site", "head").annotate(
+            member_count=Count("people", distinct=True)
+        )
+        ctx["subtree_people"] = self.object.people.count() + sum(
+            c.member_count for c in ctx["children"]
+        )
+        ctx["parent_dept"] = self.object.parent
         # same split as the person page: open rows now, capped history after
         # (select_related so the table never N+1s, §17)
         ctx["held_now"] = (
@@ -465,7 +482,9 @@ class DepartmentDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
         # delete button: admin AND nothing references the row (PROTECT FKs);
         # short-circuits so non-admins pay no extra queries
         ctx["can_delete"] = is_admin(self.request.user) and not (
-            self.object.people.exists() or self.object.assignments.exists()
+            self.object.people.exists()
+            or self.object.assignments.exists()
+            or self.object.children.exists()
         )
         return ctx
 
@@ -520,6 +539,9 @@ class DepartmentDelete(ScopeGuardMixin, RoleRequiredMixin, DeleteView):
 
     @staticmethod
     def _block_reason(dept: Department) -> str | None:
+        children = dept.children.count()
+        if children:
+            return f'Cannot delete "{dept.name}": {children} sub-department(s) still belong to it.'
         members = dept.people.count()
         if members:
             return f'Cannot delete "{dept.name}": {members} member(s) still belong to it.'

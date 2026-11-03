@@ -5,8 +5,7 @@
 <div class="page-head">
   <div>
     <div class="sub">
-      {% if parent_site %}<a href="{% url 'site-detail' parent_site.pk %}">{{ parent_site.name }}</a> / {% endif %}
-      {% t "site.title" %}
+      <a href="{% url 'site-list' %}">{% t "site.title" %}</a>{% for a in object.ancestors %} / <a href="{% url 'site-detail' a.pk %}">{{ a.name }}</a>{% endfor %}
     </div>
     <h1>{{ object.name }} <span class="muted">({{ object.code }})</span></h1><div class="sub">{{ object.address }}</div>
   </div>
@@ -14,7 +13,7 @@
 </div>
 {% if children %}
 <div class="card">
-  <h2>{% t "site.subsites" %} <span class="muted">{% t "site.subsites_n" n=children|length %}</span></h2>
+  <h2>{% t "site.subsites" %} <span class="muted" style="font-weight:400;">({{ children|length }})</span></h2>
   <table class="data">
     <thead><tr><th>{% t "site.code" %}</th><th>{% t "person.name" %}</th><th>{% t "site.people_n" %}</th></tr></thead>
     <tbody>

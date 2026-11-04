@@ -12,9 +12,23 @@ PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 PDF_MAGIC = b"%PDF"
 
 
-def _user(django_user_model, group_setup, name):
+def _user(django_user_model, group_setup, name, *, global_scope=True):
+    """Feature-test user; GLOBAL scope keeps enforcement transparent.
+
+    The scope-specific test creates its own site-scoped user so it can prove
+    a foreign pk is denied.
+    """
+    from apps.core.models import UserAccessScope
+
     u = django_user_model.objects.create_user(f"lbl_{name}", f"{name}@x.com", "pass12345!")
     u.groups.add(group_setup[name])
+    if global_scope:
+        UserAccessScope.objects.create(
+            user=u,
+            scope_type=UserAccessScope.ScopeType.GLOBAL,
+            reason="feature-test fixture (not a scope test)",
+            created_by=u,
+        )
     return u
 
 
@@ -95,7 +109,7 @@ def test_label_requests_respect_scope(
     mine = asset_factory(site=site_a)
     theirs = asset_factory(site=site_b)
 
-    user = _user(django_user_model, group_setup, "viewer")
+    user = _user(django_user_model, group_setup, "viewer", global_scope=False)
     user.groups.add(group_setup["technician"])
     UserAccessScope.objects.create(
         user=user,

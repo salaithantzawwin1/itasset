@@ -22,8 +22,23 @@ def groups(db):
 
 
 def _user(django_user_model, groups, username, role):
+    """Feature-test user with GLOBAL scope.
+
+    Scope enforcement is on in the deployed settings, so an unscoped role
+    holder legitimately sees no sessions/labels; these tests exercise the
+    audit workflow itself (deny-by-default lives in tests/test_scopes.py and
+    tests/test_audit_session_scope.py).
+    """
+    from apps.core.models import UserAccessScope
+
     u = django_user_model.objects.create_user(username, f"{username}@x.com", "pass12345!")
     u.groups.add(groups[role])
+    UserAccessScope.objects.create(
+        user=u,
+        scope_type=UserAccessScope.ScopeType.GLOBAL,
+        reason="feature-test fixture (not a scope test)",
+        created_by=u,
+    )
     return u
 
 

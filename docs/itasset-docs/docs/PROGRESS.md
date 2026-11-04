@@ -236,6 +236,19 @@ authenticated user; no company/branch scoping exists.
 - Gates: `ruff check` + `format --check` clean, `manage.py check` clean,
   `makemigrations --check` clean (new migration committed), `pip-audit` clean,
   full suite **594 passed + 108 subtests** locally (350.5 s, exit 0).
+- Commit `af99383` + `7367ed0` — **pushed** `92b0cc6..7367ed0`. Deployed to
+  192.168.100.142 (LF `git archive` sync; `core.0004` applied; Pillow 13.0.0,
+  certifi and filelock upgraded; `.env` `DEBUG=1` → `DEBUG=0`).
+  `check --deploy` on the server exposed **W009: a 9-character SECRET_KEY** —
+  rotated to a 50-char random key (sessions invalidated by design; `.env`
+  backup kept), which clears W009. The remaining 15 warnings are the known
+  LAN-HTTP TLS items (HSTS/SSL redirect/secure cookies), `X_FRAME_OPTIONS`
+  SAMEORIGIN for the same-origin modals, and drf-spectacular schema notes.
+  Server suite **594 passed + 108 subtests** (171.8 s, exit 0, enforcement
+  on), `pip-audit` clean on the server venv, probe **20 ok / 0 failed**
+  (anonymous `/` → login, throttle cap + Retry-After, schema/docs 401).
+  Live spot checks: `/set-lang/` GET → **405**, admin login branded
+  “IT Asset Manager”, `/branding/logo/` 404 until an operator uploads one.
 
 ### 2026-11-04 (session 55 — sign-in gate, branded login, server CPU cores, asset UI pass)
 - **Sign-in gate**: `/` (the dashboard) carried no login requirement, so an

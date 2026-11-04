@@ -122,16 +122,23 @@ TOKEN_PATH = "/api/v1/auth/token/"
 
 
 def client_ip(request) -> str:
-    """First hop of X-Forwarded-For (set by our nginx) or the socket peer.
+    """Real client address for the throttle key.
 
-    gunicorn binds 127.0.0.1 only, so a spoofed XFF can only come from a
-    local process — good enough for a throttle key.
+    nginx overwrites ``X-Real-IP`` with ``$remote_addr`` and appends the peer
+    to ``X-Forwarded-For``. The *first* XFF entry is client-supplied, so using
+    it let anyone rotate the key with a forged header and bypass the login
+    cap; prefer X-Real-IP, then the last XFF hop (the one our proxy wrote).
+    gunicorn binds 127.0.0.1 only, so a forged header can only come from a
+    local process.
     """
+    real_ip = (request.META.get("HTTP_X_REAL_IP") or "").strip()
+    if real_ip:
+        return real_ip
     forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
     if forwarded:
-        first = forwarded.split(",")[0].strip()
-        if first:
-            return first
+        last = forwarded.split(",")[-1].strip()
+        if last:
+            return last
     return request.META.get("REMOTE_ADDR", "unknown")
 
 

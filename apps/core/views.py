@@ -28,6 +28,7 @@ def logo(request):
 
 
 def _content_type(name: str) -> str:
+    """Raster types only — an SVG served from this origin would run scripts."""
     suffix = name.rsplit(".", 1)[-1].lower()
     return {
         "png": "image/png",
@@ -35,5 +36,4 @@ def _content_type(name: str) -> str:
         "jpeg": "image/jpeg",
         "gif": "image/gif",
         "webp": "image/webp",
-        "svg": "image/svg+xml",
     }.get(suffix, "application/octet-stream")

@@ -8,12 +8,23 @@
 
 from django.contrib import messages
 from django.db.models import Q
-from django.shortcuts import get_object_or_404, redirect
+from django.http import Http404
+from django.shortcuts import redirect
 from django.utils import timezone
 from django.views.generic import DetailView, ListView, View
 
 from apps.assets.models import Asset
 from apps.core.roles import RoleRequiredMixin, user_has_role
+from apps.core.scopes import (
+    OutOfScope,
+    ScopeGuardMixin,
+    check_scope,
+    enforcement_enabled,
+    record_shadow,
+    scope_list,
+    scope_queryset,
+    user_in_site,
+)
 
 from .models import ActivityLog, AuditItem, AuditSession
 
@@ -58,6 +69,9 @@ class AuditSessionList(RoleRequiredMixin, ListView):
 
     def get_queryset(self):
         qs = AuditSession.objects.select_related("site", "started_by")
+        # record scope first (enforced → filtered; shadow → unchanged + log),
+        # then the pre-existing own-site narrowing for non-admins
+        qs = scope_list(self.request.user, qs, action="audit_session_list", path=self.request.path)
         if not user_has_role(self.request.user, "admin"):
             site = _user_site(self.request.user)
             qs = qs.filter(site=site) if site else qs.none()
@@ -67,13 +81,29 @@ class AuditSessionList(RoleRequiredMixin, ListView):
         from apps.people.models import Site
 
         ctx = super().get_context_data(**kwargs)
-        ctx["sites"] = Site.objects.filter(is_active=True)
+        ctx["sites"] = scope_queryset(
+            self.request.user,
+            Site.objects.filter(is_active=True),
+            site_field="pk",
+        )
         return ctx
 
 
 def _user_site(user):
     person = getattr(user, "person", None)
     return person.site if person else None
+
+
+def _scoped_session(request, pk) -> AuditSession:
+    """Fetch a session through the caller's scope; out-of-scope looks 404."""
+    session = AuditSession.objects.select_related("site", "started_by").filter(pk=pk).first()
+    if session is None:
+        raise Http404("No AuditSession matches the given query.")
+    try:
+        check_scope(request.user, session, action="audit_session", path=request.path)
+    except OutOfScope:
+        raise Http404("No AuditSession matches the given query.") from None
+    return session
 
 
 class AuditSessionStart(RoleRequiredMixin, View):
@@ -90,6 +120,12 @@ class AuditSessionStart(RoleRequiredMixin, View):
         if site is None:
             messages.error(request, "No site selected.")
             return redirect("audit-sessions")
+        # opening a session is a write against that site: don't let a
+        # technician start one for a site their scope does not cover
+        if not user_in_site(request.user, site):
+            if enforcement_enabled():
+                raise Http404("Site not found")
+            record_shadow(request.user, action="audit_start", path=request.path, obj=site)
         session = AuditSession.objects.create(site=site, started_by=request.user)
         ActivityLog.record(
             actor=request.user, action="audit_start", obj=session, object_repr=str(session)
@@ -97,10 +133,11 @@ class AuditSessionStart(RoleRequiredMixin, View):
         return redirect("audit-session", pk=session.pk)
 
 
-class AuditSessionDetail(RoleRequiredMixin, DetailView):
+class AuditSessionDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
     """Scan screen: one focused input, keyboard-wedge scanner friendly (§16)."""
 
     roles_required = ("admin", "technician", "auditor")
+    scope_action = "audit_session"
     model = AuditSession
     template_name = "audit/session_detail.html"
 
@@ -126,7 +163,7 @@ class AuditSessionScan(RoleRequiredMixin, View):
     roles_required = ("admin", "technician", "auditor")
 
     def post(self, request, pk):
-        session = get_object_or_404(AuditSession, pk=pk)
+        session = _scoped_session(request, pk)
         if session.status != AuditSession.Status.OPEN:
             messages.error(request, "Session already closed.")
             return redirect("audit-session", pk=pk)
@@ -149,7 +186,7 @@ class AuditSessionClose(RoleRequiredMixin, View):
     roles_required = ("admin", "technician", "auditor")
 
     def post(self, request, pk):
-        session = get_object_or_404(AuditSession, pk=pk)
+        session = _scoped_session(request, pk)
         if session.status == AuditSession.Status.OPEN:
             session.status = AuditSession.Status.CLOSED
             session.closed_at = timezone.now()
@@ -161,10 +198,11 @@ class AuditSessionClose(RoleRequiredMixin, View):
         return redirect("audit-report", pk=pk)
 
 
-class AuditReport(RoleRequiredMixin, DetailView):
+class AuditReport(ScopeGuardMixin, RoleRequiredMixin, DetailView):
     """Found / missing / unexpected (§4 \"Audit results\" report)."""
 
     roles_required = ("admin", "technician", "auditor")
+    scope_action = "audit_report"
     model = AuditSession
     template_name = "audit/report.html"
 

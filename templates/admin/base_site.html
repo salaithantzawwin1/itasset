@@ -123,6 +123,24 @@ function setLang(l) { document.getElementById('langval').value = l; document.get
 })();
 </script>
 <script>
+/* Phones: the filter panel now sits above the results (CSS order -1); keep it
+   compact by closing every filter that has no active selection. Desktop keeps
+   Django's open-by-default panels. */
+(function () {
+  function collapseUnusedFilters() {
+    if (window.innerWidth > 900) return;
+    var filtering = new URLSearchParams(window.location.search).toString() !== '';
+    document.querySelectorAll('#changelist-filter details').forEach(function (d) {
+      var sel = d.querySelector('li.selected a');
+      var isAll = !sel || (sel.textContent || '').trim().toLowerCase() === 'all';
+      if (!filtering || isAll) d.removeAttribute('open');
+    });
+  }
+  if (document.readyState !== 'loading') collapseUnusedFilters();
+  else document.addEventListener('DOMContentLoaded', collapseUnusedFilters);
+})();
+</script>
+<script>
 /* Mobile changelist cards (max-width 767px in _theme.css.html) label each cell
    with `content: attr(data-label)`, but Django's change_list_results.html
    emits no data-label — copy each column header into its cells' data-label so

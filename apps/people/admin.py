@@ -28,6 +28,7 @@ class PersonAdmin(ScopedAdminMixin, admin.ModelAdmin):
     list_display = ("name", "employee_no", "department", "site", "is_active")
     list_filter = ("site", "department", "is_active")
     search_fields = ("name", "employee_no", "email", "ldap_uid")
+    list_per_page = 25  # phone rows are stacked cards, not table lines
 
     def get_changeform_initial_data(self, request):
         # visible prefill: the add form opens with the next free EMP-NNNN

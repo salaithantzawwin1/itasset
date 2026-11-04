@@ -29,9 +29,13 @@
 </div>
 <div class="login-card">
   <div class="login-card-head">
-    <span class="brand-chip-lg" aria-hidden="true">IT</span>
+    {% if branding and branding.logo %}
+    <span class="brand-chip-lg has-logo"><img src="{% url 'branding-logo' %}?v={{ branding.updated_at|date:'U' }}" alt=""></span>
+    {% else %}
+    <span class="brand-chip-lg" aria-hidden="true">{{ brand_name|slice:":2"|upper }}</span>
+    {% endif %}
     <div>
-      <h1>IT Asset Manager</h1>
+      <h1>{{ brand_name }}</h1>
       <p>{% translate 'Administration' %}</p>
     </div>
   </div>
@@ -66,7 +70,10 @@
     <div class="form-row">
       {{ form.password.errors }}
       {{ form.password.label_tag }}
-      {{ form.password }}
+      <div class="pw-field">
+        {{ form.password }}
+        <button type="button" class="pw-reveal" id="pw-toggle" aria-label="{% translate 'Show password' %}">{% translate 'Show' %}</button>
+      </div>
       <input type="hidden" name="next" value="{{ next }}">
     </div>
     {% url 'admin_password_reset' as password_reset_url %}
@@ -79,6 +86,19 @@
       <input type="submit" value="{% translate 'Log in' %}">
     </div>
   </form>
-  <p class="login-back"><a href="{% url 'home' %}">&larr; {% translate 'Back to IT Asset Manager' %}</a></p>
+  <p class="login-back"><a href="{% url 'home' %}">&larr; {% blocktranslate with name=brand_name %}Back to {{ name }}{% endblocktranslate %}</a></p>
 </div>
+<script>
+(function () {
+  var pw = document.getElementById('id_password');
+  var toggle = document.getElementById('pw-toggle');
+  if (!pw || !toggle) return;
+  toggle.addEventListener('click', function () {
+    var show = pw.type === 'password';
+    pw.type = show ? 'text' : 'password';
+    toggle.textContent = show ? "{% translate 'Hide' %}" : "{% translate 'Show' %}";
+    toggle.setAttribute('aria-label', show ? "{% translate 'Hide password' %}" : "{% translate 'Show password' %}");
+  });
+})();
+</script>
 {% endblock %}

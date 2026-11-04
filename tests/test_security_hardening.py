@@ -103,6 +103,24 @@ def test_failed_logins_are_capped_per_ip(client, django_user_model, groups, sett
     assert blocked.headers.get("Retry-After") == "60"
 
 
+def test_forged_forwarded_for_cannot_bypass_the_throttle(
+    client, django_user_model, groups, settings
+):
+    """nginx appends the peer to XFF; a client-supplied first hop is untrusted."""
+    settings.LOGIN_THROTTLE_ATTEMPTS = 1
+    settings.LOGIN_THROTTLE_WINDOW = 60
+    _user(django_user_model, groups, "sec_xff")
+    payload = {"username": "sec_xff", "password": "wrong-password"}
+    url = reverse("login")
+
+    first = client.post(url, payload, HTTP_X_FORWARDED_FOR="1.1.1.1, 10.0.0.9")
+    assert first.status_code == 200
+
+    # rotate the forged leading hop, keep the proxy-written last hop
+    second = client.post(url, payload, HTTP_X_FORWARDED_FOR="2.2.2.2, 10.0.0.9")
+    assert second.status_code == 429
+
+
 def test_admin_login_and_token_endpoint_are_throttled(client, django_user_model, groups, settings):
     # ATTEMPTS=1 → the first attempt is processed, the second is blocked
     settings.LOGIN_THROTTLE_ATTEMPTS = 1

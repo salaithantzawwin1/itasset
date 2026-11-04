@@ -9,6 +9,15 @@ from apps.core.models import Branding
 DEFAULT_BRAND_NAME = "IT Asset Manager"
 
 
+def current_brand_name() -> str:
+    """The configured company name, or the product default. Never raises."""
+    try:
+        row = Branding.current()
+    except Exception:  # pragma: no cover - pre-migration / DB outage
+        row = None
+    return row.company_name if row and row.company_name else DEFAULT_BRAND_NAME
+
+
 def branding(request):
     """Expose the active Branding row (or None → templates use defaults).
 

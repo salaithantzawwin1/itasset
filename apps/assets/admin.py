@@ -374,7 +374,8 @@ class AssetAdmin(ScopedAdminMixin, admin.ModelAdmin):
     date_hierarchy = "purchase_date"
     readonly_fields = ("created_at", "updated_at")
     list_select_related = ("category", "site")
-    list_per_page = 50
+    # phones render each row as a ~270px card; 25 keeps a page usable
+    list_per_page = 25
     save_on_top = True  # long form — don't scroll back up to save
 
 

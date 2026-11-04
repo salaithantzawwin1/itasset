@@ -1,13 +1,16 @@
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
+from django.utils.functional import lazy
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from apps.core.context_processors import current_brand_name
 from apps.core.views import logo as branding_logo
 
-# Admin branding: header bar, browser tab title, index page heading.
-admin.site.site_header = "IT Asset Manager administration"
-admin.site.site_title = "IT Asset Manager admin"
+# Admin branding: header bar, browser tab title, index page heading. Lazy, so
+# changing the Branding row renames the admin without a restart.
+admin.site.site_header = lazy(lambda: f"{current_brand_name()} administration", str)()
+admin.site.site_title = lazy(lambda: f"{current_brand_name()} admin", str)()
 admin.site.index_title = "Control panel"
 admin.site.site_url = "/"  # "View site" link → main dashboard
 

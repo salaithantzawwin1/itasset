@@ -19,7 +19,7 @@ dependencies = [
     "gunicorn>=23.0",
     # M3 labels & reports (§5)
     "qrcode[pil]>=8.0",
-    "Pillow>=10.0",  # ImageField validation (branding logo)
+    "Pillow>=13.0",  # ImageField validation; 12.x has open CVEs (pip-audit)
     "reportlab>=4.0",
     "openpyxl>=3.1",
     # M5 LDAP/AD login (§11) — only imported when LDAP_ENABLED=1

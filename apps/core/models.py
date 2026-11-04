@@ -8,6 +8,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.db.models import Q
 
@@ -115,6 +116,7 @@ class Branding(models.Model):
     logo = models.ImageField(
         upload_to=_logo_upload_to,
         blank=True,
+        validators=[FileExtensionValidator(["png", "jpg", "jpeg", "gif", "webp"])],
         help_text="PNG/JPG/WebP shown on the sign-in page and in the top bar.",
     )
     updated_at = models.DateTimeField(auto_now=True)

@@ -1,33 +1,56 @@
 """Dashboard app: healthz, root dashboard with widgets, and language switch."""
 
+import logging
+
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import connection
 from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.http import require_POST
 from django.views.generic import TemplateView
 
 from apps.core.roles import user_has_role
 from apps.core.scopes import effective_scopes, enforcement_enabled, scope_list
 
+log = logging.getLogger(__name__)
+
 
 def healthz(request):
-    """Liveness: DB ping. Monitored by Uptime Kuma (§18)."""
+    """Liveness: DB ping. Monitored by Uptime Kuma (§18).
+
+    Anonymous by design, so the failure body is deliberately generic — the
+    exception text can name the database host/user and belongs in the log,
+    not in a public response.
+    """
     try:
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
-    except Exception as exc:  # pragma: no cover - failure path
-        return JsonResponse({"status": "error", "db": str(exc)}, status=503)
+    except Exception:  # pragma: no cover - failure path
+        log.exception("healthz: database ping failed")
+        return JsonResponse({"status": "error", "db": "error"}, status=503)
     return JsonResponse({"status": "ok", "db": "ok"})
 
 
+@require_POST
 def set_lang(request):
-    """Switch UI language (en/my); returns to the referring page."""
+    """Switch UI language (en/my); returns to the referring page.
+
+    POST only (a GET switch would let a link change state without a CSRF
+    token) and the Referer is accepted only when it points back at this
+    host — otherwise the endpoint is an open redirect.
+    """
     lang = request.POST.get("lang", "en")
     if lang in ("en", "my"):
         request.session["lang"] = lang
-    return redirect(request.META.get("HTTP_REFERER") or "/")
+    referer = request.META.get("HTTP_REFERER") or ""
+    if not url_has_allowed_host_and_scheme(
+        referer, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        referer = "/"
+    return redirect(referer)
 
 
 # Fixed palette for the category chart (mockup `docs/itasset-docs/index.html`);

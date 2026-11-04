@@ -63,7 +63,7 @@ class AdminSmokeTests(TestCase):
         self.client.force_login(self.superuser)
         resp = self.client.get(reverse("admin:index"))
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.context["site_header"], "IT Asset Manager administration")
+        self.assertEqual(str(resp.context["site_header"]), "IT Asset Manager administration")
         # every app that ships models must be listed, not silently dropped
         labels = {app["app_label"] for app in resp.context["available_apps"]}
         for label in ("assets", "people", "audit", "vendors", "licenses"):

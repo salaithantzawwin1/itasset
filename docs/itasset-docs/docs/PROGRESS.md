@@ -13,9 +13,9 @@
 |---|---|
 | Current milestone | M8 — Go-live |
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
-| Last updated | 2026-11-03 |
+| Last updated | 2026-11-04 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **569 passed + 102 subtests** (2026-11-03: local full run 568 passed + 1 fixed assertion, 338 s; server 569 + 102 at the session-54 deploy — exit 0) |
+| Test suite | **594 passed + 108 subtests** (2026-11-04 local run, 350.5 s, exit 0; +12 security/scope regressions this session) |
 
 ---
 
@@ -185,6 +185,57 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-11-04 (session 56 — security audit, scope IDOR fixes, admin UI/UX pass)
+- **Audit scope**: `manage.py check --deploy` under prod settings shows only the
+  expected LAN-HTTP warnings (HSTS/SSL-redirect/secure cookies off until TLS)
+  plus the weak test key used for the check; no code-level findings there.
+  Dependency scan (`pip-audit`) found **58 advisories in 3 packages** —
+  Pillow 12.3.0 (fixed 13.0.0), certifi, filelock. Upgraded locally and raised
+  the floor to `Pillow>=13.0`; scan is now clean.
+- **Login-throttle bypass fixed** (`apps/core/middleware.py`): the key used the
+  *first* `X-Forwarded-For` hop, which is client-supplied — rotating a forged
+  header reset the counter. It now prefers `X-Real-IP` (nginx overwrites it
+  with `$remote_addr`) and falls back to the **last** XFF hop; a regression
+  test rotates the forged first hop and still gets 429.
+- **Audit-session IDOR fixed** (`apps/audit/views.py`): detail/scan/close/
+  report fetched by pk with no scope check, and any technician could start a
+  session for any site. All four screens now resolve through `check_scope`
+  (out-of-scope → 404), start validates `user_in_site` (403/404 under
+  enforcement, shadow-logged otherwise), and the site picker is
+  scope-filtered. New `tests/test_audit_session_scope.py` (5 tests).
+- **Label IDOR fixed** (`apps/labels/views.py`): QR preview served any asset
+  pk to any logged-in user and the print sheet accepted foreign ids. Preview
+  now scope-checks (404) and print filters ids with `scope_list`; tests cover
+  both, including a mixed own/foreign sheet producing one label.
+- **API asset writes scope-checked** (`apps/api/views.py`): `POST /assets/`
+  and PATCH/PUT could create or move an asset into a site outside the
+  caller's scope even though reads were scoped. Both now check the target
+  site and answer **403**; test added in `tests/test_scopes.py`.
+- **Open redirect + method fixed** (`apps/dashboard/views.py`): `set_lang`
+  redirected to an unvalidated `Referer` and accepted GET. Now `@require_POST`
+  with `url_has_allowed_host_and_scheme` (same-host or `/`); tests for POST
+  only, off-site referer and same-host return.
+- **Health endpoint info leak fixed**: anonymous `/healthz` returned the raw
+  DB exception (host/user) on failure; it now logs the exception and answers
+  `{"status":"error","db":"error"}`. Test asserts the body is generic.
+- **Branding upload hardening**: logo field now accepts raster extensions only
+  (`png/jpg/jpeg/gif/webp`, migration `core.0004`) and the public logo view no
+  longer maps `.svg` to `image/svg+xml` (an SVG served same-origin would run
+  script).
+- **Admin UI/UX pass**: admin login now uses the configured brand name + logo
+  (initials fallback), with the same Show/Hide password control as the main
+  sign-in; admin `<title>`/header are branded lazily (no restart after a
+  Branding edit). Phone fixes: the asset/user save bar is a single column of
+  full-width buttons (stock labels no longer clip and the delete button no
+  longer overflows its card); the changelist filter panel now sits **above**
+  the results below 900px with unused filters collapsed (it used to sit after
+  ~25 stacked cards, ~7,000px down), and asset/person lists paginate at 25
+  rows. Verified in the browser at 1440×900 and 390×844, light/dark:
+  admin login, index, asset changelist + add/change, branding preview, users.
+- Gates: `ruff check` + `format --check` clean, `manage.py check` clean,
+  `makemigrations --check` clean (new migration committed), `pip-audit` clean,
+  full suite **594 passed + 108 subtests** locally (350.5 s, exit 0).
 
 ### 2026-11-04 (session 55 — sign-in gate, branded login, server CPU cores, asset UI pass)
 - **Sign-in gate**: `/` (the dashboard) carried no login requirement, so an

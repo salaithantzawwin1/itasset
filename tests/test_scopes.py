@@ -189,6 +189,34 @@ def test_forged_site_field_rejected(client, tech_a, sites, category, settings):
     assert Asset.objects.filter(asset_tag="OK-1", site=site_a).exists()
 
 
+def test_api_asset_create_and_move_respect_site_scope(api, tech_a, sites, category, settings):
+    """A technician may not create (or move) an asset into another site."""
+    settings.SCOPE_ENFORCEMENT_ENABLED = True
+    api.force_authenticate(tech_a)
+    site_a, site_b = sites
+
+    forged = api.post(
+        "/api/v1/assets/",
+        {"asset_tag": "API-FORGED-1", "category_id": category.pk, "site_id": site_b.pk},
+        format="json",
+    )
+    assert forged.status_code == 403
+    assert not Asset.objects.filter(asset_tag="API-FORGED-1").exists()
+
+    created = api.post(
+        "/api/v1/assets/",
+        {"asset_tag": "API-OK-1", "category_id": category.pk, "site_id": site_a.pk},
+        format="json",
+    )
+    assert created.status_code == 201, created.content
+    asset = Asset.objects.get(asset_tag="API-OK-1")
+
+    moved = api.patch(f"/api/v1/assets/{asset.asset_tag}/", {"site_id": site_b.pk}, format="json")
+    assert moved.status_code == 403
+    asset.refresh_from_db()
+    assert asset.site_id == site_a.pk
+
+
 def test_export_enforces_site_scope(client, tech_a, root, sites, settings):
     settings.SCOPE_ENFORCEMENT_ENABLED = True
     site_a, site_b = sites

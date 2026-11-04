@@ -150,6 +150,18 @@ class AssetViewSet(viewsets.ModelViewSet):
             qs = qs.order_by(*ordering.split(","))
         return qs
 
+    def _site_scope_error(self, request, site):
+        """A write must land in the caller's scope, not just a readable row."""
+        if site is None:
+            return None
+        try:
+            check_scope(request.user, site, action="api_asset_write", path=request.path)
+        except OutOfScope:
+            return _error(
+                "that site is outside your scope", status.HTTP_403_FORBIDDEN, request=request
+            )
+        return None
+
     def create(self, request, *args, **kwargs):
         """New assets land as IN_STOCK (§3 stage ④ receive & tag).
 
@@ -159,6 +171,9 @@ class AssetViewSet(viewsets.ModelViewSet):
         """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        denied = self._site_scope_error(request, serializer.validated_data.get("site"))
+        if denied:
+            return denied
         asset = serializer.save(status=Asset.Status.IN_STOCK)
         return Response(self.get_serializer(asset).data, status=status.HTTP_201_CREATED)
 
@@ -191,6 +206,12 @@ class AssetViewSet(viewsets.ModelViewSet):
                 )
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
+        # moving an asset to another site is a write against that site
+        denied = self._site_scope_error(
+            request, serializer.validated_data.get("site", instance.site)
+        )
+        if denied:
+            return denied
         asset = serializer.save(version=instance.version + 1)
         return Response(self.get_serializer(asset).data)
 

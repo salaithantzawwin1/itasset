@@ -186,6 +186,44 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-11-04 (session 55 — sign-in gate, branded login, server CPU cores, asset UI pass)
+- **Sign-in gate**: `/` (the dashboard) carried no login requirement, so an
+  anonymous visitor saw KPIs/alerts (zeros under scope enforcement, live
+  counts with it off) instead of a sign-in page. `DashboardView` now uses
+  `LoginRequiredMixin`; `LOGIN_URL` is explicit and `LOGOUT_REDIRECT_URL` is
+  `/accounts/login/`, so both a cold visit and Logout land on the form.
+  `/healthz`, the admin login and the API contracts are unchanged.
+- **Login redesign + company logo**: the sign-in page is a two-pane layout —
+  branded gradient panel (logo, company name, tagline, three feature lines)
+  beside the form card, with a password show/hide toggle, preserved `?next=`,
+  theme/lang controls and a stacked phone layout. New `core.Branding` row
+  (company name, tagline, logo) is editable in **Admin → Branding**
+  (admin-role only, one row, live preview); the uploaded file is served by
+  `GET /branding/logo/` (public, cache-busted by upload time) so no public
+  `/media/` tree or new nginx alias is needed. The top bar and every
+  `<title>` use the configured name (falling back to “IT Asset Manager”).
+- **Physical Server CPU cores**: the SRV schema declared sockets + installed
+  CPU count but no `cpu_cores`, so the dashboard CPU matrix could never show
+  a server and the value had nowhere to go. Added the catalogue field and
+  migration `assets.0018` backfilling it after `cpu_installed_count`
+  (idempotent, existing fields untouched).
+- **Asset CRUD + UI pass**: created → edited → deleted a server asset in the
+  browser (cores round-tripped to the detail page). Fixes: the form filled
+  only 760px of a 1368px card (~1000px dead on 4K) — it now uses the card
+  width, and its field grid adds columns; the category "span 2" rule forced
+  a 65px second column on phones, cutting every select to a sliver — it now
+  applies only ≥620px; detail pages hide the dangling "· cost —" and show
+  remarks; people/department/asset lists show the site **name**; person
+  subtitles drop the empty "· —"; phone page actions wrap as an even 2×2
+  instead of shrinking "+ New asset" to three lines.
+- Gates: `ruff check` + `format --check` clean, `check` clean,
+  `makemigrations --check` clean; suite **582 passed + 108 subtests**
+  locally (374.7 s, exit 0). Browser checks at 1440/390px in both themes:
+  anonymous `/` and Logout → `/accounts/login/`; sign-in with `next`;
+  admin branding add hidden + logo preview; site/asset modals
+  (688×558 / 920×459, no inner scroll); server asset create/edit/delete;
+  no horizontal page overflow at 390px.
+
 ### 2026-11-03 (session 54 — compact site modal, deletes, All-in-One, spec seeding, site-wide accent)
 - **New/Edit site modal compacted** (`people/site_form.html`): the five
   fields sat in one tall column inside the shared modal. A two-column grid

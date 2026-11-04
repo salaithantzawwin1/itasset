@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load t %}
-{% block title %}{% if object %}{% t "dept.edit_title" %}{% else %}{% t "dept.new_title" %}{% endif %} — {% t "app.name" %}{% endblock %}
+{% block title %}{% if object %}{% t "dept.edit_title" %}{% else %}{% t "dept.new_title" %}{% endif %} — {{ brand_name }}{% endblock %}
 {% block content %}
 <div class="page-head"><div><h1>{% if object %}{% t "dept.edit_title" %}{% else %}{% t "dept.new_title" %}{% endif %}</h1></div></div>
 <div class="card">

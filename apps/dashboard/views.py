@@ -1,5 +1,6 @@
 """Dashboard app: healthz, root dashboard with widgets, and language switch."""
 
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import connection
 from django.db.models import Count
 from django.http import JsonResponse
@@ -34,7 +35,7 @@ def set_lang(request):
 _CHART_COLORS = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444", "#6b7280", "#14b8a6"]
 
 
-class DashboardView(TemplateView):
+class DashboardView(LoginRequiredMixin, TemplateView):
     """Root page — KPI row, category chart, alerts and status widgets.
 
     Layout follows the accepted mockup (`docs/itasset-docs/index.html`), but

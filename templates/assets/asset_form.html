@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load t %}
-{% block title %}{% if object %}{% t "asset.edit_title" %}{% else %}{% t "asset.new_title" %}{% endif %} — {% t "app.name" %}{% endblock %}
+{% block title %}{% if object %}{% t "asset.edit_title" %}{% else %}{% t "asset.new_title" %}{% endif %} — {{ brand_name }}{% endblock %}
 {% block extra_css %}
     /* ---------- tabbed form sections (asset create/edit) ---------- */
     /* Progressive enhancement: without JS the strip stays hidden and every
@@ -27,8 +27,12 @@
        them into one long column — give the wrapper the same column grid so
        related fields share a row (CPU ×3, RAM ×3, storage ×3 …). */
     .ftab-panel .spec-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 18px; align-items: start; }
-    /* "CODE — Name" category options need the room; the tag keeps one column. */
-    .ftab-panel p:has(select[name="category"]) { grid-column: span 2; }
+    /* "CODE — Name" category options need the room. Only span two columns
+       when two columns exist: at phone widths the span forced a second
+       65px-wide column and cut every other select down to a sliver. */
+    @media (min-width: 620px) {
+      .ftab-panel p:has(select[name="category"]) { grid-column: span 2; }
+    }
     /* Field help hints ((GB), e.g. Intel Core i5-14500 …) ride as a focusable
        tip in the field's label instead of a line under every input. */
     .help-tip { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px;
@@ -56,7 +60,11 @@
       opacity: 1; visibility: visible; transition-delay: .15s, .15s;
     }
     .ftab-actions { display: flex; gap: 10px; margin-top: 18px; }
-    #asset-form-card.tabs-on form.frm { max-width: 760px; }
+    /* The card already sits inside the responsive .page container, so the
+       form should use that width: a 760px cap left ~600px of empty card at
+       1440px and ~1000px on a 4K screen. The auto-fit field grid turns the
+       extra room into useful columns. */
+    #asset-form-card.tabs-on form.frm { max-width: none; }
 {% endblock %}
 {% block content %}
 <div class="page-head">

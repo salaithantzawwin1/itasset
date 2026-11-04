@@ -17,7 +17,7 @@
       if (a) document.documentElement.setAttribute('data-accent', a);
     })();
   </script>
-  <title>{% block title %}{% t "app.name" %}{% endblock %}</title>
+  <title>{% block title %}{{ brand_name }}{% endblock %}</title>
   <style>
     :root {
       --primary: #0f4c81; --primary-dark: #0a355c; --primary-light: #e8f1fa;
@@ -56,7 +56,8 @@
     /* ---------- top navigation ---------- */
     .topbar { background: linear-gradient(90deg, var(--primary-dark), var(--primary)); color: #fff; padding: 0 28px; height: 58px; display: flex; align-items: center; gap: 24px; box-shadow: 0 2px 8px rgba(0,0,0,.12); position: sticky; top: 0; z-index: 50; }
     .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; letter-spacing: .3px; color: #fff; text-decoration: none; }
-    .brand .logo { width: 30px; height: 30px; border-radius: 8px; background: var(--accent); display: inline-flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; color: #fff; }
+    .brand .logo { width: 30px; height: 30px; border-radius: 8px; background: var(--accent); display: inline-flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; color: #fff; overflow: hidden; flex: 0 0 auto; }
+    .brand .logo img { width: 100%; height: 100%; object-fit: contain; background: #fff; padding: 2px; }
     .topnav { display: flex; gap: 4px; }
     .topnav a { color: rgba(255,255,255,.78); text-decoration: none; padding: 8px 14px; border-radius: 8px; font-size: 14px; transition: all .15s; }
     .topnav a:hover { background: rgba(255,255,255,.12); color: #fff; }
@@ -233,6 +234,11 @@
       .userbox .uname { display: none; }
       .page { padding: 0 10px; }
       .page-head h1 { font-size: 19px; }
+      /* Phone: action buttons share the row instead of shrink-wrapping to
+         unreadable slivers ("+ New asset" used to break over three lines). */
+      .page-head .actions { width: 100%; flex-wrap: wrap; }
+      .page-head .actions .btn { flex: 1 1 40%; text-align: center; }
+      .page-head .actions .btn.secondary { flex: 1 1 40%; }
       .card { padding: 16px 14px; }
       form.frm { max-width: 100%; }
       .filterbar input[type=text] { max-width: none; }
@@ -257,8 +263,8 @@
       .ftabs { flex-wrap: nowrap !important; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
       .ftabs::-webkit-scrollbar { display: none; }
       .ftab { white-space: nowrap; min-height: 44px; padding: 12px 14px; }
-      .page-head .actions { width: 100%; }
-      .page-head .actions .btn { flex: 1; }
+      .page-head .actions { width: 100%; flex-wrap: wrap; }
+      .page-head .actions .btn { flex: 1 1 40%; }
       .pagination a { min-height: 44px; display: inline-flex; align-items: center; }
       table.data thead th, table.data tbody td { padding: 9px 10px; }
     }

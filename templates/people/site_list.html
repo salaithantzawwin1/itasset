@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load t %}
-{% block title %}{% t "site.title" %} — {% t "app.name" %}{% endblock %}
+{% block title %}{% t "site.title" %} — {{ brand_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div><h1>{% t "site.title" %}</h1><div class="sub">{% t "site.count" n=object_list|length %}</div></div>

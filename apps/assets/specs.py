@@ -272,6 +272,16 @@ CATALOGUE = {
                     min=0,
                     level="recommended",
                 ),
+                # Dashboard CPU matrix reads cpu_cores for every category; the
+                # server schema declared sockets/installed count but no cores,
+                # so server CPUs could never fill that card.
+                _f(
+                    "cpu_cores",
+                    "CPU Cores",
+                    "integer",
+                    min=1,
+                    help="Total physical cores across installed CPUs",
+                ),
                 _f(
                     "ram_capacity_gb",
                     "Total RAM",

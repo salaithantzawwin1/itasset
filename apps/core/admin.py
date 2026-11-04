@@ -1,7 +1,9 @@
 from django.contrib import admin
 from django.http import Http404
+from django.urls import reverse
+from django.utils.html import format_html
 
-from apps.core.models import IdempotencyRecord, UserAccessScope
+from apps.core.models import Branding, IdempotencyRecord, UserAccessScope
 from apps.core.roles import user_has_role
 from apps.core.scopes import enforcement_enabled, scope_list
 
@@ -100,6 +102,61 @@ class UserAccessScopeAdmin(admin.ModelAdmin):
         return _is_scope_admin(request.user)
 
     def has_add_permission(self, request):
+        return _is_scope_admin(request.user)
+
+    def has_change_permission(self, request, obj=None):
+        return _is_scope_admin(request.user)
+
+    def has_delete_permission(self, request, obj=None):
+        return _is_scope_admin(request.user)
+
+
+@admin.register(Branding)
+class BrandingAdmin(admin.ModelAdmin):
+    """Company identity (name, tagline, logo) — one settings row.
+
+    Admin-role only (same gate as scope administration); the sign-in page and
+    every top bar read the newest row through `Branding.current()`.
+    """
+
+    list_display = ("company_name", "tagline", "logo_thumb", "updated_at")
+    readonly_fields = ("logo_preview", "updated_at")
+    fieldsets = (
+        (None, {"fields": ("company_name", "tagline")}),
+        ("Logo", {"fields": ("logo", "logo_preview")}),
+        ("Changed", {"fields": ("updated_at",), "classes": ("collapse",)}),
+    )
+
+    @admin.display(description="logo")
+    def logo_thumb(self, obj):
+        if not obj.logo:
+            return "—"
+        return format_html(
+            '<img src="{}?v={}" alt="" style="height:28px;max-width:90px;object-fit:contain;">',
+            reverse("branding-logo"),
+            int(obj.updated_at.timestamp()),
+        )
+
+    @admin.display(description="preview")
+    def logo_preview(self, obj):
+        if not obj.logo:
+            return "No logo yet — the sign-in page shows the default monogram."
+        return format_html(
+            '<img src="{}?v={}" alt="Current logo" '
+            'style="height:64px;max-width:220px;object-fit:contain;background:#fff;'
+            'border:1px solid #ddd;border-radius:8px;padding:6px;">',
+            reverse("branding-logo"),
+            int(obj.updated_at.timestamp()),
+        )
+
+    def has_add_permission(self, request):
+        # one row only: change the existing identity instead of stacking rows
+        return _is_scope_admin(request.user) and not Branding.objects.exists()
+
+    def has_module_permission(self, request):
+        return _is_scope_admin(request.user)
+
+    def has_view_permission(self, request, obj=None):
         return _is_scope_admin(request.user)
 
     def has_change_permission(self, request, obj=None):

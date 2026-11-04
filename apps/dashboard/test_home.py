@@ -345,6 +345,7 @@ class DashboardKpiAlertTests(TestCase):
 
     def test_no_alerts_state_renders(self):
         self._make("A-6")
+        _login_global(self.client)
         resp = self.client.get("/")
         self.assertEqual(resp.context["alerts"], [])
         self.assertContains(resp, "All clear")
@@ -477,12 +478,13 @@ class DashboardKpiAlertTests(TestCase):
         self.assertEqual(kpis["dash.total_assets"], 0)  # deny by default
         self.assertEqual(resp.context["alerts"], [])
 
-        # anonymous callers get the same zeros under enforcement
+        # anonymous callers never reach the dashboard at all (session 55):
+        # the root URL is login-protected and bounces to the sign-in page
         self.client.logout()
         with self.settings(SCOPE_ENFORCEMENT_ENABLED=True):
             anon = self.client.get("/")
-        self.assertEqual(anon.context["total_assets"], 0)
-        self.assertEqual(anon.context["alerts"], [])
+        self.assertEqual(anon.status_code, 302)
+        self.assertTrue(anon["Location"].startswith("/accounts/login/"))
 
     def test_overdue_alert_links_to_loans_page(self):
         from apps.assets.models import Assignment
@@ -531,9 +533,10 @@ class AdminLinkVisibilityTests(TestCase):
         self.plain = User.objects.create_user("plainu", "p@example.com", "pw12345!")
 
     def test_admin_link_hidden_for_anonymous(self):
+        # anonymous visitors are sent to sign-in, so they never see a nav
         resp = self.client.get("/")
-        self.assertEqual(resp.status_code, 200)
-        self.assertNotContains(resp, "/admin/")
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(resp["Location"].startswith("/accounts/login/"))
 
     def test_admin_link_hidden_for_non_staff_user(self):
         self.client.force_login(self.plain)

@@ -93,6 +93,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "apps.core.context_processors.branding",
             ],
         },
     },
@@ -162,8 +163,11 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/"  # after sign-in, go to the dashboard home
-LOGOUT_REDIRECT_URL = "/"
+# Signing out must land on the sign-in page, not the dashboard: with the
+# dashboard login-protected, "/" would bounce through ?next=/ anyway.
+LOGOUT_REDIRECT_URL = "/accounts/login/"
 
 # --- LDAP / AD login (§11, M5) ---------------------------------------------
 # Off by default (dev); enable with LDAP_ENABLED=1. When on, the role-mapping

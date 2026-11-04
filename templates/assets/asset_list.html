@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load t %}
-{% block title %}{% t "asset.title" %} — {% t "app.name" %}{% endblock %}
+{% block title %}{% t "asset.title" %} — {{ brand_name }}{% endblock %}
 {% block extra_css %}
   /* live-search match highlight — the highlight tag wraps the matched run in <mark> */
   mark { background: #ffd54d; color: #17212b; padding: 0 2px; border-radius: 3px; }

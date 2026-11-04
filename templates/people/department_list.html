@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load t %}
-{% block title %}{% t "dept.title" %} — {% t "app.name" %}{% endblock %}
+{% block title %}{% t "dept.title" %} — {{ brand_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div><h1>{% t "dept.title" %}</h1>{% include "people/_department_count.html" %}</div>

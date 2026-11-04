@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load t %}
-{% block title %}{% t "dash.title" %} — {% t "app.name" %}{% endblock %}
+{% block title %}{% t "dash.title" %} — {{ brand_name }}{% endblock %}
 {% block extra_css %}
   /* ---------- dashboard (mockup: docs/itasset-docs/index.html) ---------- */
   /* The accent palette lives in base.html now: choosing a colour here sets

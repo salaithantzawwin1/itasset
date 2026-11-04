@@ -8,7 +8,7 @@
           {% if d.tree_depth %}<span class="muted">— {{ d.parent.name }}</span>{% endif %}
         </span>
       </td>
-      <td>{{ d.site.code }}</td>
+      <td>{{ d.site.name }}</td>
       <td>{% if d.head_id %}<a href="{% url 'person-detail' d.head_id %}">{{ d.head }}</a>{% else %}<span class="muted">—</span>{% endif %}</td>
       <td>{{ d.member_count }}</td>
       <td><a href="{% url 'asset-list' %}?department={{ d.pk }}">{{ d.asset_count }}</a></td>

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load t %}
-{% block title %}{% if object %}{% t "site.edit_title" %}{% else %}{% t "site.new_title" %}{% endif %} — {% t "app.name" %}{% endblock %}
+{% block title %}{% if object %}{% t "site.edit_title" %}{% else %}{% t "site.new_title" %}{% endif %} — {{ brand_name }}{% endblock %}
 {% block extra_css %}
   /* Site create/edit: compact two-up field grid, so the modal is as small
      as its five fields allow instead of one tall column. Name + code share

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load t %}
-{% block title %}{% if object %}{% t "person.edit_title" %}{% else %}{% t "person.new_title" %}{% endif %} — {% t "app.name" %}{% endblock %}
+{% block title %}{% if object %}{% t "person.edit_title" %}{% else %}{% t "person.new_title" %}{% endif %} — {{ brand_name }}{% endblock %}
 {% block extra_css %}
   /* Person create/edit: two-up field grid so the New person modal fits
      one screen (no inner scroll). Employee No is auto-assigned, so it

@@ -4,6 +4,8 @@ Role = what actions (Django groups, apps.core.roles); scope = which records
 (this model). Stage A records scopes only — enforcement lands in Stage B/C.
 """
 
+from pathlib import Path
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -88,6 +90,47 @@ class UserAccessScope(models.Model):
         else:
             target = "all records"
         return f"{self.user} → {target}"
+
+
+def _logo_upload_to(instance, filename):
+    suffix = Path(filename).suffix.lower() or ".png"
+    return f"branding/logo{suffix}"
+
+
+class Branding(models.Model):
+    """Company identity shown on the sign-in page and in the top bar.
+
+    A single settings row (the admin refuses a second one while a row exists,
+    and the login picks the newest row). Uploads land in ``MEDIA_ROOT/branding``
+    and are served through :func:`apps.core.views.logo`, so no web-server
+    ``/media/`` alias is needed and the rest of MEDIA_ROOT stays unreachable.
+    """
+
+    company_name = models.CharField(max_length=120, default="IT Asset Manager")
+    tagline = models.CharField(
+        max_length=200,
+        blank=True,
+        default="Every device, every site, one register.",
+    )
+    logo = models.ImageField(
+        upload_to=_logo_upload_to,
+        blank=True,
+        help_text="PNG/JPG/WebP shown on the sign-in page and in the top bar.",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+        verbose_name = "branding"
+        verbose_name_plural = "branding"
+
+    def __str__(self) -> str:
+        return self.company_name
+
+    @classmethod
+    def current(cls):
+        """The active branding row, or None (templates fall back to defaults)."""
+        return cls.objects.first()
 
 
 class IdempotencyRecord(models.Model):

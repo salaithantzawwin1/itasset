@@ -2,7 +2,7 @@
 {# Shared topbar — ONE definition for every surface (app pages, the admin, admin login): same brand target, same items, same active rules, same controls. That is what stops the nav from "changing style" when you cross into the admin. Active state: inside the admin namespace only Admin highlights; elsewhere the section matching the resolved url_name does. Django hash-comments must stay on a single line — never nest one inside another. #}
 {% with rm=request.resolver_match %}
 <header class="topbar">
-  <a class="brand" href="{% url 'home' %}"><span class="logo">IT</span> <span class="bname">{% t "app.name" %}</span></a>
+  <a class="brand" href="{% url 'home' %}"><span class="logo">{% if branding and branding.logo %}<img src="{% url 'branding-logo' %}?v={{ branding.updated_at|date:'U' }}" alt="" />{% else %}IT{% endif %}</span> <span class="bname">{% if branding %}{{ branding.company_name }}{% else %}{% t "app.name" %}{% endif %}</span></a>
   <nav class="topnav">
     <a href="{% url 'home' %}" {% if rm.namespace != 'admin' and rm.url_name == 'home' %}class="active"{% endif %}>{% t "nav.dashboard" %}</a>
     <a href="{% url 'asset-list' %}" {% if rm.namespace != 'admin' and 'asset' in rm.url_name %}class="active"{% endif %}>{% t "nav.assets" %}</a>

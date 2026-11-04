@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load t %}
-{% block title %}{{ object.name }} — {% t "app.name" %}{% endblock %}
+{% block title %}{{ object.name }} — {{ brand_name }}{% endblock %}
 {% block extra_css %}
     /* ---------- tabbed person sections (same .ftabs contract as dept detail) ---------- */
     /* Progressive enhancement: without JS the strip stays hidden and both
@@ -21,7 +21,7 @@
 {% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>{{ object.name }} <span class="muted">({{ object.employee_no }})</span></h1><div class="sub">{{ object.site }} · {% if object.department_id %}<a href="{% url 'department-detail' object.department_id %}">{{ object.department }}</a>{% else %}—{% endif %}{% if object.email %} · {{ object.email }}{% endif %}</div></div>
+  <div><h1>{{ object.name }} <span class="muted">({{ object.employee_no }})</span></h1><div class="sub">{{ object.site }}{% if object.department_id %} · <a href="{% url 'department-detail' object.department_id %}">{{ object.department }}</a>{% endif %}{% if object.email %} · {{ object.email }}{% endif %}</div></div>
   <div class="actions">
     <a class="btn secondary" href="{% url 'person-update' object.pk %}">{% t "asset.edit" %}</a>
     {% if can_delete %}<a class="btn danger" href="{% url 'person-delete' object.pk %}">{% t "asset.delete" %}</a>{% endif %}

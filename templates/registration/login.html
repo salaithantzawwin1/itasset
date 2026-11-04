@@ -3,99 +3,250 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#0a355c" />
   <script>
-    // default "auto"/system — same contract as admin/js/theme.js and base.html
+    // default "auto"/system — same three-mode contract as base.html and the admin
     (function () {
       var t = localStorage.getItem('theme') || 'auto';
       if (t === 'auto') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       document.documentElement.setAttribute('data-theme', t);
     })();
   </script>
-  <title>{% t "login.signin" %} — {% t "app.name" %}</title>
+  <title>{% t "login.signin" %} — {% if branding %}{{ branding.company_name }}{% else %}{% t "app.name" %}{% endif %}</title>
   <style>
-    :root { --primary:#0a355c; --primary2:#0f4c81; --accent:#2a9d8f; --danger:#c0392b; --text:#1f2d3d; --muted:#6b7a8d; }
-    [data-theme="dark"] { --text:#e2e8f0; --muted:#8fa0b3; }
+    :root {
+      --primary: #0f4c81; --primary-dark: #0a355c; --primary-light: #e8f1fa;
+      --accent: #2a9d8f; --danger: #c0392b;
+      --text: #1f2d3d; --muted: #6b7a8d;
+      --surface: #ffffff; --border: #e3e8ee; --field: #f8fafc;
+      --shadow: 0 18px 50px rgba(4, 24, 44, .28);
+    }
+    [data-theme="dark"] {
+      --primary: #4a90c8; --primary-dark: #071f33; --primary-light: #16324a;
+      --accent: #35b8a8; --danger: #e07060;
+      --text: #e2e8f0; --muted: #8fa0b3;
+      --surface: #1a222b; --border: #2a3441; --field: #10161d;
+      --shadow: 0 18px 50px rgba(0, 0, 0, .6);
+    }
     * { box-sizing: border-box; }
-    body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
-           font-family: system-ui,"Myanmar Text","Padauk",sans-serif; color:var(--text);
-           background: linear-gradient(135deg,#0a355c 0%,#155488 55%,#1a6aa5 100%); padding:24px; }
-    body.theme-dark { background: linear-gradient(135deg,#0b141c 0%,#12283c 55%,#173a58 100%); }
-    .wrap { width:100%; max-width:400px; }
-    .toprow { display:flex; justify-content:flex-end; gap:8px; margin-bottom:10px; }
-    .lang-switch { display:inline-flex; border:1px solid rgba(255,255,255,.4); border-radius:8px; overflow:hidden; }
-    .lang-switch button { background:transparent; color:rgba(255,255,255,.85); border:none; padding:6px 10px; cursor:pointer; font-size:12px; font-weight:700; }
-    .lang-switch button.on { background:rgba(255,255,255,.28); color:#fff; }
-    .toggle-theme { background:transparent; border:1px solid rgba(255,255,255,.4); color:#fff; padding:6px 10px; border-radius:8px; cursor:pointer; }
-    .brandrow { text-align:center; margin-bottom:26px; color:#fff; }
-    .logo { width:54px; height:54px; border-radius:14px; background:var(--accent); color:#fff; display:inline-flex;
-            align-items:center; justify-content:center; font-weight:800; font-size:22px; box-shadow:0 6px 18px rgba(0,0,0,.25); }
-    .brandrow h1 { margin:12px 0 4px; font-size:21px; letter-spacing:.3px; }
-    .brandrow p { margin:0; color:#bcd4e8; font-size:13.5px; }
-    .card { background:#fff; border-radius:14px; box-shadow:0 14px 40px rgba(4,24,44,.35); padding:30px 30px 26px; color:var(--text); }
-    body.theme-dark .card { background:#1a222b; box-shadow:0 14px 40px rgba(0,0,0,.55); }
-    .card h2 { margin:0 0 18px; font-size:17px; }
-    label { display:block; font-size:12.5px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin:14px 0 6px; }
-    input { width:100%; padding:11px 13px; border:1px solid #dde4ec; border-radius:9px; font-size:14.5px; background:#fff; color:var(--text); }
-    body.theme-dark input { background:#10161d; border-color:#2a3441; }
-    input:focus { outline:none; border-color:var(--primary2); box-shadow:0 0 0 3px rgba(15,76,129,.14); }
-    .error { background:#fdeeee; color:#b03434; border:1px solid #f2c8c8; border-radius:8px; padding:10px 14px; font-size:13.5px; margin-bottom:4px; }
-    body.theme-dark .error { background:#3a2323; border-color:#5c3232; color:#ef9a9a; }
-    button.btn-submit { width:100%; margin-top:22px; background:var(--primary2); color:#fff; border:none; border-radius:9px;
-             padding:12px; font-size:15px; font-weight:600; cursor:pointer; transition:filter .15s; }
-    button.btn-submit:hover { filter:brightness(1.15); }
-    .foot { text-align:center; margin-top:20px; color:#9fb9d1; font-size:12.5px; }
+    body {
+      margin: 0; min-height: 100vh; padding: 24px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: system-ui, "Myanmar Text", "Padauk", sans-serif;
+      color: var(--text); background: var(--bg, #eef3f8);
+      background-image:
+        radial-gradient(1200px 600px at 8% -10%, color-mix(in srgb, var(--primary) 22%, transparent), transparent 60%),
+        radial-gradient(900px 500px at 100% 110%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 55%);
+      background-color: #eef3f8;
+    }
+    [data-theme="dark"] body { background-color: #0b141c; }
+    .auth {
+      width: 100%; max-width: 980px; display: grid; grid-template-columns: 1.05fr .95fr;
+      background: var(--surface); border-radius: 22px; overflow: hidden;
+      box-shadow: var(--shadow); border: 1px solid var(--border);
+    }
+
+    /* ---------- brand pane (left) ---------- */
+    .pane {
+      position: relative; padding: 40px 38px 32px; color: #fff;
+      display: flex; flex-direction: column; gap: 28px;
+      background: linear-gradient(160deg, var(--primary-dark) 0%, var(--primary) 62%, color-mix(in srgb, var(--primary) 70%, var(--accent)) 100%);
+    }
+    .pane::after {
+      content: ""; position: absolute; inset: auto -80px -120px auto; width: 320px; height: 320px;
+      border-radius: 50%; background: rgba(255, 255, 255, .09); pointer-events: none;
+    }
+    .pane-brand { display: flex; align-items: center; gap: 12px; }
+    .pane-brand .mark {
+      width: 46px; height: 46px; border-radius: 13px; flex: 0 0 auto;
+      background: rgba(255, 255, 255, .16); border: 1px solid rgba(255, 255, 255, .28);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 17px; letter-spacing: .4px; overflow: hidden;
+    }
+    .pane-brand .mark img { width: 100%; height: 100%; object-fit: contain; padding: 5px; background: #fff; }
+    .pane-brand .who { min-width: 0; }
+    .pane-brand .who strong { display: block; font-size: 15px; letter-spacing: .2px; }
+    .pane-brand .who span { display: block; font-size: 12px; color: rgba(255, 255, 255, .72); }
+    .pane-copy { margin-top: 6px; }
+    .pane-copy h1 { margin: 0 0 10px; font-size: 30px; line-height: 1.2; letter-spacing: -.3px; }
+    .pane-copy p { margin: 0; font-size: 14.5px; line-height: 1.6; color: rgba(255, 255, 255, .82); max-width: 34ch; }
+    .perks { list-style: none; margin: 26px 0 0; padding: 0; display: grid; gap: 12px; }
+    .perks li { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; line-height: 1.45; color: rgba(255, 255, 255, .9); }
+    .perks .tick {
+      flex: 0 0 auto; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%;
+      background: rgba(255, 255, 255, .18); display: inline-flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700;
+    }
+    .pane-foot { margin-top: auto; font-size: 12px; color: rgba(255, 255, 255, .6); }
+
+    /* ---------- form pane (right) ---------- */
+    .panel { padding: 26px 34px 24px; display: flex; flex-direction: column; }
+    .controls { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+    .lang-switch { display: inline-flex; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; }
+    .lang-switch button {
+      background: transparent; color: var(--muted); border: 0; padding: 6px 10px;
+      cursor: pointer; font-size: 12px; font-weight: 700;
+    }
+    .lang-switch button.on { background: var(--primary); color: #fff; }
+    .toggle-theme {
+      background: transparent; border: 1px solid var(--border); color: var(--muted);
+      padding: 6px 10px; border-radius: 9px; cursor: pointer; font-size: 14px; line-height: 1;
+    }
+    .toggle-theme:hover, .lang-switch button:hover { color: var(--text); }
+    .panel-inner { margin: auto 0; padding: 18px 0; width: 100%; max-width: 360px; align-self: center; }
+    .panel-inner h2 { margin: 0 0 6px; font-size: 24px; letter-spacing: -.2px; }
+    .lede { margin: 0 0 22px; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
+    .error {
+      display: flex; gap: 8px; align-items: flex-start; margin-bottom: 16px;
+      background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger);
+      border: 1px solid color-mix(in srgb, var(--danger) 32%, transparent);
+      border-radius: 10px; padding: 10px 12px; font-size: 13px; line-height: 1.45;
+    }
+    .field { margin-bottom: 15px; }
+    .field label {
+      display: block; margin-bottom: 6px; font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .5px; color: var(--muted);
+    }
+    .input-wrap { position: relative; }
+    .field input {
+      width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px;
+      font-size: 15px; background: var(--field); color: var(--text); transition: border-color .15s, box-shadow .15s;
+    }
+    .field input::placeholder { color: color-mix(in srgb, var(--muted) 70%, transparent); }
+    .field input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent); background: var(--surface); }
+    .field input[type="password"], .field input.pw { padding-right: 52px; }
+    .reveal {
+      position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+      background: none; border: 0; color: var(--muted); cursor: pointer;
+      font-size: 11px; font-weight: 700; letter-spacing: .3px; padding: 7px 8px; border-radius: 7px;
+    }
+    .reveal:hover { color: var(--primary); background: var(--primary-light); }
+    .btn-submit {
+      width: 100%; margin-top: 6px; background: var(--primary); color: #fff; border: 0;
+      border-radius: 10px; padding: 13px; font-size: 15px; font-weight: 650; cursor: pointer;
+      transition: filter .15s, transform .05s; box-shadow: 0 6px 16px color-mix(in srgb, var(--primary) 35%, transparent);
+    }
+    .btn-submit:hover { filter: brightness(1.08); }
+    .btn-submit:active { transform: translateY(1px); }
+    .panel-foot { text-align: center; font-size: 11.5px; color: var(--muted); padding-top: 6px; }
+
+    /* ---------- responsive ---------- */
+    @media (max-width: 860px) {
+      body { padding: 14px; align-items: flex-start; }
+      .auth { grid-template-columns: 1fr; max-width: 460px; border-radius: 18px; }
+      .pane { padding: 22px 22px 24px; gap: 14px; }
+      .pane-copy h1 { font-size: 21px; margin: 2px 0 6px; }
+      .pane-copy p { font-size: 13px; }
+      .perks, .pane-foot { display: none; }
+      .panel { padding: 18px 22px 20px; }
+      .panel-inner { max-width: none; padding: 10px 0 14px; }
+      .panel-inner h2 { font-size: 21px; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="toprow">
-      <form method="post" action="{% url 'set-lang' %}" style="margin:0;">
-        {% csrf_token %}
-        <input type="hidden" name="lang" value="">
-        <div class="lang-switch">
-          <button type="submit" name="lang" value="en" class="{% if request.session.lang != 'my' %}on{% endif %}">ENG</button>
-          <button type="submit" name="lang" value="my" class="{% if request.session.lang == 'my' %}on{% endif %}">MM</button>
+  <div class="auth">
+    <aside class="pane">
+      <div class="pane-brand">
+        <span class="mark">
+          {% if branding and branding.logo %}
+            <img src="{% url 'branding-logo' %}?v={{ branding.updated_at|date:'U' }}" alt="{% if branding %}{{ branding.company_name }}{% else %}{% t 'login.brand_fallback' %}{% endif %}" />
+          {% else %}IT{% endif %}
+        </span>
+        <div class="who">
+          <strong>{% if branding %}{{ branding.company_name }}{% else %}{% t "app.name" %}{% endif %}</strong>
+          <span>{% t "app.subtitle" %}</span>
         </div>
-      </form>
-      <button class="toggle-theme" title="Light / Dark / System">◐</button>
-    </div>
-    <div class="brandrow">
-      <span class="logo">IT</span>
-      <h1>IT Asset Manager</h1>
-      <p>{% t "app.subtitle" %}</p>
-    </div>
-    <div class="card">
-      <h2>{% t "login.signin" %}</h2>
-      {% if form.errors %}<div class="error">{% t "login.fail" %}</div>{% endif %}
-      <form method="post">
-        {% csrf_token %}
-        <label for="id_username">{% t "login.username" %}</label>
-        <input type="text" name="username" id="id_username" autofocus required>
-        <label for="id_password">{% t "login.password" %}</label>
-        <input type="password" name="password" id="id_password" required>
-        <button type="submit" class="btn-submit">{% t "login.submit" %}</button>
-      </form>
-    </div>
-    <div class="foot">{% t "login.foot" %}</div>
+      </div>
+      <div class="pane-copy">
+        <h1>{% if branding %}{{ branding.company_name }}{% else %}{% t "app.name" %}{% endif %}</h1>
+        <p>{% if branding and branding.tagline %}{{ branding.tagline }}{% else %}{% t "app.subtitle" %}{% endif %}</p>
+        <ul class="perks">
+          <li><span class="tick" aria-hidden="true">✓</span><span>{% t "login.perk_register" %}</span></li>
+          <li><span class="tick" aria-hidden="true">✓</span><span>{% t "login.perk_assign" %}</span></li>
+          <li><span class="tick" aria-hidden="true">✓</span><span>{% t "login.perk_labels" %}</span></li>
+        </ul>
+      </div>
+      <div class="pane-foot">© {% now "Y" %} {% if branding %}{{ branding.company_name }}{% else %}{% t "app.name" %}{% endif %}</div>
+    </aside>
+
+    <main class="panel">
+      <div class="controls">
+        <form method="post" action="{% url 'set-lang' %}" style="margin:0;">
+          {% csrf_token %}
+          <div class="lang-switch">
+            <button type="submit" name="lang" value="en" class="{% if request.session.lang != 'my' %}on{% endif %}">ENG</button>
+            <button type="submit" name="lang" value="my" class="{% if request.session.lang == 'my' %}on{% endif %}">MM</button>
+          </div>
+        </form>
+        <button type="button" class="toggle-theme" id="theme-btn" title="Light / Dark / System" aria-label="Light / Dark / System">◐</button>
+      </div>
+
+      <div class="panel-inner">
+        <h2>{% t "login.welcome" %}</h2>
+        <p class="lede">{% t "login.welcome_sub" %}</p>
+
+        {% if form.errors %}
+          <div class="error" role="alert">
+            <span aria-hidden="true">⚠</span>
+            <span>{% t "login.fail" %}</span>
+          </div>
+        {% endif %}
+
+        <form method="post" action="" novalidate>
+          {% csrf_token %}
+          {% if next %}<input type="hidden" name="next" value="{{ next }}" />{% endif %}
+          <div class="field">
+            <label for="id_username">{% t "login.username" %}</label>
+            <div class="input-wrap">
+              <input type="text" name="username" id="id_username" autocomplete="username"
+                     value="{{ form.username.value|default:'' }}" autofocus required
+                     />
+            </div>
+          </div>
+          <div class="field">
+            <label for="id_password">{% t "login.password" %}</label>
+            <div class="input-wrap">
+              <input type="password" name="password" id="id_password" class="pw"
+                     autocomplete="current-password" required />
+              <button type="button" class="reveal" id="pw-toggle" aria-label="{% t 'login.show_password' %}">{% t "login.show_password" %}</button>
+            </div>
+          </div>
+          <button type="submit" class="btn-submit">{% t "login.submit" %}</button>
+        </form>
+      </div>
+
+      <div class="panel-foot">{% t "login.internal_only" %}</div>
+    </main>
   </div>
+
   <script>
-    (function() {
+    (function () {
       var mq = window.matchMedia('(prefers-color-scheme: dark)');
       function resolve(t) { return t === 'auto' ? (mq.matches ? 'dark' : 'light') : t; }
       function applyTheme() {
-        var t = resolve(localStorage.getItem('theme') || 'auto');
-        document.documentElement.setAttribute('data-theme', t);
-        document.body.classList.toggle('theme-dark', t === 'dark');
+        document.documentElement.setAttribute('data-theme', resolve(localStorage.getItem('theme') || 'auto'));
       }
       applyTheme();
       if (mq.addEventListener) mq.addEventListener('change', applyTheme);
       else if (mq.addListener) mq.addListener(applyTheme);
-      document.querySelector('.toggle-theme').addEventListener('click', function() {
+      document.getElementById('theme-btn').addEventListener('click', function () {
         var ORDER = ['light', 'dark', 'auto'];
         var cur = localStorage.getItem('theme') || 'auto';
-        var next = ORDER[(ORDER.indexOf(cur) + 1) % ORDER.length];
-        localStorage.setItem('theme', next);
+        localStorage.setItem('theme', ORDER[(ORDER.indexOf(cur) + 1) % ORDER.length]);
         applyTheme();
+      });
+
+      var pw = document.getElementById('id_password');
+      var toggle = document.getElementById('pw-toggle');
+      toggle.addEventListener('click', function () {
+        var show = pw.type === 'password';
+        pw.type = show ? 'text' : 'password';
+        toggle.textContent = show ? "{% t 'login.hide_password' %}" : "{% t 'login.show_password' %}";
+        toggle.setAttribute('aria-label', toggle.textContent);
+        pw.focus();
       });
     })();
   </script>

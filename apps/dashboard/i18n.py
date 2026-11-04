@@ -414,6 +414,30 @@ STRINGS = {
         "en": "IT Asset Manager — internal use only",
         "my": "IT Asset Manager — အတွင်းပိုင်း အသုံးပြုမှုသာ",
     },
+    "login.welcome": {"en": "Welcome back", "my": "ပြန်လည် ကြိုဆိုပါသည်"},
+    "login.welcome_sub": {
+        "en": "Sign in with your company account to continue.",
+        "my": "ဆက်လက်အသုံးပြုရန် ကုမ္ပဏီ အကောင့်ဖြင့် ဝင်ရောက်ပါ။",
+    },
+    "login.perk_register": {
+        "en": "One register for every device and site",
+        "my": "ပစ္စည်းနှင့် စခန်း အားလုံးအတွက် တစ်ခုတည်းသော မှတ်တမ်း",
+    },
+    "login.perk_assign": {
+        "en": "Assignments, transfers and audit trails in one place",
+        "my": "ပေးအပ်မှု၊ လွှဲပြောင်းမှုနှင့် စစ်ဆေးမှတ်တမ်း တစ်နေရာတည်း",
+    },
+    "login.perk_labels": {
+        "en": "Generate labels and reports in a click",
+        "my": "Label နှင့် အစီရင်ခံစာများကို တစ်ချက်နှိပ်ဖြင့် ထုတ်ယူနိုင်သည်",
+    },
+    "login.internal_only": {
+        "en": "For internal use only — contact IT if you need access.",
+        "my": "အတွင်းပိုင်း အသုံးပြုမှုသာ — အသုံးပြုခွင့် လိုအပ်ပါက IT ကို ဆက်သွယ်ပါ။",
+    },
+    "login.show_password": {"en": "Show password", "my": "စကားဝှက် ပြမည်"},
+    "login.hide_password": {"en": "Hide password", "my": "စကားဝှက် ဖျောက်မည်"},
+    "login.brand_fallback": {"en": "IT Asset Manager", "my": "IT Asset Manager"},
     # generic
     "common.page": {"en": "Page {n} of {m}", "my": "စာမျက်နှာ {n} / {m}"},
     "common.prev": {"en": "← Prev", "my": "← ရှေ့"},

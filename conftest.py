@@ -10,8 +10,13 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _private_attachments_dir(settings, tmp_path):
-    """Uploaded files go to a per-test tmp dir, never the real private store."""
+    """Uploads go to a per-test tmp dir, never the real stores.
+
+    ``MEDIA_ROOT`` matters for the branding logo (the only public upload);
+    without it every test run would leave another file in ``media/``.
+    """
     settings.PRIVATE_MEDIA_ROOT = str(tmp_path / "private_attachments")
+    settings.MEDIA_ROOT = str(tmp_path / "media")
 
 
 @pytest.fixture

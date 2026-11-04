@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load t %}
-{% block title %}{{ object.asset_tag }} — {% t "app.name" %}{% endblock %}
+{% block title %}{{ object.asset_tag }} — {{ brand_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
@@ -23,9 +23,10 @@
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.site" %}</th><td>{{ object.site }}</td></tr>
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.assigned_to" %}</th><td>{% if current_holder %}{{ current_holder.name }} ({{ current_holder.employee_no }}){% if current_holder.department %} — {{ current_holder.department.name }}{% endif %}{% elif current_dept %}<a href="{% url 'department-detail' current_dept.pk %}">{{ current_dept.name }}</a> <span class="pill pill-ASSIGNED">{% t "asset.dept_holder" %}</span>{% else %}—{% endif %}</td></tr>
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.parent" %}</th><td>{% if object.parent_asset_id %}<a href="{% url 'asset-detail' object.parent_asset_id %}">{{ object.parent_asset }}</a>{% else %}—{% endif %}</td></tr>
-      <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.purchase" %}</th><td>{{ object.purchase_date|default:"—" }} · {% t "asset.cost" %} {{ object.cost|default:"—" }}</td></tr>
+      <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.purchase" %}</th><td>{% if object.purchase_date %}{{ object.purchase_date }}{% endif %}{% if object.purchase_date and object.cost %} · {% endif %}{% if object.cost %}{% t "asset.cost" %} {{ object.cost }}{% endif %}{% if not object.purchase_date and not object.cost %}—{% endif %}</td></tr>
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.warranty" %}</th><td>{{ object.warranty_end|default:"—" }}</td></tr>
       <tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.condition" %}</th><td>{{ object.get_condition_display }}</td></tr>
+      {% if object.remarks %}<tr><th style="width:180px;background:var(--thead-bg);">{% t "asset.remarks" %}</th><td>{{ object.remarks|linebreaksbr }}</td></tr>{% endif %}
     </tbody>
   </table>
 </div>

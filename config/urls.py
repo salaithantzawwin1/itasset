@@ -3,6 +3,8 @@ from django.contrib.auth import views as auth_views
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from apps.core.views import logo as branding_logo
+
 # Admin branding: header bar, browser tab title, index page heading.
 admin.site.site_header = "IT Asset Manager administration"
 admin.site.site_title = "IT Asset Manager admin"
@@ -14,6 +16,8 @@ urlpatterns = [
     path("", include("apps.dashboard.urls")),
     path("accounts/login/", auth_views.LoginView.as_view(), name="login"),
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
+    # public company logo for the sign-in page (no /media/ tree exposed)
+    path("branding/logo/", branding_logo, name="branding-logo"),
     path("", include("apps.people.urls")),
     path("", include("apps.assets.urls")),
     path("", include("apps.labels.urls")),

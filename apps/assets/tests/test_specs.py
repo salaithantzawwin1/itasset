@@ -151,6 +151,65 @@ class TestCatalogue(TestCase):
                 self.assertIn("ram_speed_mhz", keys)
                 self.assertEqual(keys.index("ram_speed_mhz"), keys.index("ram_type") + 1)
 
+    def test_every_computer_category_records_cpu_cores(self):
+        """The dashboard CPU card reads cpu_cores from every asset; servers
+        declared sockets and installed CPUs but no cores (session 55)."""
+        for code in ("IT-HW-DSK", "IT-HW-WKS", "IT-HW-LAP", "IT-HW-AIO", "IT-HW-SRV"):
+            keys = [f["key"] for f in CATALOGUE[code]["schema"]["fields"]]
+            with self.subTest(code=code):
+                self.assertIn("cpu_cores", keys)
+        # the DB row (what the form/dashboard actually read) carries it too
+        srv = Category.objects.get(code="IT-HW-SRV")
+        keys = [f["key"] for f in srv.schema["fields"]]
+        self.assertIn("cpu_cores", keys)
+        self.assertEqual(keys.index("cpu_cores"), keys.index("cpu_installed_count") + 1)
+
+
+class TestServerCpuCoresMigration(TestCase):
+    """Migration 0018 backfills cores into already-seeded server schemas."""
+
+    @staticmethod
+    def _run_migration():
+        import importlib
+        from types import SimpleNamespace
+
+        from django.apps import apps as migration_apps
+        from django.db import connection
+
+        mig = importlib.import_module("apps.assets.migrations.0018_add_cpu_cores_to_server_schemas")
+        mig.add_cpu_cores(migration_apps, SimpleNamespace(connection=connection))
+
+    def test_server_schema_gains_cores_without_losing_anything(self):
+        cat = Category.objects.get(code="IT-HW-SRV")
+        definition = next(
+            f for f in CATALOGUE["IT-HW-SRV"]["schema"]["fields"] if f["key"] == "cpu_cores"
+        )
+        before = [f for f in cat.schema["fields"] if f["key"] != "cpu_cores"]
+        cat.schema = {**cat.schema, "fields": before}  # production's pre-0018 row
+        cat.save(update_fields=["schema"])
+
+        self._run_migration()
+
+        cat.refresh_from_db()
+        keys = [f["key"] for f in cat.schema["fields"]]
+        self.assertEqual(keys.index("cpu_cores"), keys.index("cpu_installed_count") + 1)
+        self.assertEqual(
+            next(f for f in cat.schema["fields"] if f["key"] == "cpu_cores"), definition
+        )
+        self.assertEqual([f for f in cat.schema["fields"] if f["key"] != "cpu_cores"], before)
+
+        count_before = len(cat.schema["fields"])
+        self._run_migration()
+        cat.refresh_from_db()
+        self.assertEqual(len(cat.schema["fields"]), count_before)
+
+    def test_categories_without_a_cpu_are_left_alone(self):
+        mon = Category.objects.get(code="IT-HW-MON")
+        before = mon.schema
+        self._run_migration()
+        mon.refresh_from_db()
+        self.assertEqual(mon.schema, before)
+
 
 class TestRamSpeedMigration(TestCase):
     """Migration 0013 merges the field into schemas 0008 already seeded.

@@ -223,6 +223,13 @@ authenticated user; no company/branch scoping exists.
   admin branding add hidden + logo preview; site/asset modals
   (688×558 / 920×459, no inner scroll); server asset create/edit/delete;
   no horizontal page overflow at 390px.
+- Commit `c2e30b4` — **pushed** `df98f41..c2e30b4`. Deployed to
+  192.168.100.142 (LF `git archive` sync; `assets.0018` + `core.0003`
+  applied; gunicorn restart → `/healthz` ok): server suite **582 + 108**
+  (173.1 s, exit 0, `SCOPE_ENFORCEMENT_ENABLED=1`), probe gate **18 ok /
+  0 failed** (anonymous `/` now asserts the 302 to `/accounts/login/`;
+  throttle + authed phases skipped), `/accounts/login/` 200 and
+  `/branding/logo/` 404 until an operator uploads one.
 
 ### 2026-11-03 (session 54 — compact site modal, deletes, All-in-One, spec seeding, site-wide accent)
 - **New/Edit site modal compacted** (`people/site_form.html`): the five

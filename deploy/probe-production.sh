@@ -52,7 +52,15 @@ if body "$BASE/healthz" | grep -qE '"db":[[:space:]]*"ok"'; then
 else
   echo "FAIL  /healthz db ok missing"; FAIL_N=$((FAIL_N + 1))
 fi
-check "GET /" 200 "$(http_code "$BASE/")"
+# The dashboard is login-protected (session 55): an anonymous root visit must
+# redirect to the sign-in page, not render the register.
+check "anon GET / → 302" 302 "$(http_code "$BASE/")"
+if headers "$BASE/" | grep -qiE '^location: .*accounts/login'; then
+  echo "ok    anon GET / redirects to /accounts/login/"; PASS_N=$((PASS_N + 1))
+else
+  echo "FAIL  anon GET / does not redirect to /accounts/login/"; FAIL_N=$((FAIL_N + 1))
+fi
+check "GET /accounts/login/" 200 "$(http_code "$BASE/accounts/login/")"
 check "GET /admin/login/" 200 "$(http_code "$BASE/admin/login/")"
 check "unknown path → generic 404" 404 "$(http_code "$BASE/definitely-not-a-route/")"
 
@@ -65,7 +73,7 @@ if [[ -n "$STATIC_HREF" ]]; then
     /*) STATIC_URL="$BASE$STATIC_HREF" ;;
     *) STATIC_URL="$BASE/$STATIC_HREF" ;;
   esac
-  check "static asset from homepage" 200 "$(http_code "$STATIC_URL")"
+  check "static asset from admin login" 200 "$(http_code "$STATIC_URL")"
 else
   echo "FAIL  static asset from homepage — no static href found in homepage HTML"
   FAIL_N=$((FAIL_N + 1))

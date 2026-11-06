@@ -214,6 +214,13 @@ authenticated user; no company/branch scoping exists.
 - Gates: `ruff check`/`format --check` clean, `manage.py check` clean,
   `makemigrations --check` clean, **602 passed + 108 subtests** locally
   (409.9 s, exit 0).
+- Commit `3379ffc` — **pushed** `5917f3c..3379ffc`. Deployed to
+  192.168.100.142 (`git archive` sync; no pending migrations; gunicorn user
+  service restarted, `/healthz` 200). Server suite **602 passed + 108
+  subtests** (181.0 s, exit 0, enforcement on); probe **20 ok / 0 failed**
+  (authenticated phase skipped — no probe credentials). Live production
+  picker check: `IT-HW-AIO-0019 (Assigned) — Ma May Su Khaing`, and the term
+  “Ma May” returns that asset plus other holder-name matches.
 
 ### 2026-11-06 (session 57 — login/admin logo fixes, Branding redirect, password change, dark contrast)
 - **Login logo enlarged**: the brand lockup on `/accounts/login/` went from a

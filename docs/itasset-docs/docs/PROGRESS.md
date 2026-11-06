@@ -15,7 +15,7 @@
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
 | Last updated | 2026-11-06 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **602 passed + 108 subtests** (2026-11-06 local run, 409.9 s, exit 0; +3 admin asset-picker regressions this session) |
+| Test suite | **607 passed + 108 subtests** (2026-11-06 local run, 449.3 s, exit 0; +5 component-holder sync regressions this session) |
 
 ---
 
@@ -185,6 +185,35 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-11-06 (session 59 — attached components follow the workstation holder)
+- **Attach now syncs the component's holder/status to its parent's holder**
+  (`services.sync_component_holder`): an in-stock RAM moves through
+  receive → check-out and lands as ASSIGNED to the PC's employee (or
+  department); an AVAILABLE component is checked out; a component previously
+  assigned to someone else has its old assignment closed (trail kept) and a
+  new one opened for the PC holder. Already matching holders are a no-op.
+- **Safe failure handling**: IN_REPAIR / RETIRED / DISPOSED / IN_TRANSIT
+  components are still structurally attached, but their lifecycle state is
+  never silently changed — the flash message lists what could not be synced.
+  Each sync runs in its own transaction so a refused component cannot leave a
+  half-closed assignment behind. A parent with no holder leaves component
+  holders untouched (the page says so); the attach page now previews
+  “Attached components will follow {holder}.” (EN/MM).
+- **Audit**: the existing batched `component_attach` event additionally
+  records the parent holder, the synced component ids and the skipped
+  reasons; each lifecycle move still writes its own check-in/check-out/
+  receive event through services.
+- Tests: +5 in `apps/assets/tests/test_holder_flows.py` — in-stock → person,
+  previous holder handover, department holder, parent without holder, and an
+  in-repair component staying in repair with a warning. Browser-verified end
+  to end: attaching `IT-HW-RAM-9001` to `IT-HW-DSK-0010` produced
+  “1 component(s) now follow the holder (Demo Person 2)”, RAM detail showed
+  Assigned / Demo Person 2 / Parent IT-HW-DSK-0010, and the PC listed the
+  RAM under Components.
+- Gates: `ruff check`/`format --check` clean, `manage.py check` clean,
+  `makemigrations --check` clean, **607 passed + 108 subtests** locally
+  (449.3 s, exit 0).
 
 ### 2026-11-06 (session 58 — repair-ticket asset picker shows the holder)
 - **Repair ticket asset picker identified its rows only by tag + status**

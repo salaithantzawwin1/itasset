@@ -449,6 +449,70 @@ def receive_asset(
     return ReceiveResult(asset=asset, assignment=assignment)
 
 
+def sync_component_holder(
+    asset: Asset,
+    *,
+    person: Person | None = None,
+    department: Department | None = None,
+    actor: User | None = None,
+    remarks: str = "",
+) -> bool:
+    """Make a component follow the holder of the asset it is installed in.
+
+    Used when a component is attached to a workstation: the RAM/monitor keeps
+    its own record, but its holder should be the same employee/department as
+    the parent. Returns True when a change was made, False when the component
+    already had that holder.
+
+    Only statuses that can legitimately be (re)assigned are touched —
+    IN_STOCK, AVAILABLE, and ASSIGNED — so a component that is in repair,
+    retired or in transit is never silently pulled back into service. Callers
+    attach the component regardless and surface the refusal.
+    """
+    from apps.people.models import Department, Person
+
+    if (person is None) == (department is None):
+        raise TypeError("pass exactly one of person or department")
+    if person is not None and not isinstance(person, Person):
+        raise TypeError("person must be a Person instance")
+    if department is not None and not isinstance(department, Department):
+        raise TypeError("department must be a Department instance")
+
+    active = active_assignment(asset)
+    if active is not None:
+        if person is not None and active.to_person_id == person.pk:
+            return False
+        if department is not None and active.to_dept_id == department.pk:
+            return False
+        if asset.status not in (Asset.Status.ASSIGNED, Asset.Status.AVAILABLE):
+            raise AssetError(
+                f"{asset.asset_tag} cannot change holder while {asset.get_status_display()}"
+            )
+        check_in(asset, actor=actor, remarks=remarks or "Component holder sync")
+
+    if asset.status == Asset.Status.IN_STOCK:
+        receive_asset(asset, actor=actor, to_person=person, remarks=remarks)
+        if department is not None:
+            check_out(
+                asset,
+                None,
+                actor=actor,
+                department=department,
+                remarks=remarks or "Component holder sync",
+            )
+        return True
+    if asset.status in (Asset.Status.AVAILABLE, Asset.Status.ASSIGNED):
+        check_out(
+            asset,
+            person,
+            actor=actor,
+            department=department,
+            remarks=remarks or "Component holder sync",
+        )
+        return True
+    raise AssetError(f"{asset.asset_tag} cannot be assigned while {asset.get_status_display()}")
+
+
 # ---------------------------------------------------------------------------
 # CSV import (DEVELOPMENT.md §13: mapping → dry-run → commit, max 5,000 rows)
 # ---------------------------------------------------------------------------

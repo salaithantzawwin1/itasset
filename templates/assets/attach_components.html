@@ -5,7 +5,7 @@
 <div class="page-head">
   <div>
     <h1>{% t "attach.title" %} <span class="muted" style="font-weight:400;">— {{ parent.asset_tag }}</span></h1>
-    <div class="sub">{% t "attach.sub" %} ({{ parent.site.name }})</div>
+    <div class="sub">{% t "attach.sub" %} ({{ parent.site.name }}){% if parent_holder %} · {% t "attach.holder_sync" name=parent_holder.holder_label %}{% endif %}</div>
   </div>
   <div class="actions">
     <a class="btn secondary" href="{% url 'asset-detail' parent.pk %}">{% t "asset.details" %}</a>

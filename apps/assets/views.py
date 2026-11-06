@@ -6,6 +6,7 @@ Detail page shows full assignment history (§3 handover trail).
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import Prefetch
 from django.http import Http404, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -852,16 +853,57 @@ def attach_components(request, pk):
         if chosen:
             from apps.audit.models import ActivityLog
 
+            # The component keeps its own record, but once installed in a
+            # workstation it should answer to that workstation's holder. Copy
+            # the parent's open assignment when it has one; in-repair/retired
+            # components are left alone and reported below.
+            holder = services.active_assignment(parent)
+            person = holder.to_person if holder else None
+            department = holder.to_dept if holder else None
+            synced, skipped = [], []
+            if person is not None or department is not None:
+                for component in chosen:
+                    try:
+                        with transaction.atomic():
+                            changed = services.sync_component_holder(
+                                component,
+                                person=person,
+                                department=department,
+                                actor=request.user,
+                                remarks=f"Installed in {parent.asset_tag}",
+                            )
+                        if changed:
+                            synced.append(component.pk)
+                    except services.AssetError as exc:
+                        skipped.append(str(exc))
+
             ActivityLog.record(
                 actor=request.user,
                 action="component_attach",
                 obj=parent,
-                details={"components": [c.pk for c in chosen]},
+                details={
+                    "components": [c.pk for c in chosen],
+                    "holder": holder.holder_label if holder else None,
+                    "synced": synced,
+                    "skipped": skipped,
+                },
             )
-            messages.success(
-                request,
-                f"{len(chosen)} component(s) attached to {parent.asset_tag}.",
-            )
+            message = f"{len(chosen)} component(s) attached to {parent.asset_tag}."
+            if synced:
+                message += (
+                    f" {len(synced)} component(s) now follow the holder ({holder.holder_label})."
+                )
+            messages.success(request, message)
+            if skipped:
+                messages.warning(
+                    request,
+                    "Attached, but holder could not be synced: " + "; ".join(skipped),
+                )
+            elif person is None and department is None:
+                messages.info(
+                    request,
+                    f"{parent.asset_tag} has no holder — component holders were left unchanged.",
+                )
         else:
             messages.warning(request, "Nothing selected — tick the components to attach.")
         return redirect("asset-detail", pk=parent.pk)
@@ -875,6 +917,7 @@ def attach_components(request, pk):
         "assets/attach_components.html",
         {
             "parent": parent,
+            "parent_holder": services.active_assignment(parent),
             "candidates": candidates_qs,
             "categories": Category.objects.filter(pk__in=set(category_ids)).order_by("code"),
         },

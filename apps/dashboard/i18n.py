@@ -309,6 +309,10 @@ STRINGS = {
         "en": "{n} unlinked assets at this site",
         "my": "ဤ site တွင် မချိတ်ရသေးသော asset {n} ခု",
     },
+    "attach.holder_sync": {
+        "en": "Attached components will follow {name}.",
+        "my": "ချိတ်ဆက်လိုက်သော အစိတ်အပိုင်းများကို {name} လက်အောက်သို့ ပြောင်းမည်။",
+    },
     "attach.empty": {
         "en": (
             "No unlinked assets left here — attach the workstation first, "

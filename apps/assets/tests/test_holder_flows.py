@@ -179,6 +179,99 @@ def test_bulk_attach_links_same_site_candidates(client, tech_user, asset_factory
     ) == {c1.pk, c2.pk}
 
 
+def test_attach_syncs_in_stock_component_to_pc_holder(
+    client, tech_user, asset_factory, person_factory
+):
+    """A RAM bought into stock becomes Assigned to the PC's holder on attach."""
+    holder = person_factory(name="PC Holder")
+    desk = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-DESK-2101")
+    Assignment.objects.create(asset=desk, to_person=holder)
+    ram = asset_factory(status=Asset.Status.IN_STOCK, asset_tag="IT-RAM-2101")
+
+    client.force_login(tech_user)
+    page = client.get(f"/assets/{desk.pk}/attach/").content.decode()
+    assert "Attached components will follow PC Holder." in page
+
+    resp = client.post(f"/assets/{desk.pk}/attach/", {"assets": [str(ram.pk)]})
+
+    assert resp.status_code == 302
+    ram.refresh_from_db()
+    assert ram.parent_asset_id == desk.pk
+    assert ram.status == Asset.Status.ASSIGNED
+    active = Assignment.objects.get(asset=ram, in_at__isnull=True)
+    assert active.to_person_id == holder.pk
+
+
+def test_attach_moves_component_from_previous_holder(
+    client, tech_user, asset_factory, person_factory
+):
+    holder = person_factory(name="New Holder")
+    old_holder = person_factory(name="Old Holder")
+    desk = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-DESK-2102")
+    Assignment.objects.create(asset=desk, to_person=holder)
+    ram = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-RAM-2102")
+    old = Assignment.objects.create(asset=ram, to_person=old_holder)
+
+    client.force_login(tech_user)
+    resp = client.post(f"/assets/{desk.pk}/attach/", {"assets": [str(ram.pk)]})
+
+    assert resp.status_code == 302
+    old.refresh_from_db()
+    assert old.in_at is not None  # previous holder's row is closed, not deleted
+    active = Assignment.objects.get(asset=ram, in_at__isnull=True)
+    assert active.to_person_id == holder.pk
+
+
+def test_attach_syncs_component_to_department_holder(client, tech_user, asset_factory, site):
+    from apps.people.models import Department
+
+    dept = Department.objects.create(name="IT Ops", site=site)
+    desk = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-DESK-2103")
+    Assignment.objects.create(asset=desk, to_dept=dept)
+    ram = asset_factory(status=Asset.Status.AVAILABLE, asset_tag="IT-RAM-2103")
+
+    client.force_login(tech_user)
+    resp = client.post(f"/assets/{desk.pk}/attach/", {"assets": [str(ram.pk)]})
+
+    assert resp.status_code == 302
+    active = Assignment.objects.get(asset=ram, in_at__isnull=True)
+    assert active.to_dept_id == dept.pk
+    assert not active.to_person_id
+
+
+def test_attach_without_parent_holder_leaves_component_alone(client, tech_user, asset_factory):
+    desk = asset_factory(asset_tag="IT-DESK-2104")  # Available, nobody holds it
+    ram = asset_factory(status=Asset.Status.IN_STOCK, asset_tag="IT-RAM-2104")
+
+    client.force_login(tech_user)
+    resp = client.post(f"/assets/{desk.pk}/attach/", {"assets": [str(ram.pk)]})
+
+    assert resp.status_code == 302
+    ram.refresh_from_db()
+    assert ram.parent_asset_id == desk.pk
+    assert ram.status == Asset.Status.IN_STOCK
+    assert not Assignment.objects.filter(asset=ram).exists()
+
+
+def test_attach_skips_holder_sync_for_component_in_repair(
+    client, tech_user, asset_factory, person_factory
+):
+    holder = person_factory(name="Repair Holder")
+    desk = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-DESK-2105")
+    Assignment.objects.create(asset=desk, to_person=holder)
+    ram = asset_factory(status=Asset.Status.IN_REPAIR, asset_tag="IT-RAM-2105")
+
+    client.force_login(tech_user)
+    resp = client.post(f"/assets/{desk.pk}/attach/", {"assets": [str(ram.pk)]}, follow=True)
+
+    assert resp.status_code == 200
+    ram.refresh_from_db()
+    assert ram.parent_asset_id == desk.pk  # structural link still made
+    assert ram.status == Asset.Status.IN_REPAIR  # lifecycle state untouched
+    assert not Assignment.objects.filter(asset=ram).exists()
+    assert any("holder could not be synced" in str(m) for m in resp.context["messages"])
+
+
 def test_bulk_attach_requires_technician(client, viewer_user, asset_factory):
     desk = asset_factory()
     client.force_login(viewer_user)

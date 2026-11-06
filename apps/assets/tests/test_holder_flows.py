@@ -237,6 +237,9 @@ def test_attach_syncs_component_to_department_holder(client, tech_user, asset_fa
     active = Assignment.objects.get(asset=ram, in_at__isnull=True)
     assert active.to_dept_id == dept.pk
     assert not active.to_person_id
+    # the workstation's Components table renders the department label, not "—"
+    detail = client.get(f"/assets/{desk.pk}/").content.decode()
+    assert "IT Ops (dept)" in detail
 
 
 def test_attach_without_parent_holder_leaves_component_alone(client, tech_user, asset_factory):

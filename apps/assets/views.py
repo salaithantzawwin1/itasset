@@ -271,7 +271,7 @@ class AssetDetail(ScopeGuardMixin, RoleRequiredMixin, DetailView):
                 Prefetch(
                     "assignments",
                     queryset=Assignment.objects.filter(in_at__isnull=True).select_related(
-                        "to_person"
+                        "to_person", "to_dept"
                     ),
                     to_attr="active_assignments",
                 )

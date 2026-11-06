@@ -15,7 +15,7 @@
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
 | Last updated | 2026-11-06 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **599 passed + 108 subtests** (2026-11-06 local run, 454.6 s, exit 0; +5 password-change/admin regressions this session) |
+| Test suite | **602 passed + 108 subtests** (2026-11-06 local run, 409.9 s, exit 0; +3 admin asset-picker regressions this session) |
 
 ---
 
@@ -185,6 +185,35 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-11-06 (session 58 — repair-ticket asset picker shows the holder)
+- **Repair ticket asset picker identified its rows only by tag + status**
+  (`Asset.__str__`), so two assigned machines were indistinguishable and an
+  asset could not be found by the employee who held it. `Add repair ticket`
+  (and every other admin asset picker) now labels each assigned result with
+  its holder — person name, or “Department (dept)” — while an unassigned
+  asset keeps the plain `TAG (status)` label. `Asset.holder_label` reads a
+  prefetched open-assignment row (one query per picker page, no N+1).
+- **Holder search**: `AssetAdmin.search_fields` gained the open assignment's
+  person name, employee number and department, so typing “Daw Thida” in the
+  asset picker finds her machine; duplicates are collapsed by the admin's
+  distinct handling. The picker was verified in the browser: assigned rows
+  read `IT-HW-DSK-0010 (Assigned) — Demo Person 2`, unassigned rows read
+  `IT-HW-DSK-0018 (In stock)`, and a holder-name term returns the right asset.
+- **RAM-in-PC workflow checked** (no code change needed): open the PC asset,
+  use the Components card → **Attach components** → filter RAM → tick the
+  module → **Attach selected**. This sets `parent_asset` (the installation
+  record) and writes one batched `component_attach` ActivityLog; the PC's
+  record stays intact and lists the module, while the RAM remains its own
+  record. Replacing an old module means clearing its **Parent asset** on the
+  RAM edit form (or checking it in) before/after attaching the new one. The
+  component keeps its own holder — set **Assigned to** to the PC holder if
+  the RAM should no longer report as In stock. Verified end to end against
+  local assets (`IT-HW-RAM-9001` attached to `IT-HW-DSK-0010`, record shown
+  on both sides).
+- Gates: `ruff check`/`format --check` clean, `manage.py check` clean,
+  `makemigrations --check` clean, **602 passed + 108 subtests** locally
+  (409.9 s, exit 0).
 
 ### 2026-11-06 (session 57 — login/admin logo fixes, Branding redirect, password change, dark contrast)
 - **Login logo enlarged**: the brand lockup on `/accounts/login/` went from a

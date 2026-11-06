@@ -276,6 +276,25 @@ class Asset(models.Model):
         """Advance the optimistic-lock counter (pair with update_fields)."""
         self.version += 1
 
+    @property
+    def holder_label(self) -> str:
+        """Name of the current holder, or "" when the asset is unassigned.
+
+        Used where an asset appears out of context (notably the admin asset
+        picker) so two similar tags can be told apart by who holds them. The
+        detail page prefetches active rows into ``active_assignments``; other
+        callers pay one narrow query per asset.
+        """
+        prefetched = getattr(self, "active_assignments", None)
+        if prefetched is not None:
+            return prefetched[0].holder_label if prefetched else ""
+        active = (
+            self.assignments.filter(in_at__isnull=True)
+            .select_related("to_person", "to_dept")
+            .first()
+        )
+        return active.holder_label if active else ""
+
 
 class Assignment(models.Model):
     """Current + historical assignment (check-out / check-in records).

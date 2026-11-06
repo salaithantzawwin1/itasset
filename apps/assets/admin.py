@@ -1,9 +1,12 @@
 import json
+from types import MethodType
 from urllib.parse import unquote
 
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin.helpers import flatten_fieldsets
+from django.contrib.admin.views.autocomplete import AutocompleteJsonView
+from django.db.models import Prefetch
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.html import format_html_join
@@ -370,13 +373,62 @@ class AssetAdmin(ScopedAdminMixin, admin.ModelAdmin):
         kwargs["fields"] = [n for n in fields if not n.startswith(SPEC_FIELD_PREFIX)]
         return super().get_form(request, obj, change, **kwargs)
 
-    search_fields = ("asset_tag", "serial_no", "hostname", "model_name")
+    search_fields = (
+        "asset_tag",
+        "serial_no",
+        "hostname",
+        "model_name",
+        # holder name is how technicians identify a machine in the repair
+        # form's picker — searching it must find the asset too
+        "assignments__to_person__name",
+        "assignments__to_person__employee_no",
+        "assignments__to_dept__name",
+    )
     date_hierarchy = "purchase_date"
     readonly_fields = ("created_at", "updated_at")
     list_select_related = ("category", "site")
     # phones render each row as a ~270px card; 25 keeps a page usable
     list_per_page = 25
     save_on_top = True  # long form — don't scroll back up to save
+
+
+class AssetAutocompleteJsonView(AutocompleteJsonView):
+    """Admin asset picker: show *who holds* each match.
+
+    Stock autocomplete labels an asset with ``Asset.__str__`` (tag + status),
+    so a repair ticket's picker could not distinguish two assigned machines.
+    This is the admin site's autocomplete view; only Asset results change.
+    """
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if qs.model is Asset:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "assignments",
+                    queryset=Assignment.objects.filter(in_at__isnull=True).select_related(
+                        "to_person", "to_dept"
+                    ),
+                    to_attr="active_assignments",
+                )
+            )
+        return qs
+
+    def serialize_result(self, obj, to_field_name):
+        result = super().serialize_result(obj, to_field_name)
+        if isinstance(obj, Asset) and obj.holder_label:
+            result["text"] = f"{result['text']} — {obj.holder_label}"
+        return result
+
+
+def _asset_autocomplete_view(site, request):
+    """AdminSite.autocomplete_view is a method, not a class attribute."""
+    return AssetAutocompleteJsonView.as_view(admin_site=site)(request)
+
+
+# Install on the default admin site: every asset autocomplete gains the holder
+# suffix (the count stays small — one page of 20 in the picker).
+admin.site.autocomplete_view = MethodType(_asset_autocomplete_view, admin.site)
 
 
 class ActiveAssignmentFilter(admin.SimpleListFilter):

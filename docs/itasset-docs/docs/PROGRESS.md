@@ -13,9 +13,9 @@
 |---|---|
 | Current milestone | M8 — Go-live |
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
-| Last updated | 2026-11-04 |
+| Last updated | 2026-11-06 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **594 passed + 108 subtests** (2026-11-04 local run, 350.5 s, exit 0; +12 security/scope regressions this session) |
+| Test suite | **599 passed + 108 subtests** (2026-11-06 local run, 454.6 s, exit 0; +5 password-change/admin regressions this session) |
 
 ---
 
@@ -185,6 +185,41 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-11-06 (session 57 — login/admin logo fixes, Branding redirect, password change, dark contrast)
+- **Login logo enlarged**: the brand lockup on `/accounts/login/` went from a
+  46px chip to an 82px logo tile (66px on phones) with padding, shadow and a
+  16px gap, so an uploaded wide logo is readable instead of a speck.
+- **Admin logo overflow fixed**: the 773×554 uploaded PNG painted at natural
+  size over the admin sidebar. `.brand .logo` in `templates/admin/_theme.css.html`
+  is now a fixed 30px box with `overflow:hidden`, and the `<img>` is capped to
+  `100%` with `object-fit:contain` (admin login chip raised 46px → 60px for the
+  same reason). The logo stays inside its slot on every admin screen.
+- **Branding CRUD fixed** (`apps/core/admin.py`): `Branding` is a singleton but
+  the changelist had no Add button once the row existed, so the screen looked
+  read-only. A GET on the changelist now redirects straight to the one row's
+  change form (Save/Delete available); with no row it shows Add. Sidebar and
+  index links therefore land on a working form.
+- **Self-service password change** for signed-in non-admins: Django's
+  `PasswordChangeView`/`PasswordChangeDoneView` at `/accounts/password/change/`
+  and `/accounts/password/change/done/`, rendered inside the normal base
+  layout with the app's form/button styles, plus links from the top-bar
+  username and the **My assets** page head. New EN/MM strings in
+  `apps/dashboard/i18n.py`; new `tests/test_password_change.py` (4 tests:
+  anonymous redirect, page renders, wrong old password rejected, successful
+  change keeps the session) and an admin-smoke test for the Branding redirect.
+- **Dark-mode contrast pass**: admin dark theme now uses the light link colour
+  for active sidebar items, dashboard counts/headings, change/add links and
+  filter summaries, and swaps low-contrast gradient buttons (Save, search,
+  paginator, history/object tools, filter/actions) to filled `#1f5f96` with
+  white text (hover `#2b74b3`); the teal Add button gets dark ink. The main
+  app's `.btn` fill is darkened and secondary-button text lightened. Audited
+  in the browser (light + dark, 1440×900 and 390×844) across admin asset
+  list/change, admin login, main asset list/detail, people, dashboard, audit
+  and reports — no remaining low-contrast text.
+- Gates: `ruff check`/`format --check` clean, `manage.py check` clean,
+  `makemigrations --check` clean, full suite **599 passed + 108 subtests**
+  locally (454.6 s, exit 0).
 
 ### 2026-11-04 (session 56 — security audit, scope IDOR fixes, admin UI/UX pass)
 - **Audit scope**: `manage.py check --deploy` under prod settings shows only the

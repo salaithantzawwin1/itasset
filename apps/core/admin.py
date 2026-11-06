@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.http import Http404
+from django.http import Http404, HttpResponseRedirect
 from django.urls import reverse
 from django.utils.html import format_html
 
@@ -148,6 +148,19 @@ class BrandingAdmin(admin.ModelAdmin):
             reverse("branding-logo"),
             int(obj.updated_at.timestamp()),
         )
+
+    def changelist_view(self, request, extra_context=None):
+        """A settings singleton: open its one row instead of a one-line list.
+
+        Operators read the changelist as “no Add/Change buttons”; sending them
+        straight to the change form (Save + Delete) makes the single row
+        editable without having to discover that the name is a link.
+        """
+        if request.method == "GET" and not request.GET:
+            row = Branding.objects.first()
+            if row is not None and self.has_change_permission(request, row):
+                return HttpResponseRedirect(reverse("admin:core_branding_change", args=[row.pk]))
+        return super().changelist_view(request, extra_context)
 
     def has_add_permission(self, request):
         # one row only: change the existing identity instead of stacking rows

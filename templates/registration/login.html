@@ -57,14 +57,19 @@
       content: ""; position: absolute; inset: auto -80px -120px auto; width: 320px; height: 320px;
       border-radius: 50%; background: rgba(255, 255, 255, .09); pointer-events: none;
     }
-    .pane-brand { display: flex; align-items: center; gap: 12px; }
+    .pane-brand { display: flex; align-items: center; gap: 16px; }
     .pane-brand .mark {
-      width: 46px; height: 46px; border-radius: 13px; flex: 0 0 auto;
+      width: 82px; height: 82px; border-radius: 20px; flex: 0 0 auto;
       background: rgba(255, 255, 255, .16); border: 1px solid rgba(255, 255, 255, .28);
       display: inline-flex; align-items: center; justify-content: center;
-      font-weight: 800; font-size: 17px; letter-spacing: .4px; overflow: hidden;
+      font-weight: 800; font-size: 26px; letter-spacing: .4px; overflow: hidden;
+      box-shadow: 0 10px 24px rgba(3, 18, 32, .28);
     }
-    .pane-brand .mark img { width: 100%; height: 100%; object-fit: contain; padding: 5px; background: #fff; }
+    .pane-brand .mark img { width: 100%; height: 100%; object-fit: contain; padding: 8px; background: #fff; }
+    @media (max-width: 860px) {
+      .pane-brand .mark { width: 66px; height: 66px; border-radius: 16px; font-size: 21px; }
+      .pane-brand .mark img { padding: 6px; }
+    }
     .pane-brand .who { min-width: 0; }
     .pane-brand .who strong { display: block; font-size: 15px; letter-spacing: .2px; }
     .pane-brand .who span { display: block; font-size: 12px; color: rgba(255, 255, 255, .72); }
@@ -88,7 +93,7 @@
       background: transparent; color: var(--muted); border: 0; padding: 6px 10px;
       cursor: pointer; font-size: 12px; font-weight: 700;
     }
-    .lang-switch button.on { background: var(--primary); color: #fff; }
+    .lang-switch button.on { background: var(--primary-dark); color: #fff; }
     .toggle-theme {
       background: transparent; border: 1px solid var(--border); color: var(--muted);
       padding: 6px 10px; border-radius: 9px; cursor: pointer; font-size: 14px; line-height: 1;

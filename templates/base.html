@@ -50,6 +50,11 @@
     [data-theme="dark"][data-accent="orange"] { --primary: #d97706; --primary-dark: #451a03; --primary-light: #3a2a16; --accent: #fbbf24; }
     [data-theme="dark"][data-accent="pink"]   { --primary: #db2777; --primary-dark: #4c0519; --primary-light: #3a1c2c; --accent: #f472b6; }
     [data-theme="dark"][data-accent="teal"]   { --primary: #0d9488; --primary-dark: #042f2e; --primary-light: #13312f; --accent: #2dd4bf; }
+    /* white button text needs a deeper fill than the bright dark-mode accent;
+       secondary buttons use a lighter ink so they stay readable on the tint */
+    [data-theme="dark"] .btn { background: color-mix(in srgb, var(--primary) 78%, #000); }
+    [data-theme="dark"] .btn:hover { filter: brightness(1.18); }
+    [data-theme="dark"] .btn.secondary { color: color-mix(in srgb, var(--primary) 40%, #fff); }
     * { box-sizing: border-box; }
     body { margin: 0; font-family: system-ui, "Myanmar Text", "Padauk", sans-serif; background: var(--bg); color: var(--text); font-size: 15px; transition: background .2s, color .2s; }
 
@@ -64,7 +69,8 @@
     .topnav a.active { background: rgba(255,255,255,.18); color: #fff; font-weight: 600; }
     .topbar .spacer { flex: 1; }
     .userbox { display: flex; align-items: center; gap: 10px; }
-    .userbox .uname { color: rgba(255,255,255,.85); font-size: 13px; }
+    .userbox .uname { color: rgba(255,255,255,.85); font-size: 13px; text-decoration: none; }
+    .userbox a.uname:hover { color: #fff; text-decoration: underline; }
     .userbox form { margin: 0; display: inline; }
     .btn-ghost { background: transparent; border: 1px solid rgba(255,255,255,.35); color: #fff; padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; }
     .btn-ghost:hover { background: rgba(255,255,255,.14); }
@@ -195,6 +201,7 @@
     form.inline-form select { width: auto; min-width: 210px; }
     .filterbar .btn { width: auto; }
     .errorlist { color: var(--danger); font-size: 13px; list-style: none; padding: 0; margin: 6px 0; }
+    .form-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 18px; }
 
     /* ---------- misc ---------- */
     .muted { color: var(--muted); font-size: 13px; }

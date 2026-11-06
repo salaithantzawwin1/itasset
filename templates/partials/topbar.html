@@ -24,7 +24,7 @@
     </form>
     <button class="toggle-theme" id="btn-theme" title="Light / Dark / System">◐</button>
     {% if user.is_authenticated %}
-      <span class="uname">{{ user.username }}</span>
+      <a class="uname" href="{% url 'password_change' %}" title="{% t 'password.title' %}">{{ user.username }}</a>
       <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn-ghost" type="submit">{% t "nav.logout" %}</button></form>
     {% else %}
       <a class="btn-ghost" style="text-decoration:none;display:inline-block;" href="{% url 'login' %}">{% t "nav.login" %}</a>

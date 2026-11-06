@@ -215,7 +215,10 @@ select:focus-visible, textarea:focus-visible, summary:focus-visible {
   flex-shrink: 0;
 }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; letter-spacing: .3px; color: #fff; text-decoration: none; }
-.brand .logo { width: 30px; height: 30px; border-radius: 8px; background: var(--accent); display: inline-flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; color: #fff; }
+/* the uploaded logo is a photograph/wordmark at natural size — without a
+   hard box + object-fit it painted at 773×554 over the whole admin page */
+.brand .logo { width: 30px; height: 30px; border-radius: 8px; background: var(--accent); display: inline-flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; color: #fff; overflow: hidden; flex: 0 0 auto; }
+.brand .logo img { width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; background: #fff; padding: 2px; display: block; }
 .topnav { display: flex; gap: 4px; }
 .topnav a { color: rgba(255, 255, 255, .78); text-decoration: none; padding: 8px 14px; border-radius: 8px; font-size: 14px; transition: all .15s; }
 .topnav a:hover { background: rgba(255, 255, 255, .12); color: #fff; }
@@ -225,7 +228,8 @@ a.brand, a.brand:link, a.brand:visited { color: #fff; }
 a.brand:hover { color: #fff; }
 .topbar .spacer { flex: 1; }
 .userbox { display: flex; align-items: center; gap: 10px; }
-.userbox .uname { color: rgba(255, 255, 255, .85); font-size: 13px; }
+.userbox .uname { color: rgba(255, 255, 255, .85); font-size: 13px; text-decoration: none; }
+.userbox a.uname:hover { color: #fff; text-decoration: underline; }
 .userbox form { margin: 0; display: inline; }
 .btn-ghost { background: transparent; border: 1px solid rgba(255, 255, 255, .35); color: #fff; padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; }
 .btn-ghost:hover { background: rgba(255, 255, 255, .14); }
@@ -833,7 +837,7 @@ body.login main { flex: 1; display: flex; align-items: center; justify-content: 
 }
 .login-card-head { display: flex; align-items: center; gap: 13px; margin-bottom: 22px; }
 .login-card-head .brand-chip-lg {
-  width: 46px; height: 46px; border-radius: 13px;
+  width: 60px; height: 60px; border-radius: 16px;
   background: linear-gradient(135deg, var(--primary), var(--accent));
   color: #fff; font-weight: 800; font-size: 17px;
   display: inline-flex; align-items: center; justify-content: center;
@@ -1278,6 +1282,46 @@ fieldset.module .form-row { overflow: visible; }
   .ftabs { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   .ftabs::-webkit-scrollbar { display: none; }
   .ftab { white-space: nowrap; min-height: 44px; padding: 12px 14px; }
+}
+
+/* ---------- dark-mode contrast pass ---------------------------------------
+   `--primary` doubles as a fill (white text) and as accent text on dark
+   surfaces; #4a90c8 fails both ways. Keep the fill for light mode, but on
+   dark use the lighter --link-fg for text and a deeper blue for filled
+   controls. The teal “Add” pill gets dark ink instead of white. */
+html[data-theme="dark"] .anav-group.on > summary,
+html[data-theme="dark"] .anav-group ul li a:hover,
+html[data-theme="dark"] .anav-group ul li a.on,
+html[data-theme="dark"] .anav-back:hover,
+html[data-theme="dark"] .dash-count,
+html[data-theme="dark"] .fieldset-heading,
+html[data-theme="dark"] .dash-act.is-change,
+html[data-theme="dark"] #changelist-filter details[open] > summary {
+  color: var(--link-fg);
+}
+html[data-theme="dark"] .object-tools a.addlink,
+html[data-theme="dark"] .object-tools a.addlink:hover {
+  color: #06231f !important;
+}
+html[data-theme="dark"] .object-tools a:not(.addlink) {
+  background: #1f5f96 !important;
+  border-color: #2b74b3 !important;
+}
+html[data-theme="dark"] #changelist .actions .button,
+html[data-theme="dark"] .paginator .this-page,
+html[data-theme="dark"] .historylink,
+html[data-theme="dark"] #changelist-filter details ul li.selected a,
+html[data-theme="dark"] #toolbar #changelist-search input[type="submit"],
+html[data-theme="dark"] .submit-row input.default,
+html[data-theme="dark"] .login .submit-row input[type="submit"] {
+  background: #1f5f96;
+  border-color: #2b74b3;
+  color: #fff;
+}
+html[data-theme="dark"] #changelist .actions .button:hover,
+html[data-theme="dark"] .paginator .this-page:hover,
+html[data-theme="dark"] .login .submit-row input[type="submit"]:hover {
+  background: #2b74b3;
 }
 
 </style>

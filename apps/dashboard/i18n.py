@@ -438,6 +438,19 @@ STRINGS = {
     "login.show_password": {"en": "Show password", "my": "စကားဝှက် ပြမည်"},
     "login.hide_password": {"en": "Hide password", "my": "စကားဝှက် ဖျောက်မည်"},
     "login.brand_fallback": {"en": "IT Asset Manager", "my": "IT Asset Manager"},
+    # self-service password change (available to every signed-in user)
+    "password.title": {"en": "Change password", "my": "စကားဝှက် ပြောင်းရန်"},
+    "password.sub": {
+        "en": "Update the password for your account. You stay signed in afterwards.",
+        "my": "သင့်အကောင့်၏ စကားဝှက်ကို ပြောင်းလဲပါ။ ပြောင်းပြီးနောက် ဝင်ရောက်ထားမှု ဆက်ရှိနေမည်။",
+    },
+    "password.submit": {"en": "Update password", "my": "စကားဝှက် ပြောင်းမည်"},
+    "password.done_title": {"en": "Password updated", "my": "စကားဝှက် ပြောင်းပြီးပါပြီ"},
+    "password.done_sub": {
+        "en": "Your new password is active — use it the next time you sign in.",
+        "my": "စကားဝှက် အသစ် အသုံးပြုနိုင်ပါပြီ — နောက်တစ်ကြိမ် ဝင်ရောက်ရာတွင် အသုံးပြုပါ။",
+    },
+    "password.back": {"en": "Back to dashboard", "my": "ဒက်ရှ်ဘုတ်သို့ ပြန်သွားရန်"},
     # generic
     "common.page": {"en": "Page {n} of {m}", "my": "စာမျက်နှာ {n} / {m}"},
     "common.prev": {"en": "← Prev", "my": "← ရှေ့"},

@@ -7,7 +7,10 @@
     <h1>{% t "me.title" %}</h1>
     <div class="sub">{% if person %}{{ person.name }} · {{ person.employee_no }}{% else %}{% t "me.no_person" %}{% endif %}</div>
   </div>
-  <a class="btn" href="{% url 'request-create' %}" data-modal>{% t "me.request_new" %}</a>
+  <div class="actions">
+    <a class="btn secondary" href="{% url 'password_change' %}">{% t "password.title" %}</a>
+    <a class="btn" href="{% url 'request-create' %}" data-modal>{% t "me.request_new" %}</a>
+  </div>
 </div>
 
 <div class="grid-2">

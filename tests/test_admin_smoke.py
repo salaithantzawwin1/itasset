@@ -73,6 +73,16 @@ class AdminSmokeTests(TestCase):
         self.assertContains(resp, "dash-card")
         self.assertContains(resp, "Recent actions")
 
+    def test_branding_changelist_opens_the_single_row(self):
+        from apps.core.models import Branding
+
+        row = Branding.objects.create(company_name="Singleton Co")
+        self.client.force_login(self.superuser)
+
+        r = self.client.get(reverse("admin:core_branding_changelist"))
+        assert r.status_code == 302
+        assert r["Location"] == reverse("admin:core_branding_change", args=[row.pk])
+
     def test_login_page_renders_redesigned_card(self):
         resp = self.client.get(reverse("admin:login"))
         self.assertEqual(resp.status_code, 200)

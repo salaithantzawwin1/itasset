@@ -222,6 +222,13 @@ authenticated user; no company/branch scoping exists.
   production attach page for `IT-HW-AIO-0019` carries the holder preview
   “Attached components will follow Ma May Su Khaing.”; no production data
   was changed during verification.
+- **Follow-up fix** `cb9824b`: the workstation's Components table rendered
+  only `to_person.name`, so a component synced to a department displayed
+  “—”. It now uses `Assignment.holder_label` and prefetches `to_dept`; the
+  department-holder test asserts “IT Ops (dept)” in the rendered page.
+  Redeployed (`/healthz` 200); server suite **607 passed + 108 subtests**
+  (180.2 s, exit 0); probe **20 ok / 0 failed**. Production currently has no
+  attached components, so no backfill of old rows was needed.
 
 ### 2026-11-06 (session 58 — repair-ticket asset picker shows the holder)
 - **Repair ticket asset picker identified its rows only by tag + status**

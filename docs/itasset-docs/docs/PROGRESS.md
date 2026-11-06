@@ -214,6 +214,14 @@ authenticated user; no company/branch scoping exists.
 - Gates: `ruff check`/`format --check` clean, `manage.py check` clean,
   `makemigrations --check` clean, **607 passed + 108 subtests** locally
   (449.3 s, exit 0).
+- Commit `983000d` — **pushed** `b5e55bc..983000d`. Deployed to
+  192.168.100.142 (`git archive` sync; no pending migrations; gunicorn user
+  service restarted, `/healthz` 200). Server suite **607 passed + 108
+  subtests** (180.6 s, exit 0, enforcement on); probe **20 ok / 0 failed**
+  (authenticated phase skipped — no probe credentials). Live GET of the
+  production attach page for `IT-HW-AIO-0019` carries the holder preview
+  “Attached components will follow Ma May Su Khaing.”; no production data
+  was changed during verification.
 
 ### 2026-11-06 (session 58 — repair-ticket asset picker shows the holder)
 - **Repair ticket asset picker identified its rows only by tag + status**

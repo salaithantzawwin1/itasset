@@ -220,6 +220,13 @@ authenticated user; no company/branch scoping exists.
 - Gates: `ruff check`/`format --check` clean, `manage.py check` clean,
   `makemigrations --check` clean, full suite **599 passed + 108 subtests**
   locally (454.6 s, exit 0).
+- Commit `10d7667` — **pushed** `4fe9549..10d7667`. Deployed to
+  192.168.100.142 (`git archive` sync; no pending migrations; gunicorn user
+  service restarted, `/healthz` 200). Server suite **599 passed + 108
+  subtests** (196.8 s, exit 0, enforcement on); probe **20 ok / 0 failed**
+  (authenticated phase skipped — no probe credentials). Live login pages show
+  the 66px/82px sign-in mark and the 60px admin login chip with the 773×554
+  logo contained, not oversized.
 
 ### 2026-11-04 (session 56 — security audit, scope IDOR fixes, admin UI/UX pass)
 - **Audit scope**: `manage.py check --deploy` under prod settings shows only the

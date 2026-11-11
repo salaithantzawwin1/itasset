@@ -24,10 +24,20 @@
 {# Sidebar: every admin page gets the same permission-filtered model tree (apps/core/templatetags/admin_nav.py), so changelists no longer feel like dead ends. #}
 {% block nav-sidebar %}{% admin_nav as admin_tree %}{% if admin_tree %}
 <aside class="anav" aria-label="{% translate 'Admin navigation' %}">
-  <div class="anav-title">{% translate "Admin" %}</div>
+  <div class="anav-brand">
+    <span class="anav-mark" aria-hidden="true">IA</span>
+    <div>
+      <strong>{% translate "Admin" %}</strong>
+      <small>{% translate "Console" %}</small>
+    </div>
+  </div>
+  <div class="anav-search" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.4-3.4"/></svg>
+    <input type="search" id="anav-filter" autocomplete="off" placeholder="{% translate 'Filter models…' %}" aria-label="{% translate 'Filter admin models' %}">
+  </div>
   {% for group in admin_tree %}
   <details class="anav-group{% if group.active %} on{% endif %}"{% if group.active %} open{% endif %}>
-    <summary><span>{{ group.name }}</span></summary>
+    <summary><span>{{ group.name }}</span><span class="anav-count">{{ group.models|length }}</span></summary>
     <ul>
       {% for item in group.models %}
       <li><a href="{{ item.url }}"{% if item.active %} class="on" aria-current="page"{% endif %}>{{ item.name }}</a></li>
@@ -35,8 +45,37 @@
     </ul>
   </details>
   {% endfor %}
+  <p class="anav-none" id="anav-none">{% translate "No models match that filter." %}</p>
   <a class="anav-back" href="{% url 'home' %}">&larr; {% translate "Back to site" %}</a>
 </aside>
+<script>
+/* Filter the model tree as you type: groups hide when none of their models
+   match, matching groups open themselves, and the empty note appears only
+   when the whole tree is filtered out. Without JS the box stays hidden and
+   every model remains visible. */
+(function () {
+  var box = document.getElementById('anav-filter');
+  if (!box) return;
+  var wrap = box.closest('.anav-search');
+  if (wrap) wrap.hidden = false;
+  var groups = Array.prototype.slice.call(document.querySelectorAll('.anav-group'));
+  var none = document.getElementById('anav-none');
+  box.addEventListener('input', function () {
+    var q = box.value.trim().toLowerCase(), any = false;
+    groups.forEach(function (group) {
+      var hits = 0;
+      group.querySelectorAll('ul li').forEach(function (li) {
+        var hit = !q || li.textContent.toLowerCase().indexOf(q) !== -1;
+        li.hidden = !hit;
+        if (hit) hits++;
+      });
+      group.hidden = hits === 0;
+      if (hits) { any = true; if (q) group.open = true; }
+    });
+    if (none) none.classList.toggle('on', !any && !!q);
+  });
+})();
+</script>
 {% endif %}{% endblock %}
 
 {# Page header used by every changelist / change form / app page; the dashboard overrides it with its hero. #}

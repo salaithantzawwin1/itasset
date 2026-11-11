@@ -280,7 +280,17 @@ body.nb-modal-open { overflow: hidden; }
           "#content{max-width:none!important;margin:0!important;padding:12px 16px!important}" +
           ".page{margin:0!important;padding:12px 16px!important;max-width:none!important}" +
           ".card{border:0!important;box-shadow:none!important;padding:0!important;margin:0!important;background:transparent!important}" +
-          ".messagelist,.messages{margin:0 0 12px!important}";
+          ".messagelist,.messages{margin:0 0 12px!important}" +
+          // Admin framed forms: the dialog is already the card, so nested
+          // fieldsets flatten, the duplicate object-tools/history row goes,
+          // and the save bar sticks to the dialog's bottom edge.
+          ".object-tools{display:none!important}" +
+          "fieldset.module{border:0!important;box-shadow:none!important;border-radius:0!important;margin:0 0 6px!important;background:transparent!important}" +
+          "fieldset.module>h2,fieldset.module .fieldset-heading{border-radius:0!important;background:transparent!important;border-bottom:1px solid var(--hairline-color)!important;padding-left:0!important;padding-right:0!important}" +
+          "fieldset.module .form-row{padding-left:0!important;padding-right:0!important}" +
+          "#content{max-width:none!important;margin:0!important;padding:10px 14px 6px!important}" +
+          ".submit-row{position:sticky!important;bottom:0!important;margin:6px 0 0!important;border-radius:12px 12px 0 0!important;box-shadow:0 -6px 18px rgba(15,35,65,.08)!important}" +
+          ".ftabs{margin-bottom:8px!important}";
         (doc.head || doc.documentElement).appendChild(s);
       }
       /* Admin change forms render the save row twice (top + bottom). Keep

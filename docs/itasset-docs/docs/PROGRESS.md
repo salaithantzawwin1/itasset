@@ -13,9 +13,9 @@
 |---|---|
 | Current milestone | M8 — Go-live |
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
-| Last updated | 2026-11-06 |
+| Last updated | 2026-11-11 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
-| Test suite | **607 passed + 108 subtests** (2026-11-06 local run, 449.3 s, exit 0; +5 component-holder sync regressions this session) |
+| Test suite | **609 passed + 108 subtests** (2026-11-11 local run, 401.0 s, exit 0; deployed and re-run on the server, 185.2 s, exit 0) |
 
 ---
 
@@ -185,6 +185,31 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-11-11 (session 61 — workspace/modal/RAM/cross-site attach verified and deployed)
+- **Gates**: `ruff check` + `format --check` clean (one over-long EN string in
+  `apps/dashboard/i18n.py` wrapped first), `manage.py check` clean,
+  `makemigrations --check` clean, full suite **609 passed + 108 subtests**
+  locally (401.0 s, exit 0).
+- Commit `00d145a` — **pushed** `08086df..00d145a`: 16 files (workspace shell +
+  sidebar, admin theme, modal fixes, RAM module fields + migration `0019`,
+  cross-site attach + tests, EN/MM strings, this log).
+- **Deploy 2026-11-11**: LF `git archive` sync (6 spot-checked files
+  md5-identical local↔server) → `assets.0019` applied → server suite **609
+  passed + 108 subtests** (185.2 s, exit 0, enforcement on) → gunicorn user
+  service restarted (active) → `/healthz` `{"status":"ok","db":"ok"}` →
+  probe gate **29 ok / 0 failed** (throttle skipped; authenticated phase ran
+  via the break-glass token).
+- **`/assets/66/` RAM check (live)**: the page is `IT-HW-DSK-0013`
+  (YGN_HQ, Assigned), returns 200, but its Components card reads **“No
+  components linked.”** The register holds exactly one module,
+  `IT-HW-RAM-0001` (YGN_HQ, IN_STOCK, 8 GB DDR4), and it was never attached —
+  the previous session's note that production had no attached components
+  still holds. The deploy itself is confirmed: `/assets/66/attach/` now lists
+  `IT-HW-RAM-0001` as a candidate, and `/assets/87/` (the RAM record) renders
+  **“Memory layout · 8 GB”**. No production data was changed during
+  verification; attaching the module (which would also sync its holder to
+  the PC's holder) is left to an operator.
 
 ### 2026-11-06 (session 60 — workspace redesign, modal audit, RAM layout)
 - **Workspace shell redesigned** (v3): a dark navigation rail (Dashboard,

@@ -779,6 +779,26 @@ CATALOGUE = {
                     min=1,
                     help="e.g. 4 for a 2 × 4 GB pair",
                 ),
+                # Two physical slots (the common desktop/laptop layout) can
+                # hold modules of different sizes: a 12 GB machine is often
+                # one 4 GB + one 8 GB stick, not "2 × 6 GB". Record each
+                # slot so the total is never read as two equal modules.
+                _f(
+                    "slot_1_gb",
+                    "Slot 1 Capacity",
+                    "integer",
+                    unit="GB",
+                    min=1,
+                    help="Capacity of the module in slot 1; blank when empty",
+                ),
+                _f(
+                    "slot_2_gb",
+                    "Slot 2 Capacity",
+                    "integer",
+                    unit="GB",
+                    min=1,
+                    help="Capacity of the module in slot 2; blank when empty",
+                ),
                 _f(
                     "memory_type",
                     "Memory Type",

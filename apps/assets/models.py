@@ -301,9 +301,11 @@ class Asset(models.Model):
 
         A RAM record may represent a single module or the pair installed in a
         workstation. Older rows only carry ``capacity_gb``; new rows can also
-        record ``module_count`` and ``module_capacity_gb`` so an 8 GB kit is
-        not mistaken for one 8 GB stick. Returns "" for every other category
-        or when no capacity is recorded.
+        record ``module_count`` / ``module_capacity_gb`` for an equal pair, or
+        the per-slot ``slot_1_gb`` / ``slot_2_gb`` values when the two slots
+        hold differently sized modules (a 12 GB machine as 4 GB + 8 GB). Slot
+        values win over the equal-pair fields. Returns "" for every other
+        category or when no capacity is recorded.
         """
         if getattr(self.category, "code", "") != "IT-HW-RAM":
             return ""
@@ -311,12 +313,22 @@ class Asset(models.Model):
         total = attrs.get("capacity_gb")
         count = attrs.get("module_count")
         per = attrs.get("module_capacity_gb")
+        raw_slots = [attrs.get("slot_1_gb"), attrs.get("slot_2_gb")]
         try:
+            slots = [int(s) for s in raw_slots if s not in (None, "")]
             count = int(count) if count not in (None, "") else None
             per = int(per) if per not in (None, "") else None
             total = int(float(total)) if total not in (None, "") else None
         except (TypeError, ValueError):
             return ""
+        if slots:
+            summed = sum(slots)
+            layout = " + ".join(f"{size} GB" for size in slots)
+            if total and total != summed:
+                layout += f" (recorded total {total} GB)"
+            elif total and len(slots) > 1:
+                layout += f" = {total} GB"
+            return f"{layout} · {len(slots)} slot{'s' if len(slots) != 1 else ''}"
         if count and per:
             layout = f"{count} × {per} GB"
             if total and count * per != total:

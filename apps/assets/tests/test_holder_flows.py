@@ -244,6 +244,22 @@ def test_ram_layout_shows_modules_and_slots(client, tech_user, asset_factory, co
     ram.save(update_fields=["attrs"])
     assert ram.ram_layout == "1 × 8 GB = 8 GB · 1 slot"
 
+    # two slots can hold different sizes: 12 GB = one 4 GB + one 8 GB
+    ram.attrs = {"capacity_gb": 12, "slot_1_gb": 4, "slot_2_gb": 8}
+    ram.save(update_fields=["attrs"])
+    assert ram.ram_layout == "4 GB + 8 GB = 12 GB · 2 slots"
+    assert "4 GB + 8 GB = 12 GB · 2 slots" in client.get(f"/assets/{ram.pk}/").content.decode()
+
+    # one populated slot stays a single-slot layout
+    ram.attrs = {"capacity_gb": 8, "slot_1_gb": 8}
+    ram.save(update_fields=["attrs"])
+    assert ram.ram_layout == "8 GB · 1 slot"
+
+    # an inconsistent recorded total is named, never silently averaged
+    ram.attrs = {"capacity_gb": 8, "slot_1_gb": 4, "slot_2_gb": 8}
+    ram.save(update_fields=["attrs"])
+    assert ram.ram_layout == "4 GB + 8 GB (recorded total 8 GB) · 2 slots"
+
 
 def test_attach_syncs_in_stock_component_to_pc_holder(
     client, tech_user, asset_factory, person_factory, component_category

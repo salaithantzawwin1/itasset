@@ -186,6 +186,28 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-11-11 (session 62 — per-slot RAM capacities)
+- **Problem**: a PC has two RAM slots and they need not hold equal modules —
+  12 GB is usually one 4 GB + one 8 GB stick, which
+  `module_count` / `module_capacity_gb` can only describe as “2 × 6 GB”.
+- **Schema**: `IT-HW-RAM` gained optional `slot_1_gb` / `slot_2_gb`
+  (migration `0020`, additive and custom-schema safe — only missing keys are
+  inserted, after the equal-pair fields). Blank slot = empty slot.
+- **`Asset.ram_layout`** now prefers slot values, then the equal-pair fields,
+  then the total: `4 GB + 8 GB = 12 GB · 2 slots`, `8 GB · 1 slot`, and an
+  inconsistent recorded total is named (`4 GB + 8 GB (recorded total 8 GB) ·
+  2 slots`) instead of averaged.
+- Tests: the RAM-layout test now covers mixed slots, a single populated slot
+  and a mismatched total; targeted run **83 passed + 36 subtests** (holder
+  flows, specs, dashboard), `ruff` clean, `makemigrations --check` clean.
+- Commit `cb9339b` — **pushed** `1aca99b..cb9339b`. Deployed to
+  192.168.100.142 (LF archive, md5-identical; `assets.0020` applied; server
+  suite **609 passed + 108 subtests**, 182.1 s, exit 0; gunicorn restarted,
+  `/healthz` ok). Live checks: `/assets/87/edit/` renders `Slot 1 Capacity` /
+  `Slot 2 Capacity` (`spec__slot_1_gb` / `spec__slot_2_gb`), `/assets/87/`
+  still shows `1 × 8 GB = 8 GB · 1 slot`, and production code renders the
+  mixed layout `4 GB + 8 GB = 12 GB · 2 slots`; probe **29 ok / 0 failed**.
+
 ### 2026-11-11 (session 61 — workspace/modal/RAM/cross-site attach verified and deployed)
 - **Gates**: `ruff check` + `format --check` clean (one over-long EN string in
   `apps/dashboard/i18n.py` wrapped first), `manage.py check` clean,

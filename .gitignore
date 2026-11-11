@@ -47,4 +47,10 @@ htmlcov/
 
 # local dev artifacts
 .devserver.log
+devserver.log
+devserver.pid
+.pytest-*.log
+pytest_*.log
+pytest_*.pid
+.cloud-attachments/
 screenshots/

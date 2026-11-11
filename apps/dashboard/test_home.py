@@ -330,6 +330,9 @@ class DashboardKpiAlertTests(TestCase):
         self.assertEqual(
             kpis["dash.kpi.warranty"]["href"], reverse("asset-list") + "?warranty_days=30"
         )
+        self.assertEqual(
+            kpis["dash.kpi.active"]["href"], reverse("asset-list") + "?active=1"
+        )
         self.assertEqual(kpis["dash.total_assets"]["href"], reverse("asset-list"))
         self.assertContains(resp, 'class="kpi critical" href="#alerts"')
         self.assertContains(resp, 'class="card dash-card"', count=5)

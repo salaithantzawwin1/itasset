@@ -434,7 +434,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 "value": active,
                 "meta_key": "dash.kpi.assigned",
                 "meta_n": assigned,
-                "href": asset_list,
+                "href": f"{asset_list}?active=1",  # same exclusion as the count
             },
             {
                 "tone": "",

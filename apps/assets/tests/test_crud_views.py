@@ -304,6 +304,21 @@ def test_category_change_onto_a_taken_number_continues_the_target_sequence(
     assert asset.category_id == lap.pk
 
 
+def test_asset_list_active_filter_matches_the_dashboard_kpi(
+    client, django_user_model, group_setup, asset_factory
+):
+    """?active=1 opens the list the Active KPI counted (no retired/disposed)."""
+    _login(client, _user(django_user_model, group_setup, "technician"))
+    live = asset_factory(asset_tag="IT-HW-LAP-3201")
+    retired = asset_factory(asset_tag="IT-HW-LAP-3202", status=Asset.Status.RETIRED)
+    disposed = asset_factory(asset_tag="IT-HW-LAP-3203", status=Asset.Status.DISPOSED)
+
+    body = client.get("/assets/?active=1").content.decode()
+    assert live.asset_tag in body
+    assert retired.asset_tag not in body
+    assert disposed.asset_tag not in body
+
+
 def test_admin_can_manage_site(client, django_user_model, group_setup):
     _login(client, _user(django_user_model, group_setup, "admin"))
     r = client.post(URLS["site_create"], {"name": "Mandalay HQ", "code": "mandalay"})

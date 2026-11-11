@@ -57,6 +57,11 @@ class AssetList(RoleRequiredMixin, ListView):
         warranty_days = self.request.GET.get("warranty_days", "")
         if status:
             qs = qs.filter(status=status)
+        # Dashboard "Active assets" deep link: that KPI excludes retired and
+        # disposed rows, so the list it opens must exclude them too —
+        # otherwise the number and the list it answers disagree.
+        if self.request.GET.get("active"):
+            qs = qs.exclude(status__in=(Asset.Status.RETIRED, Asset.Status.DISPOSED))
         if site:
             qs = qs.filter(site_id=site)
         # RAM drill-down from the dashboard matrix: a type, a speed, or one

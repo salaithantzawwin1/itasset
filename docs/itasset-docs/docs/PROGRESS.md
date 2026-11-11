@@ -186,6 +186,31 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-11-11 (session 63 — admin layout redesign v4 + modal audit)
+- **Command rail**: the admin sidebar gained an IA mark/brand header, a live
+  model filter (progressive: hidden without JS) with a no-match note, and a
+  model-count pill per group. Filtern arrows still open the active group.
+- **Header band**: `page-head` is now one banded surface, and `object-tools`
+  moved into the document flow below it — page actions can no longer overlap
+  a long title at any width, and the old 190px reserved padding is gone.
+- **Changelist/form polish**: calmer toolbar, sticky filter rail with its own
+  scrollport on desktop (static below 900px), row hover transitions, roomier
+  fieldsets and save bar.
+- **Modal skin** (`partials/modal.html`, shared with the main app): admin
+  fieldsets flatten inside the dialog, the duplicate object-tools/history row
+  is hidden, `#content` padding tightens, and the save bar pins to the dialog
+  edge — one scroll, inside the frame.
+- **Modal audit (all 26 admin Add dialogs)**: opened and measured at 1440px —
+  every card 922px wide, no horizontal overflow, short forms height-fitted,
+  tall forms (requests, repairs, transfers, write-offs, contracts) scroll once
+  inside the frame; no console errors. Changelist/asset-add/dashboard checked
+  at 390px and in the light theme.
+- Gates: `ruff check` clean; admin smoke **22 passed + 72 subtests** locally
+  and **12 passed + 72 subtests** on the server. Commit `cb3f448` — pushed
+  `2cad32f..cb3f448`, deployed to 192.168.100.142 (LF archive, md5-identical;
+  no migrations; gunicorn restarted; `/healthz` ok); live admin carries the
+  new rail/filter/counts and modal skin; probe **29 ok / 0 failed**.
+
 ### 2026-11-11 (session 62 — per-slot RAM capacities)
 - **Problem**: a PC has two RAM slots and they need not hold equal modules —
   12 GB is usually one 4 GB + one 8 GB stick, which

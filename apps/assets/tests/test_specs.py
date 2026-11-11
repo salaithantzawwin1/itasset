@@ -288,6 +288,33 @@ class TestRamSpeedValidation(TestCase):
 # ---------------------------------------------------------------------------
 
 
+class TestRamSlotTotal(TestCase):
+    """A PC's RAM total follows its sticks: 2 GB + 4 GB = 6 GB."""
+
+    def setUp(self):
+        self.cat = _category(CATALOGUE["IT-HW-DSK"]["schema"]["fields"])
+
+    def test_slots_sum_into_the_total(self):
+        cleaned = validate_specs(self.cat, {"slot_1_gb": "2", "slot_2_gb": "4"})
+        self.assertEqual(cleaned["slot_1_gb"], 2)
+        self.assertEqual(cleaned["slot_2_gb"], 4)
+        self.assertEqual(cleaned["ram_capacity_gb"], 6.0)
+
+    def test_a_stale_total_is_replaced_by_the_sum(self):
+        cleaned = validate_specs(
+            self.cat, {"ram_capacity_gb": "16", "slot_1_gb": 2, "slot_2_gb": 4}
+        )
+        self.assertEqual(cleaned["ram_capacity_gb"], 6.0)
+
+    def test_one_populated_slot_is_the_total(self):
+        cleaned = validate_specs(self.cat, {"slot_1_gb": 8})
+        self.assertEqual(cleaned["ram_capacity_gb"], 8.0)
+
+    def test_total_without_slots_stays_manual(self):
+        cleaned = validate_specs(self.cat, {"ram_capacity_gb": "16"})
+        self.assertEqual(cleaned["ram_capacity_gb"], 16.0)
+
+
 class TestValidateSpecs(TestCase):
     def test_coerces_raw_strings_to_canonical_types(self):
         cat = _category(FULL_SCHEMA)

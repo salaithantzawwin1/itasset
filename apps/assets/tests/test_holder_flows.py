@@ -261,6 +261,23 @@ def test_ram_layout_shows_modules_and_slots(client, tech_user, asset_factory, co
     assert ram.ram_layout == "4 GB + 8 GB (recorded total 8 GB) · 2 slots"
 
 
+def test_pc_ram_layout_reads_its_slots(asset_factory):
+    """A desktop records sticks the same way a RAM module does."""
+    from apps.assets.models import Category
+
+    desk = Category.objects.get(code="IT-HW-DSK")
+    pc = asset_factory(
+        asset_tag="IT-HW-DSK-2402",
+        category=desk,
+        attrs={"ram_capacity_gb": 6, "slot_1_gb": 2, "slot_2_gb": 4},
+    )
+    assert pc.ram_layout == "2 GB + 4 GB = 6 GB · 2 slots"
+    # a PC with no slot data shows no layout line (the specs table still
+    # lists the total) — the line only appears once sticks are recorded
+    plain = asset_factory(asset_tag="IT-HW-DSK-2403", category=desk, attrs={"ram_capacity_gb": 16})
+    assert plain.ram_layout == ""
+
+
 def test_attach_syncs_in_stock_component_to_pc_holder(
     client, tech_user, asset_factory, person_factory, component_category
 ):

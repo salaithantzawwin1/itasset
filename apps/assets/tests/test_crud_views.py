@@ -236,6 +236,42 @@ def test_changing_category_re_files_the_tag_and_keeps_the_sequence(
     assert asset.category_id == lap.pk
 
 
+def test_pc_ram_slots_fill_and_sum_the_total(
+    client, django_user_model, group_setup, asset_factory
+):
+    """The Specifications tab records sticks; 2 GB + 4 GB saves as 6 GB."""
+    tech = _user(django_user_model, group_setup, "technician")
+    _login(client, tech)
+    desk = Category.objects.get(code="IT-HW-DSK")
+    asset = asset_factory(
+        asset_tag="IT-HW-DSK-3100", category=desk, attrs={"ram_capacity_gb": 16}
+    )
+
+    page = client.get(f"/assets/{asset.pk}/edit/").content.decode()
+    assert 'name="spec__slot_1_gb"' in page
+    assert 'name="spec__slot_2_gb"' in page
+
+    r = client.post(
+        f"/assets/{asset.pk}/edit/",
+        {
+            "asset_tag": asset.asset_tag,
+            "category": desk.pk,
+            "site": asset.site_id,
+            "status": asset.status,
+            "condition": asset.condition,
+            "spec__ram_capacity_gb": "16",  # stale total: the slots win
+            "spec__slot_1_gb": "2",
+            "spec__slot_2_gb": "4",
+        },
+    )
+    assert r.status_code == 302, r.context["form"].errors
+    asset.refresh_from_db()
+    assert asset.attrs["ram_capacity_gb"] == 6.0
+    assert asset.ram_layout == "2 GB + 4 GB = 6 GB · 2 slots"
+    detail = client.get(f"/assets/{asset.pk}/").content.decode()
+    assert "2 GB + 4 GB = 6 GB · 2 slots" in detail
+
+
 def test_category_change_onto_a_taken_number_continues_the_target_sequence(
     client, django_user_model, group_setup, asset_factory
 ):

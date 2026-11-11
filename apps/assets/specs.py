@@ -84,7 +84,34 @@ def _desktop_fields():
             "cpu_model", "CPU Model", "string", help="e.g. Intel Core i5-14500", level="recommended"
         ),
         _f("cpu_cores", "CPU Cores", "integer", min=1),
-        _f("ram_capacity_gb", "RAM Capacity", "decimal", unit="GB", min=0.25, level="recommended"),
+        _f(
+            "ram_capacity_gb",
+            "RAM Capacity",
+            "decimal",
+            unit="GB",
+            min=0.25,
+            level="recommended",
+            help="Total — summed from the slot capacities when you fill them in",
+        ),
+        # Two slots are the common desktop layout and need not hold equal
+        # sticks: 2 GB + 4 GB = 6 GB. Recording each slot keeps the total
+        # honest and lets the detail page show the real module layout.
+        _f(
+            "slot_1_gb",
+            "RAM Slot 1 Capacity",
+            "integer",
+            unit="GB",
+            min=1,
+            help="Leave blank when the slot is empty",
+        ),
+        _f(
+            "slot_2_gb",
+            "RAM Slot 2 Capacity",
+            "integer",
+            unit="GB",
+            min=1,
+            help="Leave blank when the slot is empty",
+        ),
         _f("ram_type", "RAM Type", "choice", choices=["DDR3", "DDR4", "DDR5", "Other"]),
         _f("ram_speed_mhz", "RAM Speed", "integer", unit="MHz", min=1),
         _f("motherboard_model", "Motherboard Model", "string"),
@@ -1058,6 +1085,27 @@ def _is_empty(value) -> bool:
     return value is None or value == "" or value == [] or value == ()
 
 
+RAM_SLOT_KEYS = ("slot_1_gb", "slot_2_gb")
+
+
+def _derive_ram_total(cleaned: dict, fields: dict) -> dict:
+    """A PC's RAM total is the sum of its recorded slot capacities.
+
+    When at least one slot is filled, the total is derived rather than
+    trusted: 2 GB + 4 GB always reads 6 GB, and a stale hand-entered total
+    (16 GB from before the sticks were recorded) cannot contradict the
+    physical layout. Categories without a ``ram_capacity_gb`` field — and
+    rows with no slot values — keep whatever total was entered.
+    """
+    if "ram_capacity_gb" not in fields:
+        return cleaned
+    slots = [cleaned[key] for key in RAM_SLOT_KEYS if key in cleaned]
+    if not slots:
+        return cleaned
+    cleaned["ram_capacity_gb"] = float(sum(slots))
+    return cleaned
+
+
 def _coerce(fdef: dict, value, options: list[str] | None = None):
     """Coerce one submitted value to its canonical JSON-native type.
 
@@ -1204,7 +1252,7 @@ def validate_specs(category, raw: dict | None) -> dict:
 
     if errors:
         raise ValidationError(errors)
-    return cleaned
+    return _derive_ram_total(cleaned, fields)
 
 
 def merge_preserved(old_attrs: dict | None, cleaned: dict, category) -> dict:

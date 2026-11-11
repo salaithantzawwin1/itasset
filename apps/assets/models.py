@@ -304,13 +304,22 @@ class Asset(models.Model):
         record ``module_count`` / ``module_capacity_gb`` for an equal pair, or
         the per-slot ``slot_1_gb`` / ``slot_2_gb`` values when the two slots
         hold differently sized modules (a 12 GB machine as 4 GB + 8 GB). Slot
-        values win over the equal-pair fields. Returns "" for every other
-        category or when no capacity is recorded.
+        values win over the equal-pair fields. PC categories (Desktop,
+        Workstation, All-in-One) record their slots the same way, so a machine
+        with a 2 GB + 4 GB pair reads ``2 GB + 4 GB = 6 GB · 2 slots`` too.
+        Returns "" for other categories without slot data, or when no capacity
+        is recorded.
         """
-        if getattr(self.category, "code", "") != "IT-HW-RAM":
-            return ""
+        code = getattr(self.category, "code", "")
         attrs = self.attrs or {}
-        total = attrs.get("capacity_gb")
+        has_layout = any(
+            attrs.get(key) not in (None, "")
+            for key in ("slot_1_gb", "slot_2_gb", "module_count", "module_capacity_gb")
+        )
+        if code != "IT-HW-RAM" and not has_layout:
+            return ""
+        # RAM modules keep their total under capacity_gb; PCs under ram_capacity_gb.
+        total = attrs.get("capacity_gb" if code == "IT-HW-RAM" else "ram_capacity_gb")
         count = attrs.get("module_count")
         per = attrs.get("module_capacity_gb")
         raw_slots = [attrs.get("slot_1_gb"), attrs.get("slot_2_gb")]

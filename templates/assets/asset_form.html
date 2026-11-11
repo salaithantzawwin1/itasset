@@ -171,4 +171,34 @@
 })();
 </script>
 {% include "partials/spec_swap.html" %}
+<script>
+/* PC RAM total follows the sticks: typing slot capacities fills the total so
+   the form shows 2 GB + 4 GB as 6 GB before saving (validate_specs enforces
+   the same sum server-side). Delegated, so it survives a category swap. */
+(function () {
+  var cfg = document.getElementById("spec-swap-config");
+  var form = cfg && cfg.closest("form");
+  if (!form) return;
+  function sumSlots() {
+    var slots = [
+      form.querySelector('[name="spec__slot_1_gb"]'),
+      form.querySelector('[name="spec__slot_2_gb"]')
+    ];
+    var out = form.querySelector('[name="spec__ram_capacity_gb"]');
+    if (!out) return;
+    var values = [];
+    slots.forEach(function (el) {
+      if (!el) return;
+      var n = parseFloat(el.value);
+      if (!isNaN(n) && n > 0) values.push(n);
+    });
+    if (!values.length) { out.value = ""; return; }
+    out.value = values.reduce(function (a, b) { return a + b; }, 0);
+  }
+  form.addEventListener("input", function (e) {
+    var name = (e.target && e.target.name) || "";
+    if (name.indexOf("spec__slot_") === 0) sumSlots();
+  });
+})();
+</script>
 {% endblock %}

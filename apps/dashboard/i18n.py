@@ -96,13 +96,15 @@ STRINGS = {
     "prog.rejected": {"en": "Rejected at approval", "my": "အတည်ပြုပွင့်တွင် ငြင်းပယ်ခဲ့သည်"},
     "prog.cancelled": {"en": "Cancelled", "my": "ပယ်ဖျက်ခဲ့သည်"},
     # dashboard
-    "dash.title": {"en": "Dashboard", "my": "ဒသ််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််််"},
+    "dash.title": {"en": "Dashboard", "my": "ဒက်ရှ်ဘုတ်"},
     "dash.total_assets": {"en": "Total assets", "my": "ပိုင်ဆိုင်မှု စုစုပေါင်း"},
     "dash.by_status": {"en": "By status", "my": "အခြေအနေအလိုက်"},
     "dash.by_condition": {"en": "By condition", "my": "အရည်အသွေးအလိုက်"},
     "dash.by_site": {"en": "By site", "my": "စခန်းအလိုက်"},
     "dash.recent": {"en": "Recently added", "my": "လတ်တလော ထည့်သွင်းခြင်း"},
     "dash.view_all": {"en": "View all", "my": "အားလုံး ကြည့်မည်"},
+    "dash.overview": {"en": "Workspace overview", "my": "အလုပ်စားပွဲ ခြုံငုံသုံးသပ်ချက်"},
+    "dash.accent": {"en": "Accent colour", "my": "အရောင် ရွေးချယ်ရန်"},
     # dashboard — mockup KPIs / chart / alerts (docs/itasset-docs/index.html)
     "dash.kpi.alerts": {"en": "Critical alerts", "my": "အရေးကြီး နိုးဆွဲချက်များ"},
     "dash.kpi.attention": {"en": "⚠ Needs attention", "my": "⚠ အာရုံစိုက်ရန် လိုအပ်သည်"},

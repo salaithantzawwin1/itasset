@@ -85,9 +85,34 @@
     /* one card per row: labels + meta text need the width to stay readable */
     .kpi-row { grid-template-columns: 1fr; gap: 12px; }
     .dash-hero { padding: 14px 16px; }
-    .dash-hero h1 { font-size: 17px; }
+    .dash-hero h1 { font-size: 19px; }
     .bar-row .bl { width: 96px; }
   }
+
+  /* ---------- polish pass: actionable KPIs, one section-header language ---- */
+  /* a KPI is a way into the number it shows, so it is a link — same card,
+     keyboard ring, and a chevron that only appears on hover/focus */
+  a.kpi { display: block; text-decoration: none; color: inherit; }
+  a.kpi:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+  a.kpi .kpi-label::after {
+    content: "\2192"; float: right; opacity: 0; transform: translateX(-3px);
+    transition: opacity .15s ease, transform .15s ease; color: var(--muted);
+  }
+  a.kpi:hover .kpi-label::after, a.kpi:focus-visible .kpi-label::after {
+    opacity: 1; transform: translateX(0);
+  }
+  /* section headings: a consistent accent rule instead of mixed emoji */
+  .dash-card > h2 { display: flex; align-items: center; gap: 9px; }
+  .dash-card > h2::before {
+    content: ""; flex: 0 0 4px; width: 4px; height: 15px; border-radius: 2px;
+    background: var(--primary);
+  }
+  .dash-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  .dash-card-head h2 { margin: 0; }
+  .dash-card-head h2::before { content: none; }
+  .dash-more { font-size: 12.5px; font-weight: 600; color: var(--primary); text-decoration: none; white-space: nowrap; }
+  .dash-more:hover { text-decoration: underline; }
+  #alerts { scroll-margin-top: calc(var(--topbar-h, 58px) + 16px); }
 
   /* Breakdown blocks: one skin for every list on the dashboard — the RAM
      card's type/speed panels and the status/condition cards. Tinted and
@@ -155,14 +180,14 @@
 {% block content %}
 <div class="dash-hero">
   <div>
-    <span class="hero-eyebrow">Workspace overview · {% now "j F Y" %}</span>
+    <span class="hero-eyebrow">{% t "dash.overview" %} · {% now "j F Y" %}</span>
     <h1>{% t "dash.title" %}</h1>
     <div class="sub">{% t "app.subtitle" %}</div>
   </div>
   <div class="hero-actions">
     <a class="btn hero-cta" href="{% url 'asset-create' %}" data-modal>+ {% t "asset.new" %}</a>
   <div class="accent-wrap">
-    <button class="hero-btn" id="accent-btn" title="Accent color" aria-label="Accent color">🎨</button>
+    <button class="hero-btn" id="accent-btn" title="{% t "dash.accent" %}" aria-label="{% t "dash.accent" %}">🎨</button>
     <div id="accent-menu" class="accent-menu" hidden>
       <button class="accent-swatch" data-accent-set="blue"   aria-label="blue"   style="background:linear-gradient(135deg,#1e3a8a,#3b82f6)"></button>
       <button class="accent-swatch" data-accent-set="green"  aria-label="green"  style="background:linear-gradient(135deg,#064e3b,#10b981)"></button>
@@ -177,17 +202,17 @@
 
 <div class="kpi-row">
   {% for k in kpis %}
-  <div class="kpi {{ k.tone }}">
+  <a class="kpi {{ k.tone }}" href="{{ k.href }}">
     <div class="kpi-label">{% t k.label_key %}</div>
     <div class="kpi-value">{{ k.value }}</div>
     <div class="kpi-meta">{% t k.meta_key n=k.meta_n %}</div>
-  </div>
+  </a>
   {% endfor %}
 </div>
 
 <div class="dash-grid2">
-  <div class="card">
-    <h2>📊 {% t "dash.categories" %}</h2>
+  <div class="card dash-card">
+    <h2>{% t "dash.categories" %}</h2>
     {% if by_category %}
     <div class="cat-chart">
       {% for c in by_category %}
@@ -200,8 +225,8 @@
     </div>
     {% else %}<p class="muted">{% t "common.empty" %}</p>{% endif %}
   </div>
-  <div class="card">
-    <h2>🔔 {% t "dash.alerts" %}</h2>
+  <div class="card dash-card" id="alerts">
+    <h2>{% t "dash.alerts" %}</h2>
     {% if alerts %}
     <ul class="alerts">
       {% for a in alerts %}
@@ -216,8 +241,11 @@
 </div>
 
 <div class="dash-grid2">
-  <div class="card">
-    <h2>📋 {% t "dash.recent" %}</h2>
+  <div class="card dash-card">
+    <div class="dash-card-head">
+      <h2>{% t "dash.recent" %}</h2>
+      <a class="dash-more" href="{% url 'asset-list' %}">{% t "dash.view_all" %} →</a>
+    </div>
     <table class="data">
       <thead><tr><th>{% t "asset.tag" %}</th><th>{% t "asset.category" %}</th><th>{% t "asset.site" %}</th><th>{% t "asset.status" %}</th></tr></thead>
       <tbody>
@@ -225,7 +253,7 @@
         <tr>
           <td><a href="{% url 'asset-detail' a.pk %}">{{ a.asset_tag }}</a></td>
           <td>{{ a.category.code }}</td>
-          <td>{{ a.site.code }}</td>
+          <td>{{ a.site.name|default:a.site.code }}</td>
           <td><span class="pill pill-{{ a.status }}">{{ a.get_status_display }}</span></td>
         </tr>
       {% empty %}
@@ -271,8 +299,8 @@
   </div>
 </div>
 
-<div class="card">
-  <h2>💾 {% t "dash.ram" %}</h2>
+<div class="card dash-card">
+  <h2>{% t "dash.ram" %}</h2>
   {% if ram_matrix.rows %}
   <div class="ram-matrix-wrap">
     <table class="ram-matrix">
@@ -313,8 +341,8 @@
   {% else %}<p class="muted">{% t "dash.ram.none" %}</p>{% endif %}
 </div>
 
-<div class="card">
-  <h2>🧠 {% t "dash.cpu" %}</h2>
+<div class="card dash-card">
+  <h2>{% t "dash.cpu" %}</h2>
   {% if cpu_matrix.rows %}
   <div class="ram-matrix-wrap">
     <table class="ram-matrix">

@@ -408,6 +408,9 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         ctx["alerts"] = alerts
 
         # -1 = no count to interpolate; the `t` tag ignores unused params
+        # Every KPI is a way in, not a dead end: each tile links to the list
+        # that answers its number (alerts scroll to the alerts card, warranty
+        # opens the 30-day filter, counts open the asset register).
         kpis = [
             {
                 "tone": "critical",
@@ -415,6 +418,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 "value": len(alerts),
                 "meta_key": "dash.kpi.attention",
                 "meta_n": -1,
+                "href": "#alerts",
             },
             {
                 "tone": "warning",
@@ -422,6 +426,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 "value": warranty_30,
                 "meta_key": "dash.kpi.within30",
                 "meta_n": -1,
+                "href": f"{asset_list}?warranty_days=30",
             },
             {
                 "tone": "success",
@@ -429,6 +434,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 "value": active,
                 "meta_key": "dash.kpi.assigned",
                 "meta_n": assigned,
+                "href": asset_list,
             },
             {
                 "tone": "",
@@ -436,6 +442,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 "value": ctx["total_assets"],
                 "meta_key": "dash.kpi.this_month",
                 "meta_n": new_this_month,
+                "href": asset_list,
             },
         ]
         # role-aware action board: approvers get their two action tiles first
@@ -447,6 +454,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                     "value": pending,
                     "meta_key": "dash.kpi.pending_meta",
                     "meta_n": -1,
+                    "href": links.get("alert.pending_approvals") or asset_list,
                 },
                 {
                     "tone": "critical" if overdue else "success",
@@ -454,6 +462,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                     "value": overdue,
                     "meta_key": "dash.kpi.overdue_meta",
                     "meta_n": -1,
+                    "href": reverse("loan-overdue"),
                 },
             ]
         ctx["kpis"] = kpis

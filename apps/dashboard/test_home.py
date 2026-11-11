@@ -324,6 +324,15 @@ class DashboardKpiAlertTests(TestCase):
         self.assertEqual(kpis["dash.kpi.active"]["value"], 3)  # none retired/disposed
         self.assertEqual(kpis["dash.kpi.warranty"]["value"], 2)  # 3-day + 10-day
         self.assertEqual(kpis["dash.kpi.alerts"]["value"], 1)  # only the 7-day alert
+        # each KPI is actionable: alerts scroll to the card, warranty opens the
+        # 30-day filtered register, counts open the register itself
+        self.assertEqual(kpis["dash.kpi.alerts"]["href"], "#alerts")
+        self.assertEqual(
+            kpis["dash.kpi.warranty"]["href"], reverse("asset-list") + "?warranty_days=30"
+        )
+        self.assertEqual(kpis["dash.total_assets"]["href"], reverse("asset-list"))
+        self.assertContains(resp, 'class="kpi critical" href="#alerts"')
+        self.assertContains(resp, 'class="card dash-card"', count=5)
         alerts = resp.context["alerts"]
         self.assertEqual(len(alerts), 1)
         self.assertEqual(alerts[0]["key"], "alert.warranty_soon")

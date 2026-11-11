@@ -186,6 +186,30 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-11-11 (session 64 — dashboard UI/UX polish + deep detail check)
+- **Dead-end KPIs fixed**: every tile is now a link to the list/card that
+  answers it — alerts → `#alerts`, warranty → `?warranty_days=30`, active and
+  total → the register, pending → the filtered admin changelist, overdue →
+  `/loans/overdue/`. Hover/focus adds a chevron and a keyboard ring.
+- **Deep detail found and fixed**: `dash.title`'s Burmese value was a corrupted
+  literal (repeated combining marks, shadowed by a later duplicate override);
+  the string is corrected to “ဒက်ရှ်ဘုတ်”. The hero eyebrow and accent picker
+  were hard-coded English — both are now EN/MM keys (`dash.overview`,
+  `dash.accent`).
+- **One section-header language**: the mixed emoji headings (📊 🔔 📋 💾 🧠)
+  are gone; every dashboard card uses the same accent rule, and the recently
+  added card gained a “View all” action plus the site **name** instead of its
+  code. Phones get a slightly larger hero title (19px).
+- Checks: ruff clean, `makemigrations --check` clean; **63 passed** (dashboard
+  + scope tests). Live at 390px: no horizontal overflow, KPIs stack to one
+  column, RAM/CPU matrices swap to the combo list, six KPI links present at
+  both widths.
+- Commit `b14bb0f` — pushed `bd2dbdc..b14bb0f`; deployed to 192.168.100.142
+  (LF archive, md5-identical; no migrations; server suite **609 passed + 108
+  subtests**, 185.1 s, exit 0; gunicorn active, `/healthz` ok); live dashboard
+  carries 6 KPI links, 5 `card dash-card` sections, `#alerts`, “View all” and
+  the translated eyebrow; probe **29 ok / 0 failed**.
+
 ### 2026-11-11 (session 63 — admin layout redesign v4 + modal audit)
 - **Command rail**: the admin sidebar gained an IA mark/brand header, a live
   model filter (progressive: hidden without JS) with a no-match note, and a

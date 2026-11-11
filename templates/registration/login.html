@@ -16,17 +16,17 @@
   <title>{% t "login.signin" %} — {% if branding %}{{ branding.company_name }}{% else %}{% t "app.name" %}{% endif %}</title>
   <style>
     :root {
-      --primary: #0f4c81; --primary-dark: #0a355c; --primary-light: #e8f1fa;
-      --accent: #2a9d8f; --danger: #c0392b;
-      --text: #1f2d3d; --muted: #6b7a8d;
-      --surface: #ffffff; --border: #e3e8ee; --field: #f8fafc;
-      --shadow: 0 18px 50px rgba(4, 24, 44, .28);
+      --primary: #1d4ed8; --primary-dark: #0a1a33; --primary-light: #eef4ff;
+      --accent: #0e9f9a; --danger: #dc4c3f;
+      --text: #0f1b2d; --muted: #66758c;
+      --surface: #ffffff; --border: #e3e9f3; --field: #f7f9fd;
+      --shadow: 0 28px 70px rgba(4, 20, 44, .24);
     }
     [data-theme="dark"] {
-      --primary: #4a90c8; --primary-dark: #071f33; --primary-light: #16324a;
-      --accent: #35b8a8; --danger: #e07060;
-      --text: #e2e8f0; --muted: #8fa0b3;
-      --surface: #1a222b; --border: #2a3441; --field: #10161d;
+      --primary: #6fa8ff; --primary-dark: #071322; --primary-light: #16243a;
+      --accent: #2dd4bf; --danger: #f28b82;
+      --text: #e6edf7; --muted: #93a4ba;
+      --surface: #141d2b; --border: #263244; --field: #0f1825;
       --shadow: 0 18px 50px rgba(0, 0, 0, .6);
     }
     * { box-sizing: border-box; }
@@ -51,7 +51,12 @@
     .pane {
       position: relative; padding: 40px 38px 32px; color: #fff;
       display: flex; flex-direction: column; gap: 28px;
-      background: linear-gradient(160deg, var(--primary-dark) 0%, var(--primary) 62%, color-mix(in srgb, var(--primary) 70%, var(--accent)) 100%);
+      background:
+        linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px),
+        radial-gradient(600px 300px at 90% -10%, rgba(20,184,166,.5), transparent 60%),
+        linear-gradient(150deg, #071322 0%, #103568 62%, #0f5f63 100%);
+      background-size: 32px 32px, 32px 32px, auto, auto;
     }
     .pane::after {
       content: ""; position: absolute; inset: auto -80px -120px auto; width: 320px; height: 320px;
@@ -110,8 +115,8 @@
     }
     .field { margin-bottom: 15px; }
     .field label {
-      display: block; margin-bottom: 6px; font-size: 12px; font-weight: 700;
-      text-transform: uppercase; letter-spacing: .5px; color: var(--muted);
+      display: block; margin-bottom: 6px; font-size: 12.5px; font-weight: 700;
+      letter-spacing: 0; color: var(--text);
     }
     .input-wrap { position: relative; }
     .field input {

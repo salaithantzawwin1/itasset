@@ -2,6 +2,7 @@
 {# Shared topbar — ONE definition for every surface (app pages, the admin, admin login): same brand target, same items, same active rules, same controls. That is what stops the nav from "changing style" when you cross into the admin. Active state: inside the admin namespace only Admin highlights; elsewhere the section matching the resolved url_name does. Django hash-comments must stay on a single line — never nest one inside another. #}
 {% with rm=request.resolver_match %}
 <header class="topbar">
+  <button class="nav-burger" id="nav-burger" type="button" aria-controls="app-sidebar" aria-expanded="false" aria-label="Menu"><span></span><span></span><span></span></button>
   <a class="brand" href="{% url 'home' %}"><span class="logo">{% if branding and branding.logo %}<img src="{% url 'branding-logo' %}?v={{ branding.updated_at|date:'U' }}" alt="" />{% else %}IT{% endif %}</span> <span class="bname">{% if branding %}{{ branding.company_name }}{% else %}{% t "app.name" %}{% endif %}</span></a>
   <nav class="topnav">
     <a href="{% url 'home' %}" {% if rm.namespace != 'admin' and rm.url_name == 'home' %}class="active"{% endif %}>{% t "nav.dashboard" %}</a>
@@ -12,6 +13,11 @@
     {% if user.is_authenticated %}<a href="{% url 'self-view' %}" {% if rm.url_name == 'self-view' %}class="active"{% endif %}>{% t "nav.me" %}</a>{% endif %}
     {% if user.is_staff %}<a href="/admin/" {% if rm.namespace == 'admin' %}class="active"{% endif %}>{% t "nav.admin" %}</a>{% endif %}
   </nav>
+  <form class="quick-search" method="get" action="{% url 'asset-list' %}" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+    <input type="search" name="q" placeholder="{% t 'ui.search_assets' %}" aria-label="{% t 'ui.search_assets' %}" autocomplete="off">
+    <kbd>/</kbd>
+  </form>
   <span class="spacer"></span>
   <div class="userbox">
     <form method="post" action="{% url 'set-lang' %}">
@@ -25,7 +31,7 @@
     <button class="toggle-theme" id="btn-theme" title="Light / Dark / System">◐</button>
     {% if user.is_authenticated %}
       <a class="uname" href="{% url 'password_change' %}" title="{% t 'password.title' %}">{{ user.username }}</a>
-      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn-ghost" type="submit">{% t "nav.logout" %}</button></form>
+      <form class="topbar-logout" method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn-ghost" type="submit">{% t "nav.logout" %}</button></form>
     {% else %}
       <a class="btn-ghost" style="text-decoration:none;display:inline-block;" href="{% url 'login' %}">{% t "nav.login" %}</a>
     {% endif %}

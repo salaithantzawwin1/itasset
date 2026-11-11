@@ -4,6 +4,7 @@
 {% block content %}
 <div class="page-head">
   <div>
+    <span class="eyebrow">{% t "asset.components" %}</span>
     <h1>{% t "attach.title" %} <span class="muted" style="font-weight:400;">— {{ parent.asset_tag }}</span></h1>
     <div class="sub">{% t "attach.sub" %} ({{ parent.site.name }}){% if parent_holder %} · {% t "attach.holder_sync" name=parent_holder.holder_label %}{% endif %}</div>
   </div>
@@ -20,14 +21,22 @@
   </select>
   <span class="muted">{% t "attach.hint" n=candidates|length %}</span>
 </form>
-<form method="post">
+{% if other_site_count %}
+<div class="notice notice-warn">
+  <strong>{{ other_site_count }} component{{ other_site_count|pluralize }} at another site.</strong>
+  Tick one of those rows and confirm the move below — attaching will re-home it to {{ parent.site.name }}.
+</div>
+{% endif %}
+<form method="post" id="attach-form">
   {% csrf_token %}
+  <div class="table-wrap">
   <table class="data">
     <thead>
       <tr>
         <th style="width:36px;"></th>
         <th>{% t "asset.tag" %}</th>
         <th>{% t "asset.category" %}</th>
+        <th>{% t "asset.site" %}</th>
         <th>{% t "asset.model" %}</th>
         <th>{% t "asset.serial" %}</th>
         <th>{% t "asset.status" %}</th>
@@ -35,24 +44,49 @@
     </thead>
     <tbody>
     {% for c in candidates %}
-      <tr>
-        <td><input type="checkbox" name="assets" value="{{ c.pk }}" style="width:auto;padding:0;"></td>
-        <td><a href="{% url 'asset-detail' c.pk %}">{{ c.asset_tag }}</a></td>
+      <tr{% if c.site_id != parent.site_id %} class="row-cross-site"{% endif %}>
+        <td><input type="checkbox" name="assets" value="{{ c.pk }}" style="width:auto;padding:0;"{% if c.site_id != parent.site_id %} data-cross-site="1"{% endif %}></td>
+        <td><a href="{% url 'asset-detail' c.pk %}">{{ c.asset_tag }}</a>{% if c.ram_layout %}<div class="cell-note">{{ c.ram_layout }}</div>{% endif %}</td>
         <td>{{ c.category.code }}</td>
+        <td>{% if c.site_id == parent.site_id %}{{ c.site.name }}{% else %}<span class="pill pill-move">{{ c.site.name }} → {{ parent.site.name }}</span>{% endif %}</td>
         <td>{{ c.model_name|default:"—" }}</td>
         <td>{{ c.serial_no|default:"—" }}</td>
         <td><span class="pill pill-{{ c.status }}">{{ c.get_status_display }}</span></td>
       </tr>
     {% empty %}
-      <tr class="empty-row"><td colspan="6">{% t "attach.empty" %}</td></tr>
+      <tr class="empty-row"><td colspan="7">{% t "attach.empty" %}</td></tr>
     {% endfor %}
     </tbody>
   </table>
+  </div>
   {% if candidates %}
-  <div class="ftab-actions" style="display:flex;gap:10px;margin-top:18px;">
+  {% if other_site_count %}
+  <label class="check-card" for="confirm_move">
+    <input type="checkbox" name="confirm_move" value="1" id="confirm_move">
+    <span><strong>Move selected components from another site</strong><br>
+      <span class="muted">Their site becomes {{ parent.site.name }}. Existing assignment history is kept.</span></span>
+  </label>
+  {% endif %}
+  <div class="ftab-actions" style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;">
     <button class="btn" type="submit">{% t "attach.selected" %}</button>
     <a class="btn secondary" href="{% url 'asset-detail' parent.pk %}">{% t "asset.cancel" %}</a>
   </div>
   {% endif %}
 </form>
+<script>
+(function () {
+  var form = document.getElementById("attach-form");
+  if (!form) return;
+  form.addEventListener("submit", function (e) {
+    var cross = form.querySelectorAll('input[data-cross-site]:checked');
+    var confirm = form.querySelector('input[name="confirm_move"]');
+    if (cross.length && confirm && !confirm.checked) {
+      e.preventDefault();
+      confirm.closest(".check-card").classList.add("needs-attention");
+      confirm.focus();
+      confirm.closest(".check-card").scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  });
+})();
+</script>
 {% endblock %}

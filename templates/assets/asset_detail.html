@@ -4,12 +4,27 @@
 {% block content %}
 <div class="page-head">
   <div>
+    <span class="eyebrow">{% t "ui.asset_record" %}</span>
     <h1>{{ object.asset_tag }} &nbsp;<span class="pill pill-{{ object.status }}">{{ object.get_status_display }}</span></h1>
     <div class="sub">{{ object.category }}</div>
   </div>
   <div class="actions">
     <a class="btn secondary" href="{% url 'asset-update' object.pk %}">{% t "asset.edit" %}</a>
     <a class="btn danger" href="{% url 'asset-delete' object.pk %}">{% t "asset.delete" %}</a>
+  </div>
+</div>
+
+<div class="asset-summary">
+  <span class="asset-icon">{{ object.category.code|slice:"6:" }}</span>
+  <div class="asset-main">
+    <strong>{{ object.manufacturer|default:"" }} {{ object.model_name|default:object.category.name }}</strong>
+    <small>{{ object.category.code }} · {{ object.category.name }}</small>
+  </div>
+  <div class="summary-chips">
+    <span class="summary-chip">Site <strong>{{ object.site.name }}</strong></span>
+    <span class="summary-chip">Condition <strong>{{ object.get_condition_display }}</strong></span>
+    <span class="summary-chip">Holder <strong>{% if current_holder %}{{ current_holder.name }}{% elif current_dept %}{{ current_dept.name }}{% else %}Unassigned{% endif %}</strong></span>
+    {% if object.parent_asset_id %}<span class="summary-chip">Installed in <strong>{{ object.parent_asset.asset_tag }}</strong></span>{% endif %}
   </div>
 </div>
 
@@ -34,6 +49,9 @@
 {% if spec_rows %}
 <div class="card">
   <h2>{% t "spec.title" %}</h2>
+  {% if object.ram_layout %}
+  <div class="ram-layout"><span class="ram-layout-icon">▦</span><div><span class="eyebrow">{% t "ui.memory_layout" %}</span><strong>{{ object.ram_layout }}</strong></div></div>
+  {% endif %}
   <table class="data">
     <tbody>
     {% for label, value in spec_rows %}
@@ -59,7 +77,7 @@
     <tbody>
     {% for c in components %}
       <tr>
-        <td><a href="{% url 'asset-detail' c.pk %}">{{ c.asset_tag }}</a></td>
+        <td><a href="{% url 'asset-detail' c.pk %}">{{ c.asset_tag }}</a>{% if c.ram_layout %}<div class="cell-note">{{ c.ram_layout }}</div>{% endif %}</td>
         <td>{{ c.category.code }}</td>
         <td><span class="pill pill-{{ c.status }}">{{ c.get_status_display }}</span></td>
         <td>{% with h=c.active_assignments.0 %}{% if h %}{{ h.holder_label }}{% else %}<span class="muted">—</span>{% endif %}{% endwith %}</td>

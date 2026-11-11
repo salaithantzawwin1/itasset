@@ -186,6 +186,48 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-11-06 (session 60 — workspace redesign, modal audit, RAM layout)
+- **Workspace shell redesigned** (v3): a dark navigation rail (Dashboard,
+  Assets, My assets, People, Departments, Sites, Admin) with active-state
+  markers and an account footer; a light utility bar with global asset search
+  (`/` focuses it), language/theme controls and a compact mobile drawer.
+  Page hierarchy now uses eyebrows, a stronger title scale and a divider;
+  cards, tables, filters, buttons and flash messages share one token set.
+  Dashboard hero/KPIs, asset identity strip, login and the empty/self views
+  were restyled too. Responsive checks at 1440px and 390px (drawer included).
+- **Admin redesign v3**: the model tree became a dark rail matching the main
+  app, with refreshed palette, panel radii/shadows, changelist rows, object
+  tools, forms, login card and a wrapping mobile topbar (the fixed 64px bar
+  used to clip the second nav row below 1024px).
+- **Modal audit (each dialog exercised)**: asset/person/department/site
+  create and the admin asset add dialog. Fixed the width collapse to an 82px
+  sliver (the fitter was measuring the new sidebar's tiny logout form), the
+  duplicated admin save row that left a blank top band, and the dark-theme
+  header whose light-on-light title became invisible. The framed page now
+  hides the app rail/quick search; Escape inside the iframe closes (with the
+  shared discard confirmation); the first field receives focus; the discard
+  dialog traps Tab; mobile stays full-screen.
+- **Attach components** (`/assets/66/` production investigation): the RAM was
+  not missing from the code path — it sits at another site (`YGN_HQ` Head
+  Office) while the PC is at `yangon`. The picker now lists components from
+  every site in the caller's scope, shows the move (`Mandalay → Yangon`), and
+  requires an explicit “Move selected components from another site” tick; on
+  attach the component is re-homed to the PC's site and the move is recorded
+  in the audit event. The picker also stopped offering whole PCs/servers as
+  components: only installable component/peripheral categories are listed.
+- **RAM layout details**: added optional `module_count` (modules/slots used)
+  and `module_capacity_gb` schema fields (migration `0019`, additive and
+  custom-schema safe). `Asset.ram_layout` renders e.g. `2 × 4 GB = 8 GB ·
+  2 slots` on the RAM detail page and under the tag in a workstation's
+  Components table; a single 8 GB stick reads `1 × 8 GB = 8 GB · 1 slot`.
+  No existing production values were rewritten.
+- Tests: +2 in `apps/assets/tests/test_holder_flows.py` (confirmed cross-site
+  move + RAM layout/module slots), and the attach fixtures now use a real
+  attachable category. Full suite run recorded below; browser verification
+  covered dashboard (light/dark), asset list/detail, attach (cross-site
+  confirmation + successful re-home), admin list/dashboard, admin login and
+  mobile drawer/modal.
+
 ### 2026-11-06 (session 59 — attached components follow the workstation holder)
 - **Attach now syncs the component's holder/status to its parent's holder**
   (`services.sync_component_holder`): an in-stock RAM moves through

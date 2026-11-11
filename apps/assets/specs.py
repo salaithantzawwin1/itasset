@@ -760,6 +760,25 @@ CATALOGUE = {
             "version": 1,
             "fields": [
                 _f("capacity_gb", "Capacity", "integer", unit="GB", min=1, level="recommended"),
+                # A RAM record can represent one stick or the pair installed in
+                # a workstation. Track the layout explicitly so "8 GB" can
+                # read as "2 × 4 GB" (2 slots used) instead of implying one
+                # 8 GB module. Both are optional: older rows stay valid.
+                _f(
+                    "module_count",
+                    "Modules (slots used)",
+                    "integer",
+                    min=1,
+                    help="e.g. 2 for a 2 × 4 GB pair",
+                ),
+                _f(
+                    "module_capacity_gb",
+                    "Capacity per Module",
+                    "integer",
+                    unit="GB",
+                    min=1,
+                    help="e.g. 4 for a 2 × 4 GB pair",
+                ),
                 _f(
                     "memory_type",
                     "Memory Type",

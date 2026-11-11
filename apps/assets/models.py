@@ -295,6 +295,39 @@ class Asset(models.Model):
         )
         return active.holder_label if active else ""
 
+    @property
+    def ram_layout(self) -> str:
+        """Human-readable memory layout, e.g. ``2 × 4 GB = 8 GB (2 slots)``.
+
+        A RAM record may represent a single module or the pair installed in a
+        workstation. Older rows only carry ``capacity_gb``; new rows can also
+        record ``module_count`` and ``module_capacity_gb`` so an 8 GB kit is
+        not mistaken for one 8 GB stick. Returns "" for every other category
+        or when no capacity is recorded.
+        """
+        if getattr(self.category, "code", "") != "IT-HW-RAM":
+            return ""
+        attrs = self.attrs or {}
+        total = attrs.get("capacity_gb")
+        count = attrs.get("module_count")
+        per = attrs.get("module_capacity_gb")
+        try:
+            count = int(count) if count not in (None, "") else None
+            per = int(per) if per not in (None, "") else None
+            total = int(float(total)) if total not in (None, "") else None
+        except (TypeError, ValueError):
+            return ""
+        if count and per:
+            layout = f"{count} × {per} GB"
+            if total and count * per != total:
+                layout += f" (recorded total {total} GB)"
+            elif total:
+                layout += f" = {total} GB"
+            return f"{layout} · {count} slot{'s' if count != 1 else ''}"
+        if total:
+            return f"{total} GB"
+        return ""
+
 
 class Assignment(models.Model):
     """Current + historical assignment (check-out / check-in records).

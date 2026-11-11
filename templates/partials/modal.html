@@ -6,7 +6,7 @@
 <style>
 .nb-modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 22px; }
 .nb-modal[hidden] { display: none; }
-.nb-modal-bd { position: absolute; inset: 0; background: rgba(9, 18, 32, .55); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); animation: nb-fade .16s ease; }
+.nb-modal-bd { position: absolute; inset: 0; background: rgba(5, 13, 25, .62); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); animation: nb-fade .16s ease; }
 .nb-modal-card {
   position: relative; display: flex; flex-direction: column;
   width: min(920px, 100%);
@@ -17,12 +17,14 @@
   background: var(--surface, var(--body-bg, #fff));
   color: var(--text, var(--body-fg, #1f2d3d));
   border: 1px solid var(--border, var(--hairline-color, #e3e8ee));
-  border-radius: 16px; overflow: hidden;
-  box-shadow: 0 24px 70px rgba(8, 18, 33, .35);
+  border-radius: 18px; overflow: hidden;
+  box-shadow: 0 30px 90px rgba(4, 12, 24, .45);
   animation: nb-pop .18s cubic-bezier(.2, .9, .3, 1.15);
 }
-.nb-modal-head { display: flex; align-items: center; gap: 12px; padding: 13px 16px 13px 20px; border-bottom: 1px solid var(--border, var(--hairline-color, #e3e8ee)); flex: 0 0 auto; }
-.nb-modal-head h2 { flex: 1; min-width: 0; margin: 0; font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nb-modal-card::before { content: ""; position: absolute; inset: 0 0 auto; height: 3px; z-index: 3;
+  background: linear-gradient(90deg, var(--primary, #1d4ed8), var(--accent, #0e9f9a)); }
+.nb-modal-head { display: flex; align-items: center; gap: 12px; padding: 16px 16px 14px 22px; border-bottom: 1px solid var(--border, var(--hairline-color, #e3e9f3)); flex: 0 0 auto; background: color-mix(in srgb, var(--surface, var(--body-bg, #fff)) 92%, var(--primary, #1d4ed8)); }
+.nb-modal-head h2 { flex: 1; min-width: 0; margin: 0; font-size: 15.5px; font-weight: 750; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nb-modal-x {
   flex: 0 0 auto; width: 34px; height: 34px; border-radius: 9px;
   border: 1px solid var(--border, var(--hairline-color, #e3e8ee));
@@ -49,7 +51,7 @@ body.nb-modal-open { overflow: hidden; }
    "<origin> says" in the browser chrome. */
 .nb-modal-confirm { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(9, 18, 32, .45); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); animation: nb-fade .14s ease; }
 .nb-modal-confirm[hidden] { display: none; }
-.nb-modal-confirm-card { background: var(--surface, var(--body-bg, #fff)); color: var(--text, var(--body-fg, #1f2d3d)); border: 1px solid var(--border, var(--hairline-color, #e3e8ee)); border-radius: 14px; padding: 20px 22px; width: min(420px, 100%); box-shadow: 0 18px 50px rgba(8, 18, 33, .35); animation: nb-pop .16s cubic-bezier(.2, .9, .3, 1.15); }
+.nb-modal-confirm-card { background: var(--surface, var(--body-bg, #fff)); color: var(--text, var(--body-fg, #1f2d3d)); border: 1px solid var(--border, var(--hairline-color, #e3e9f3)); border-radius: 16px; padding: 22px 24px; width: min(430px, 100%); box-shadow: 0 24px 60px rgba(4, 12, 24, .38); animation: nb-pop .16s cubic-bezier(.2, .9, .3, 1.15); }
 .nb-modal-confirm-card p { margin: 0 0 16px; font-size: 15px; font-weight: 600; line-height: 1.45; }
 .nb-modal-confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
 .nb-modal-confirm-actions button { padding: 9px 16px; border-radius: 9px; font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; border: 1px solid var(--border, var(--hairline-color, #e3e8ee)); transition: all .15s ease; }
@@ -139,6 +141,7 @@ body.nb-modal-open { overflow: hidden; }
     titleEl.textContent = label || "";
     frame.title = label || "";
     modal.hidden = false;
+    modal.setAttribute("aria-busy", "true");
     var b0 = modal.querySelector(".nb-modal-body");
     if (b0) b0.style.height = "";  // back to the default while the frame loads
     var c0 = modal.querySelector(".nb-modal-card");
@@ -154,6 +157,7 @@ body.nb-modal-open { overflow: hidden; }
   function close(reload) {
     if (modal.hidden) return;
     modal.hidden = true;
+    modal.removeAttribute("aria-busy");
     if (confirmBox) confirmBox.hidden = true;
     startPath = null;
     document.body.classList.remove("nb-modal-open");
@@ -192,10 +196,13 @@ body.nb-modal-open { overflow: hidden; }
     if (!card) return;
     /* first form with a real box — the framed page's chrome (the topbar's
        set-lang/logout forms) renders hidden at width 0 under the skin */
-    var forms = doc.querySelectorAll("form"), form = null, r = null, i, b;
+    /* Only the page's content form — the topbar's language/logout forms and
+       the new sidebar's logout form have tiny boxes and used to make the
+       dialog collapse to an 82px sliver. */
+    var forms = doc.querySelectorAll(".page form, #content form, form.frm"), form = null, r = null, i, b;
     for (i = 0; i < forms.length; i++) {
       b = forms[i].getBoundingClientRect();
-      if (b.width > 0) { form = forms[i]; r = b; break; }
+      if (b.width >= 240) { form = forms[i]; r = b; break; }
     }
     if (!r) { card.style.width = ""; frame._nbWidthCap = 0; return; }
     if (!frame._nbWidthCap) {
@@ -207,7 +214,8 @@ body.nb-modal-open { overflow: hidden; }
     }
     var w = frame._nbWidthCap || r.width;
     var sb = Math.max(0, (win.innerWidth || 0) - doc.documentElement.clientWidth);
-    card.style.width = "min(" + Math.min(920, Math.ceil(w + sb) + 48) + "px, 100%)";
+    var target = Math.max(560, Math.min(920, Math.ceil(w + sb) + 48));
+    card.style.width = "min(" + target + "px, 100%)";
   }
 
   /* Content-sized dialog: fit() measures the framed page and sets the body's
@@ -247,6 +255,7 @@ body.nb-modal-open { overflow: hidden; }
     try { doc = frame.contentDocument; loc = frame.contentWindow.location; } catch (e) { return; }
     if (!doc || !loc || loc.href === "about:blank") return;
     loader.hidden = true;
+    modal.setAttribute("aria-busy", "false");
     if (startPath && loc.pathname !== startPath) {
       /* Saved (redirected) or cancelled away from the form. The iframe's
          render already consumed the flash message — transplant it so the
@@ -265,18 +274,40 @@ body.nb-modal-open { overflow: hidden; }
         var s = doc.createElement("style");
         s.id = "nb-modal-skin";
         s.textContent =
-          ".topbar,.anav,#nav-sidebar,#footer,.page-head,.breadcrumbs,.login-toprow{display:none!important}" +
+          ".topbar,.app-sidebar,.sidebar-scrim,.quick-search,.anav,#nav-sidebar,#footer,.page-head,.breadcrumbs,.login-toprow{display:none!important}" +
           "body{background:transparent!important}" +
+          ".app-shell{padding-left:0!important}" +
           "#content{max-width:none!important;margin:0!important;padding:12px 16px!important}" +
           ".page{margin:0!important;padding:12px 16px!important;max-width:none!important}" +
           ".card{border:0!important;box-shadow:none!important;padding:0!important;margin:0!important;background:transparent!important}" +
           ".messagelist,.messages{margin:0 0 12px!important}";
         (doc.head || doc.documentElement).appendChild(s);
       }
+      /* Admin change forms render the save row twice (top + bottom). Keep
+         the bottom one in the dialog; the duplicate used to leave a blank
+         53px band under the header. */
+      try {
+        var srows = doc.querySelectorAll(".submit-row");
+        if (srows.length > 1 && srows[0].style.display !== "none") srows[0].style.display = "none";
+      } catch (e) {}
       doc.addEventListener("input", function () { dirty = true; }, true);
       doc.addEventListener("change", function () { dirty = true; }, true);
+      // Escape inside the framed form must behave like Escape outside it;
+      // without this listener the key never reaches the parent document and
+      // the only way out was the small close button.
+      doc.addEventListener("keydown", function (e) {
+        if (e.key !== "Escape") return;
+        e.preventDefault();
+        requestClose();
+      });
       frame._nbWidthCap = 0;  // a fresh page: re-derive the form's cap
       fit(true);
+      // put the caret in the first real field, not on the close button —
+      // a create dialog should be ready to type in
+      try {
+        var first = doc.querySelector('input:not([type="hidden"]):not([type="checkbox"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
+        if (first) setTimeout(function () { try { first.focus(); } catch (e) {} }, 20);
+      } catch (e) {}
       if (window.ResizeObserver) {
         /* Tab switches and the live spec swap change the framed page's height
            without a reload — re-fit on every content resize. Height only:
@@ -307,6 +338,16 @@ body.nb-modal-open { overflow: hidden; }
       if (confirmBox && !confirmBox.hidden) { confirmBox.hidden = true; return; }  // ESC = cancel the confirm
       requestClose();
     }
+  });
+
+  if (confirmBox) confirmBox.addEventListener("keydown", function (e) {
+    // keep focus inside the discard alert while it is open
+    if (e.key !== "Tab") return;
+    var items = confirmBox.querySelectorAll("button");
+    if (!items.length) return;
+    var first = items[0], last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   });
 
   if (confirmBox) confirmBox.addEventListener("click", function (e) {

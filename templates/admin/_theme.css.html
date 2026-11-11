@@ -1324,4 +1324,79 @@ html[data-theme="dark"] .login .submit-row input[type="submit"]:hover {
   background: #2b74b3;
 }
 
+
+/* =========================================================================
+   Redesign v3 — aligned with the main workspace shell
+   Dark model rail, brighter canvas, tighter type hierarchy, softer panels.
+   ========================================================================= */
+html[data-theme="light"], :root {
+  --primary: #1d4ed8; --primary-dark: #0f2a63; --accent: #0e9f9a;
+  --accent-strong: #0b7f7b; --accent-strong-hover: #086a67;
+  --page-bg: #f5f7fb; --body-bg: #ffffff; --surface-2: #f4f7fc;
+  --hairline-color: #e3e9f3; --border-color: #dbe3ef; --input-border: #d5dfec;
+  --body-fg: #0f1b2d; --body-quiet-color: #66758c; --body-medium-color: #3f5168; --body-loud-color: #0b1728;
+  --radius: 10px; --radius-lg: 16px; --topbar-h: 64px;
+  --shadow: 0 1px 2px rgba(15,35,65,.04), 0 8px 24px rgba(15,35,65,.04);
+  --shadow-lift: 0 14px 34px rgba(15,35,65,.12);
+  --selected-bg: #eef4ff; --selected-row: #eaf1ff;
+}
+:root[data-theme="dark"], html[data-theme="dark"] {
+  --primary: #6fa8ff; --accent: #2dd4bf; --accent-strong: #14b8a6;
+  --accent-strong-hover: #2dd4bf; --page-bg: #0c121c; --body-bg: #141d2b;
+  --surface-2: #1a2536; --hairline-color: #263244; --border-color: #2e3c50;
+  --input-border: #37475d; --body-fg: #e6edf7; --body-quiet-color: #93a4ba;
+  --body-medium-color: #c2cfdf; --body-loud-color: #f4f8fd;
+  --selected-bg: #16243a; --selected-row: #1b2d49;
+}
+.topbar { background: linear-gradient(90deg, #0a1425, #123056); height: var(--topbar-h); padding: 0 24px; box-shadow: 0 1px 0 rgba(255,255,255,.06); }
+.brand { font-size: 15px; letter-spacing: -.01em; }
+.brand .logo { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, #2563eb, #14b8a6); }
+.topnav a { border-radius: 9px; font-size: 13.5px; }
+.topnav a.active { background: rgba(255,255,255,.16); box-shadow: inset 0 0 0 1px rgba(255,255,255,.10); }
+.nav-burger, .quick-search { display: none !important; }
+
+/* dark model rail */
+#container > .main#main { background: var(--page-bg); }
+.anav { flex-basis: 248px; width: 248px; background: linear-gradient(180deg, #0b1424, #101d32); border-right: 1px solid rgba(255,255,255,.07); padding: 18px 12px 22px; }
+.anav-title { color: #7186a1; font-size: 10px; letter-spacing: .14em; padding: 2px 10px 10px; }
+.anav-group > summary { color: #8fa3bd; font-size: 10.5px; padding: 8px 10px; }
+.anav-group > summary:hover { background: rgba(255,255,255,.06); color: #fff; }
+.anav-group.on > summary { color: #7dd3fc; }
+.anav-group ul { margin: 2px 0 7px; padding-left: 0; }
+.anav-group ul li a { color: #a9b8cc; padding: 8px 10px 8px 22px; border-radius: 8px; font-size: 13px; }
+.anav-group ul li a:hover { background: rgba(255,255,255,.06); color: #fff; }
+.anav-group ul li a.on { background: linear-gradient(90deg, rgba(37,99,235,.34), rgba(20,184,166,.08)); color: #fff; box-shadow: inset 3px 0 0 #38bdf8; }
+.anav-back { color: #8195ae; border-top-color: rgba(255,255,255,.08); margin: 16px 4px 0; padding: 12px 8px 0; }
+.anav-back:hover { color: #fff; }
+
+/* canvas + hierarchy */
+#content { padding: 30px 34px 56px; }
+.page-head { border-bottom: 1px solid var(--hairline-color); padding-bottom: 16px; margin-bottom: 22px; }
+#content h1 { font-size: 27px; letter-spacing: -.025em; }
+.page-eyebrow { color: var(--primary); letter-spacing: .12em; }
+fieldset.module, .module { border-radius: 16px; border-color: var(--hairline-color); box-shadow: var(--shadow); overflow: hidden; }
+fieldset.module > h2, fieldset.module .fieldset-heading { background: var(--surface-2); border-bottom: 1px solid var(--hairline-color); font-size: 12px; letter-spacing: .04em; }
+#result_list thead th { background: var(--surface-2); font-size: 10.5px; letter-spacing: .08em; }
+#result_list tbody td, #result_list tbody th { padding-top: 12px; padding-bottom: 12px; border-bottom-color: color-mix(in srgb, var(--hairline-color) 75%, transparent); }
+#result_list tbody tr:hover td, #result_list tbody tr:hover th { background: color-mix(in srgb, var(--primary) 3.5%, transparent); }
+.object-tools a { border-radius: 9px; font-weight: 650; box-shadow: 0 1px 2px rgba(15,35,65,.10); }
+input, select, textarea, .button, input[type="submit"], input[type="button"] { border-radius: 9px; }
+.submit-row { border-radius: 14px; border-color: var(--hairline-color); box-shadow: var(--shadow); }
+.paginator { border-radius: 12px; border-color: var(--hairline-color); }
+#changelist-filter { border-radius: 14px; }
+.login-card { border-radius: 20px; box-shadow: 0 24px 60px rgba(8,25,50,.18); }
+.login-card-head .brand-chip-lg { background: linear-gradient(135deg, #2563eb, #14b8a6); }
+@media (max-width: 1024px) {
+  .topbar { height: auto; min-height: var(--topbar-h); flex-wrap: wrap; padding: 8px 14px; row-gap: 6px; }
+  .topbar .spacer { display: none; }
+  .userbox { margin-left: auto; }
+  .topnav { flex-wrap: wrap; gap: 2px; }
+  .anav { flex-basis: 100%; width: 100%; position: static; height: auto; }
+  #content { padding: 22px 18px 40px; }
+}
+@media (max-width: 640px) {
+  .topbar { padding: 8px 10px; gap: 6px; }
+  .brand { font-size: 14px; }
+  .topnav a { padding: 6px 9px; font-size: 12.5px; }
+}
 </style>

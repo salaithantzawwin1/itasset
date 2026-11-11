@@ -5,9 +5,10 @@
 2. The orphan fix-up queue (/assets/repair/) lists ASSIGNED assets with no
    open row and repairs them through `services.check_out` (trail intact),
    technician-gated like the other writes.
-3. Bulk attach (/assets/<pk>/attach/) links same-site unparented components
-   to a workstation in one POST; a crafted cross-site/already-parented pk
-   is dropped by re-deriving candidates server-side; one ActivityLog event.
+3. Bulk attach (/assets/<pk>/attach/) links unparented components to a
+   workstation in one POST. Same-site rows attach directly; other-site rows
+   need the explicit move confirmation and are re-homed to the PC's site. A
+   crafted already-parented pk is dropped by re-deriving candidates.
 4. Asset list filters: by the holder's department (open assignment only)
    and "assigned to me" (linked Person; no link → empty list, not everyone).
 5. Filter-bar fine-tune (session 33): active controls tinted + selects
@@ -38,6 +39,17 @@ def tech_user(django_user_model):
         created_by=u,
     )
     return u
+
+
+@pytest.fixture
+def component_category(db):
+    """A real attachable category — the picker no longer offers whole PCs."""
+    from apps.assets.models import Category
+
+    c, _ = Category.objects.get_or_create(
+        code="IT-HW-RAM", defaults={"name": "RAM / Memory Module"}
+    )
+    return c
 
 
 @pytest.fixture
@@ -138,22 +150,25 @@ def test_orphan_queue_anonymous_redirects(client, asset_factory):
 # 3. bulk attach ---------------------------------------------------------------
 
 
-def test_bulk_attach_links_same_site_candidates(client, tech_user, asset_factory, site, category):
+def test_bulk_attach_links_same_site_candidates(
+    client, tech_user, asset_factory, site, component_category
+):
     from apps.people.models import Site
 
     desk = asset_factory(asset_tag="IT-DESK-2001")
-    c1 = asset_factory(asset_tag="IT-COMP-2001")  # same fixture site
-    c2 = asset_factory(asset_tag="IT-COMP-2002")
+    c1 = asset_factory(asset_tag="IT-COMP-2001", category=component_category)
+    c2 = asset_factory(asset_tag="IT-COMP-2002", category=component_category)
     other_site = Site.objects.create(code="mdy-test", name="MDY Test")
-    foreign = asset_factory(asset_tag="IT-COMP-2099", site=other_site)
-    already = asset_factory(asset_tag="IT-COMP-2003")
+    foreign = asset_factory(asset_tag="IT-COMP-2099", site=other_site, category=component_category)
+    already = asset_factory(asset_tag="IT-COMP-2003", category=component_category)
     already.parent_asset = desk
     already.save(update_fields=["parent_asset"])
 
     client.force_login(tech_user)
     body = client.get(f"/assets/{desk.pk}/attach/").content.decode()
     assert "IT-COMP-2001" in body and "IT-COMP-2002" in body
-    assert "IT-COMP-2099" not in body  # other site never listed
+    assert "IT-COMP-2099" in body  # other-site components are now visible
+    assert "at another site" in body
     # the workstation itself is never a candidate (no self-tick)
     assert f'value="{desk.pk}"' not in body
 
@@ -169,7 +184,8 @@ def test_bulk_attach_links_same_site_candidates(client, tech_user, asset_factory
     already.refresh_from_db()
     assert c1.parent_asset_id == desk.pk
     assert c2.parent_asset_id == desk.pk
-    assert foreign.parent_asset_id is None  # cross-site refused
+    assert foreign.parent_asset_id is None  # cross-site still needs the tick
+    assert foreign.site_id == other_site.pk
     assert already.parent_asset_id == desk.pk  # unchanged (same value)
 
     event = ActivityLog.objects.filter(action="component_attach").first()
@@ -179,14 +195,66 @@ def test_bulk_attach_links_same_site_candidates(client, tech_user, asset_factory
     ) == {c1.pk, c2.pk}
 
 
+def test_bulk_attach_moves_confirmed_cross_site_component(
+    client, tech_user, asset_factory, site, component_category
+):
+    from apps.people.models import Site
+
+    desk = asset_factory(asset_tag="IT-DESK-2201")
+    other_site = Site.objects.create(code="mdy-move", name="MDY Move")
+    ram = asset_factory(
+        asset_tag="IT-RAM-2201",
+        site=other_site,
+        status=Asset.Status.IN_STOCK,
+        category=component_category,
+    )
+
+    client.force_login(tech_user)
+    resp = client.post(
+        f"/assets/{desk.pk}/attach/",
+        {"assets": [str(ram.pk)], "confirm_move": "1"},
+        follow=True,
+    )
+
+    assert resp.status_code == 200
+    ram.refresh_from_db()
+    assert ram.parent_asset_id == desk.pk
+    assert ram.site_id == site.pk  # re-homed to the workstation's site
+    assert any("moved from another site" in str(m) for m in resp.context["messages"])
+    event = ActivityLog.objects.filter(action="component_attach").first()
+    assert event.details["moved_site"] == [ram.pk]
+
+
+def test_ram_layout_shows_modules_and_slots(client, tech_user, asset_factory, component_category):
+    ram_category = component_category
+    ram = asset_factory(
+        asset_tag="IT-HW-RAM-2301",
+        category=ram_category,
+        attrs={"capacity_gb": 8, "module_count": 2, "module_capacity_gb": 4},
+    )
+
+    assert ram.ram_layout == "2 × 4 GB = 8 GB · 2 slots"
+    client.force_login(tech_user)
+    body = client.get(f"/assets/{ram.pk}/").content.decode()
+    assert "2 × 4 GB = 8 GB · 2 slots" in body
+    assert "Memory layout" in body
+
+    # a single 8 GB stick stays unambiguous and does not invent a second slot
+    ram.attrs = {"capacity_gb": 8, "module_count": 1, "module_capacity_gb": 8}
+    ram.save(update_fields=["attrs"])
+    assert ram.ram_layout == "1 × 8 GB = 8 GB · 1 slot"
+
+
 def test_attach_syncs_in_stock_component_to_pc_holder(
-    client, tech_user, asset_factory, person_factory
+    client, tech_user, asset_factory, person_factory, component_category
 ):
     """A RAM bought into stock becomes Assigned to the PC's holder on attach."""
     holder = person_factory(name="PC Holder")
     desk = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-DESK-2101")
     Assignment.objects.create(asset=desk, to_person=holder)
-    ram = asset_factory(status=Asset.Status.IN_STOCK, asset_tag="IT-RAM-2101")
+    ram = asset_factory(
+        status=Asset.Status.IN_STOCK, asset_tag="IT-RAM-2101", category=component_category
+    )
 
     client.force_login(tech_user)
     page = client.get(f"/assets/{desk.pk}/attach/").content.decode()
@@ -203,13 +271,15 @@ def test_attach_syncs_in_stock_component_to_pc_holder(
 
 
 def test_attach_moves_component_from_previous_holder(
-    client, tech_user, asset_factory, person_factory
+    client, tech_user, asset_factory, person_factory, component_category
 ):
     holder = person_factory(name="New Holder")
     old_holder = person_factory(name="Old Holder")
     desk = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-DESK-2102")
     Assignment.objects.create(asset=desk, to_person=holder)
-    ram = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-RAM-2102")
+    ram = asset_factory(
+        status=Asset.Status.ASSIGNED, asset_tag="IT-RAM-2102", category=component_category
+    )
     old = Assignment.objects.create(asset=ram, to_person=old_holder)
 
     client.force_login(tech_user)
@@ -222,13 +292,17 @@ def test_attach_moves_component_from_previous_holder(
     assert active.to_person_id == holder.pk
 
 
-def test_attach_syncs_component_to_department_holder(client, tech_user, asset_factory, site):
+def test_attach_syncs_component_to_department_holder(
+    client, tech_user, asset_factory, site, component_category
+):
     from apps.people.models import Department
 
     dept = Department.objects.create(name="IT Ops", site=site)
     desk = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-DESK-2103")
     Assignment.objects.create(asset=desk, to_dept=dept)
-    ram = asset_factory(status=Asset.Status.AVAILABLE, asset_tag="IT-RAM-2103")
+    ram = asset_factory(
+        status=Asset.Status.AVAILABLE, asset_tag="IT-RAM-2103", category=component_category
+    )
 
     client.force_login(tech_user)
     resp = client.post(f"/assets/{desk.pk}/attach/", {"assets": [str(ram.pk)]})
@@ -242,9 +316,13 @@ def test_attach_syncs_component_to_department_holder(client, tech_user, asset_fa
     assert "IT Ops (dept)" in detail
 
 
-def test_attach_without_parent_holder_leaves_component_alone(client, tech_user, asset_factory):
+def test_attach_without_parent_holder_leaves_component_alone(
+    client, tech_user, asset_factory, component_category
+):
     desk = asset_factory(asset_tag="IT-DESK-2104")  # Available, nobody holds it
-    ram = asset_factory(status=Asset.Status.IN_STOCK, asset_tag="IT-RAM-2104")
+    ram = asset_factory(
+        status=Asset.Status.IN_STOCK, asset_tag="IT-RAM-2104", category=component_category
+    )
 
     client.force_login(tech_user)
     resp = client.post(f"/assets/{desk.pk}/attach/", {"assets": [str(ram.pk)]})
@@ -257,12 +335,14 @@ def test_attach_without_parent_holder_leaves_component_alone(client, tech_user, 
 
 
 def test_attach_skips_holder_sync_for_component_in_repair(
-    client, tech_user, asset_factory, person_factory
+    client, tech_user, asset_factory, person_factory, component_category
 ):
     holder = person_factory(name="Repair Holder")
     desk = asset_factory(status=Asset.Status.ASSIGNED, asset_tag="IT-DESK-2105")
     Assignment.objects.create(asset=desk, to_person=holder)
-    ram = asset_factory(status=Asset.Status.IN_REPAIR, asset_tag="IT-RAM-2105")
+    ram = asset_factory(
+        status=Asset.Status.IN_REPAIR, asset_tag="IT-RAM-2105", category=component_category
+    )
 
     client.force_login(tech_user)
     resp = client.post(f"/assets/{desk.pk}/attach/", {"assets": [str(ram.pk)]}, follow=True)

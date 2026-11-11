@@ -15,6 +15,36 @@ STRINGS = {
     "nav.audit": {"en": "Audit", "my": "စစ်ဆေးရေး"},
     "nav.admin": {"en": "Admin", "my": "Admin"},
     "nav.logout": {"en": "Logout", "my": "ထွက်ရန်"},
+    "nav.settings": {"en": "Account settings", "my": "အကောင့် ဆက်တင်"},
+    "ui.workspace": {"en": "Workspace", "my": "အလုပ်စားပွဲ"},
+    "ui.organisation": {"en": "Organisation", "my": "အဖွဲ့အစည်း"},
+    "ui.system": {"en": "System", "my": "စနစ်"},
+    "ui.asset_workspace": {"en": "Asset workspace", "my": "ပစ္စည်း စီမံခန့်ခွဲမှု"},
+    "ui.search_assets": {
+        "en": "Search assets, serial or holder…",
+        "my": "ပစ္စည်း၊ serial သို့မဟုတ် ကိုင်ဆောင်သူ ရှာရန်…",
+    },
+    "ui.asset_record": {"en": "Asset record", "my": "ပစ္စည်း မှတ်တမ်း"},
+    "ui.memory_layout": {"en": "Memory layout", "my": "မမ်မိုရီ ဖွဲ့စည်းပုံ"},
+    "ui.move_components": {
+        "en": "Move selected components from another site",
+        "my": "အခြား site မှ ရွေးထားသော အစိတ်အပိုင်းများကို ရွှေ့မည်",
+    },
+    "ui.move_components_help": {
+        "en": "Their site becomes {name}. Existing assignment history is kept.",
+        "my": "၎င်းတို့၏ site သည် {name} ဖြစ်လာမည်။ ယခင်တာဝန်ပေးမှု မှတ်တမ်းများ ကျန်ရှိမည်။",
+    },
+    "attach.other_site": {
+        "en": "{n} component(s) at another site.",
+        "my": "အခြား site တွင် အစိတ်အပိုင်း {n} ခု ရှိသည်။",
+    },
+    "attach.other_site_help": {
+        "en": (
+            "Tick one of those rows and confirm the move below — attaching will re-home it "
+            "to {name}."
+        ),
+        "my": "ထို row ကို အမှန်ခြစ်ပြီး အောက်တွင် ရွှေ့မည်ကို အတည်ပြုပါ — attach လုပ်လျှင် {name} သို့ ရွှေ့ပေးမည်။",
+    },
     "nav.login": {"en": "Sign in", "my": "ဝင်ရောက်ရန်"},
     "nav.me": {"en": "My assets", "my": "ကိုယ်ပိုင် ပစ္စည်းများ"},
     # employee self-view (design §4.4)

@@ -22,6 +22,7 @@ from apps.core.scopes import (
     check_scope,
     linked_person,
     scope_list,
+    scope_queryset,
 )
 from apps.people.models import Department, Person, Site
 
@@ -812,15 +813,32 @@ def spec_options(request):
     return render(request, "assets/spec_options.html", {"sections": sections})
 
 
+#: Categories that can physically sit inside/on a workstation. The attach
+# picker used to list every unparented asset, so a page could offer 30 whole
+# PCs as “components”. Keep the structural relationship to parts/peripherals;
+# a device belongs at the top level, not under another device.
+ATTACHABLE_COMPONENT_CODES = (
+    "IT-HW-HDD",
+    "IT-HW-SSD",
+    "IT-HW-RAM",
+    "IT-HW-KBD",
+    "IT-HW-MSE",
+    "IT-HW-MON",
+    "IT-HW-PER",
+    "IT-HW-UPS",
+    "IT-HW-PRN",
+)
+
+
 def attach_components(request, pk):
     """Bulk-link components to a workstation (§6.1 parent_asset).
 
-    Candidates: same site as the workstation, not yet a child, not the
-    workstation itself — optionally narrowed by `?category=`. A POST sets
-    `parent_asset` for each ticked asset (structural metadata, not a
-    lifecycle transition: direct write + one batched ActivityLog event) and
-    re-derives the candidate set before writing, so a crafted POST cannot
-    attach another site's asset.
+    Candidates: installable components/peripherals, not yet a child, not the
+    workstation itself — optionally narrowed by `?category=`. Assets at other
+    sites are listed too (the site rows are easy to mix up); selecting one
+    requires the explicit move confirmation, then it is re-homed to the PC's
+    site. A POST re-derives the candidate set and scope-filters it, so a
+    crafted POST cannot attach an already-parented or out-of-scope asset.
     """
     if not request.user.is_authenticated:
         return redirect("login")
@@ -834,12 +852,21 @@ def attach_components(request, pk):
         raise Http404("Asset not found") from None
 
     def candidates():
+        # Components at another site used to be invisible, which left a RAM
+        # sitting at “Head Office” impossible to install in a Yangon PC (the
+        # two site rows are easy to mix up). List every unparented asset the
+        # caller may see; cross-site picks need the explicit move confirmation
+        # below and are then re-homed to the workstation's site with the link.
         qs = (
-            Asset.objects.filter(site=parent.site, parent_asset__isnull=True)
+            Asset.objects.filter(
+                parent_asset__isnull=True,
+                category__code__in=ATTACHABLE_COMPONENT_CODES,
+            )
             .exclude(pk=parent.pk)
-            .select_related("category")
+            .select_related("category", "site")
             .order_by("asset_tag")
         )
+        qs = scope_queryset(request.user, qs, site_field="site")
         cat = request.GET.get("category", "")
         if cat.isdigit():
             qs = qs.filter(category_id=int(cat))
@@ -847,9 +874,16 @@ def attach_components(request, pk):
 
     if request.method == "POST":
         chosen = list(candidates().filter(pk__in=request.POST.getlist("assets")))
+        moving = [c for c in chosen if c.site_id != parent.site_id]
+        refused_move = []
+        if moving and request.POST.get("confirm_move") != "1":
+            refused_move = [c.asset_tag for c in moving]
+            chosen = [c for c in chosen if c.site_id == parent.site_id]
+            moving = []
         for component in chosen:
             component.parent_asset = parent
-        Asset.objects.bulk_update(chosen, ["parent_asset"])
+            component.site = parent.site
+        Asset.objects.bulk_update(chosen, ["parent_asset", "site"])
         if chosen:
             from apps.audit.models import ActivityLog
 
@@ -883,17 +917,28 @@ def attach_components(request, pk):
                 obj=parent,
                 details={
                     "components": [c.pk for c in chosen],
+                    "moved_site": [c.pk for c in moving],
+                    "refused_move": refused_move,
                     "holder": holder.holder_label if holder else None,
                     "synced": synced,
                     "skipped": skipped,
                 },
             )
             message = f"{len(chosen)} component(s) attached to {parent.asset_tag}."
+            if moving:
+                message += f" {len(moving)} moved from another site to {parent.site.name}."
             if synced:
                 message += (
                     f" {len(synced)} component(s) now follow the holder ({holder.holder_label})."
                 )
             messages.success(request, message)
+            if refused_move:
+                messages.warning(
+                    request,
+                    "Not moved from another site (tick the confirmation): "
+                    + ", ".join(refused_move)
+                    + ".",
+                )
             if skipped:
                 messages.warning(
                     request,
@@ -905,13 +950,19 @@ def attach_components(request, pk):
                     f"{parent.asset_tag} has no holder — component holders were left unchanged.",
                 )
         else:
-            messages.warning(request, "Nothing selected — tick the components to attach.")
+            if refused_move:
+                messages.warning(
+                    request,
+                    "Nothing moved: tick “Move selected components from another site” to attach "
+                    + ", ".join(refused_move)
+                    + ".",
+                )
+            else:
+                messages.warning(request, "Nothing selected — tick the components to attach.")
         return redirect("asset-detail", pk=parent.pk)
 
     candidates_qs = candidates()
-    category_ids = Asset.objects.filter(site=parent.site, parent_asset__isnull=True).values_list(
-        "category_id", flat=True
-    )
+    category_ids = candidates_qs.values_list("category_id", flat=True)
     return render(
         request,
         "assets/attach_components.html",
@@ -919,6 +970,7 @@ def attach_components(request, pk):
             "parent": parent,
             "parent_holder": services.active_assignment(parent),
             "candidates": candidates_qs,
+            "other_site_count": candidates_qs.exclude(site=parent.site).count(),
             "categories": Category.objects.filter(pk__in=set(category_ids)).order_by("code"),
         },
     )

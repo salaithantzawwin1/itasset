@@ -186,6 +186,30 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-11-11 (session 65 — PC RAM slots, with a derived total)
+- **Problem**: the PC Specifications tab only asked for one RAM number, so a
+  machine with a 2 GB stick + a 4 GB stick could not be recorded truthfully
+  (and its total could contradict the sticks).
+- **Schema**: Desktop/Workstation/All-in-One gain optional **RAM Slot 1/2
+  Capacity** beside RAM Capacity; migration **0021** backfills existing
+  category rows, inserting the pair after `ram_capacity_gb` and leaving a
+  customised schema untouched. Laptop (soldered memory in the field) and
+  non-PC categories are not touched.
+- **Derived total**: `validate_specs` sums populated slots — 2 + 4 always
+  saves as **6 GB**, even when a stale 16 GB is still in the field; with no
+  slots the hand-entered total is kept. The form also sums live while typing.
+- **Layout line**: `Asset.ram_layout` now reads PC categories too and uses
+  their `ram_capacity_gb` total — detail page shows
+  **“2 GB + 4 GB = 6 GB · 2 slots”**; a PC without slot data shows no line
+  (the specs table still lists its total).
+- Checks: ruff clean, `makemigrations --check` clean; local suite **615
+  passed + 108 subtests** (432 s). Local form verified: typing 2 + 4 fills
+  the total with 6. Commit `4714819` — pushed `2f38b5b..4714819`; deployed to
+  192.168.100.142 (migration 0021 applied; md5-identical files; server suite
+  **615 passed + 108 subtests**, 191.8 s, exit 0; gunicorn active,
+  `/healthz` ok). Live `/assets/6/edit/` renders both slot inputs and the
+  auto-sum help; probe **29 ok / 0 failed**.
+
 ### 2026-11-11 (session 64 — dashboard UI/UX polish + deep detail check)
 - **Dead-end KPIs fixed**: every tile is now a link to the list/card that
   answers it — alerts → `#alerts`, warranty → `?warranty_days=30`, active and

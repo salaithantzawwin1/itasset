@@ -186,6 +186,27 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-11-11 (session 66 — full review of today's work)
+- **Reviewed**: dashboard polish (session 64), PC RAM slots (65), per-slot RAM
+  layouts, admin redesign v4 — diffs, i18n, links, tests.
+- **Found + fixed**: the dashboard's **Active assets** tile excludes retired and
+  disposed rows, but its link opened the unfiltered register — the number and
+  the list disagreed by exactly those rows. `AssetList` now honours
+  `?active=1` with the same exclusion, the tile links there, and a test pins
+  the pairing (`test_asset_list_active_filter_matches_the_dashboard_kpi`).
+- **Housekeeping**: local pytest/dev logs and pid files are ignored so a
+  review run can never be committed by accident; stray artifacts removed.
+- **Environment note**: an interrupted local pytest had left a session holding
+  `test_itasset`, so the next run could not recreate the test DB (`DuplicateDatabase`
+  / `ObjectInUse`). Terminated the stale backend and dropped the DB; suites
+  then ran normally. No code change was needed.
+- Checks: ruff clean, `makemigrations --check` clean; server suite **616
+  passed + 108 subtests** (196.5 s, exit 0) with restart gated on the result;
+  gunicorn active, `/healthz` ok; live home carries
+  `class="kpi success" href="/assets/?active=1"`, that list returns 200 with
+  no retired/disposed rows; probe **29 ok / 0 failed**. Commit `fbc1ec6` —
+  pushed `560a876..fbc1ec6`, deployed.
+
 ### 2026-11-11 (session 65 — PC RAM slots, with a derived total)
 - **Problem**: the PC Specifications tab only asked for one RAM number, so a
   machine with a 2 GB stick + a 4 GB stick could not be recorded truthfully

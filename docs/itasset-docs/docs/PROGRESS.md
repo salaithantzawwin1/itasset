@@ -207,9 +207,15 @@ authenticated user; no company/branch scoping exists.
   the previous session's note that production had no attached components
   still holds. The deploy itself is confirmed: `/assets/66/attach/` now lists
   `IT-HW-RAM-0001` as a candidate, and `/assets/87/` (the RAM record) renders
-  **“Memory layout · 8 GB”**. No production data was changed during
-  verification; attaching the module (which would also sync its holder to
-  the PC's holder) is left to an operator.
+  **“Memory layout · 8 GB”**. No production data was changed during the
+  verification itself.
+- **Attached on request**: `IT-HW-RAM-0001` was then attached to
+  `IT-HW-DSK-0013` through `/assets/66/attach/` (same site, no move tick
+  needed). Audit event **441** records `holder: Moah Moah Myint Lwin`,
+  `components: [87]`, `synced: [87]`. The RAM is now **ASSIGNED** to the PC's
+  holder (same holder on both sides, no conflict), and `/assets/66/` lists
+  `IT-HW-RAM-0001` under Components with `8 GB`; `/assets/87/` shows Parent
+  asset `IT-HW-DSK-0013 (Assigned)` and still renders “Memory layout · 8 GB”.
 
 ### 2026-11-06 (session 60 — workspace redesign, modal audit, RAM layout)
 - **Workspace shell redesigned** (v3): a dark navigation rail (Dashboard,

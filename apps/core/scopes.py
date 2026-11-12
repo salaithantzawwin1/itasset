@@ -126,6 +126,50 @@ def scope_queryset(
     return qs.filter(conditions)
 
 
+def scope_any_queryset(user, qs: QuerySet, *, site_fields) -> QuerySet:
+    """Filter rows that belong to *any* of several site columns.
+
+    A transfer is visible from either end (source or destination); a single
+    ``site_field`` would hide a destination's inbound move. GLOBAL passes,
+    no usable site scope fails closed (transfers have no self-view).
+    """
+    try:
+        scopes = effective_scopes(user)
+    except Exception:
+        logger.exception("scope resolution failed; denying queryset access")
+        return qs.none()
+    if scopes.global_access:
+        return qs
+    if not scopes.sites:
+        return qs.none()
+    condition = Q()
+    for field in site_fields:
+        condition |= Q(**{f"{field}__in": scopes.sites})
+    return qs.filter(condition)
+
+
+def scope_any_list(
+    user,
+    qs: QuerySet,
+    *,
+    site_fields,
+    action: str = "list",
+    path: str = "",
+) -> QuerySet:
+    """``scope_list`` for records owned by a site in more than one way."""
+    filtered = scope_any_queryset(user, qs, site_fields=site_fields)
+    if enforcement_enabled():
+        return filtered
+    try:
+        total, kept = qs.count(), filtered.count()
+    except Exception:
+        logger.exception("shadow scope count failed; leaving list unchanged")
+        return qs
+    if total > kept:
+        record_shadow(user, action=action, path=path, details={"would_hide": total - kept})
+    return qs
+
+
 def user_in_site(user, site) -> bool:
     """True when the user's scope covers the site (Site object or pk)."""
     site_id = getattr(site, "id", site)

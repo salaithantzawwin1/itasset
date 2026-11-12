@@ -454,7 +454,10 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                     "value": pending,
                     "meta_key": "dash.kpi.pending_meta",
                     "meta_n": -1,
-                    "href": links.get("alert.pending_approvals") or asset_list,
+                    # There is no main-app approval queue: a non-staff approver
+                # has no list that matches this count, so the tile renders
+                # without a link instead of opening the whole register.
+                "href": links.get("alert.pending_approvals"),
                 },
                 {
                     "tone": "critical" if overdue else "success",

@@ -13,6 +13,7 @@ from django.utils.html import format_html_join
 from django.utils.safestring import mark_safe
 
 from apps.core.admin import ScopedAdminMixin, _is_scope_admin
+from apps.core.scopes import scope_any_list
 
 from .forms import AssetForm
 from .models import (
@@ -496,7 +497,21 @@ class AssetRequestAdmin(ScopedAdminMixin, admin.ModelAdmin):
 
 @admin.register(Transfer)
 class TransferAdmin(ScopedAdminMixin, admin.ModelAdmin):
-    scope_site_field = "from_site"  # v1: source side defines visibility
+    # A transfer is visible from either end — the source dispatches it and
+    # the destination receives it, so hiding inbound moves from the
+    # destination's staff contradicts the dashboard's exception count (which
+    # already counts both sides). Union beats "source only".
+    scope_site_field = None
+
+    def get_queryset(self, request):
+        qs = admin.ModelAdmin.get_queryset(self, request)
+        return scope_any_list(
+            request.user,
+            qs,
+            site_fields=("from_site", "to_site"),
+            action="admin_transfer_list",
+            path=request.path,
+        )
 
     list_display = (
         "pk",

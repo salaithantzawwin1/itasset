@@ -186,6 +186,26 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-11-12 (session 75 — admin follows the accent)
+- **Decision**: admin follows the dashboard accent rather than staying on the
+  fixed blue/teal brand, so the topbar does not change identity when crossing
+  from the app into the admin.
+- `templates/admin/base_site.html` restores `localStorage.accent` as
+  `<html data-accent>` next to the existing theme resolution, so it applies
+  before first paint on every admin page (login included).
+- `templates/admin/_theme.css.html` gains light + dark palettes for all six
+  accents. Header gradient, buttons, links, selected rows, focus ring, brand
+  marks, sidebar active item and dark object-tools derive from the palette.
+  Selectors are scoped with `html[data-theme][data-accent]` so they beat the
+  later v3/v4 blocks; without an accent the stock palette is unchanged.
+- Browser checks: green/light — `--primary: #047857`, topbar green gradient,
+  brand mark green, admin links green; purple/dark — `--primary: #8b5cf6`,
+  `--accent: #a78bfa`, topbar `#2e1065 → #7c3aed`; no accent/dark — primary
+  `#6fa8ff`, accent `#2dd4bf`, original topbar gradient, i.e. no regression.
+- Checks: ruff clean; core + dashboard **63 passed**; server suite **622
+  passed + 108 subtests** (187.3 s); health ok; probe 29 ok / 0 failed;
+  production admin login HTML serves the accent script and palettes.
+
 ### 2026-11-12 (session 74 — accent on sign-in + accessible picker)
 - **Sign-in follows the accent**: `registration/login.html` now restores
   `localStorage.accent` in its head script and carries the same six light/dark

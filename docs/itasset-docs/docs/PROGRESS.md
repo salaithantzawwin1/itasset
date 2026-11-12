@@ -186,6 +186,28 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-11-12 (session 74 — accent on sign-in + accessible picker)
+- **Sign-in follows the accent**: `registration/login.html` now restores
+  `localStorage.accent` in its head script and carries the same six light/dark
+  palette rules as `base.html`; the brand pane's radial/end gradient tints from
+  `var(--accent)` instead of a fixed teal. Verified in a browser with
+  `accent=green`: `<html data-accent="green">`, `--primary: #047857`,
+  `--accent: #10b981`, submit button green.
+- **Picker accessibility**: the trigger has `aria-haspopup="true"`,
+  `aria-expanded` (kept in sync), `aria-controls="accent-menu"`; the menu is
+  `role="menu"` and each swatch `role="menuitemradio"` with `aria-checked`
+  tracking the current palette and a visible ring. Escape closes the menu and
+  returns focus to the trigger; choosing a colour also returns focus. Swatch
+  labels and the menu label are translated (`dash.accent.blue` …
+  `dash.accent.teal`, en/my).
+- Browser check: expanded state true/false, selection purple → only purple
+  checked, Escape closes with focus on the button, and in MM the labels read
+  အပြာ/အစိမ်း/ခရမ်းရောင်/လိမ္မော်ရောင်/ပန်းရောင်/စိမ်းပြာရောင်.
+- Checks: ruff clean; dashboard + labels **38 passed** locally; server suite
+  **622 passed + 108 subtests** (190.9 s, exit 0); health ok; probe 29 ok / 0
+  failed. Production login HTML serves the accent script and palettes; the
+  dashboard serves the new menu ARIA.
+
 ### 2026-11-12 (session 73 — one scan for both matrices)
 - **Measured the alternatives** on 50,052 assets (7–10 runs each): the two
   existing matrix `GROUP BY`s took **87.5–96.1 ms**; one combined `GROUP BY`

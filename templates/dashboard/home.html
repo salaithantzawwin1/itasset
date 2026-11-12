@@ -31,6 +31,8 @@
     box-shadow: 0 10px 30px rgba(0,0,0,.25); }
   .accent-menu[hidden] { display: none; }
   .accent-swatch { width: 32px; height: 32px; border-radius: 8px; border: none; cursor: pointer; }
+  .accent-swatch[aria-checked="true"] { outline: 2px solid var(--text); outline-offset: 2px; }
+  .accent-swatch:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
   .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
   /* Big screens: 6 KPI cards always fill one full row — auto-fit with a
@@ -187,14 +189,14 @@
   <div class="hero-actions">
     <a class="btn hero-cta" href="{% url 'asset-create' %}" data-modal>+ {% t "asset.new" %}</a>
   <div class="accent-wrap">
-    <button class="hero-btn" id="accent-btn" title="{% t "dash.accent" %}" aria-label="{% t "dash.accent" %}">🎨</button>
-    <div id="accent-menu" class="accent-menu" hidden>
-      <button class="accent-swatch" data-accent-set="blue"   aria-label="blue"   style="background:linear-gradient(135deg,#1e3a8a,#3b82f6)"></button>
-      <button class="accent-swatch" data-accent-set="green"  aria-label="green"  style="background:linear-gradient(135deg,#064e3b,#10b981)"></button>
-      <button class="accent-swatch" data-accent-set="purple" aria-label="purple" style="background:linear-gradient(135deg,#4c1d95,#8b5cf6)"></button>
-      <button class="accent-swatch" data-accent-set="orange" aria-label="orange" style="background:linear-gradient(135deg,#78350f,#f59e0b)"></button>
-      <button class="accent-swatch" data-accent-set="pink"   aria-label="pink"   style="background:linear-gradient(135deg,#831843,#ec4899)"></button>
-      <button class="accent-swatch" data-accent-set="teal"   aria-label="teal"   style="background:linear-gradient(135deg,#134e4a,#14b8a6)"></button>
+    <button class="hero-btn" id="accent-btn" title="{% t "dash.accent" %}" aria-label="{% t "dash.accent" %}" aria-haspopup="true" aria-expanded="false" aria-controls="accent-menu">🎨</button>
+    <div id="accent-menu" class="accent-menu" role="menu" aria-label="{% t "dash.accent" %}" hidden>
+      <button class="accent-swatch" role="menuitemradio" aria-checked="false" data-accent-set="blue"   aria-label="{% t "dash.accent.blue" %}"   style="background:linear-gradient(135deg,#1e3a8a,#3b82f6)"></button>
+      <button class="accent-swatch" role="menuitemradio" aria-checked="false" data-accent-set="green"  aria-label="{% t "dash.accent.green" %}"  style="background:linear-gradient(135deg,#064e3b,#10b981)"></button>
+      <button class="accent-swatch" role="menuitemradio" aria-checked="false" data-accent-set="purple" aria-label="{% t "dash.accent.purple" %}" style="background:linear-gradient(135deg,#4c1d95,#8b5cf6)"></button>
+      <button class="accent-swatch" role="menuitemradio" aria-checked="false" data-accent-set="orange" aria-label="{% t "dash.accent.orange" %}" style="background:linear-gradient(135deg,#78350f,#f59e0b)"></button>
+      <button class="accent-swatch" role="menuitemradio" aria-checked="false" data-accent-set="pink"   aria-label="{% t "dash.accent.pink" %}"   style="background:linear-gradient(135deg,#831843,#ec4899)"></button>
+      <button class="accent-swatch" role="menuitemradio" aria-checked="false" data-accent-set="teal"   aria-label="{% t "dash.accent.teal" %}"   style="background:linear-gradient(135deg,#134e4a,#14b8a6)"></button>
     </div>
   </div>
   </div>
@@ -392,15 +394,38 @@
   var saved = localStorage.getItem('accent');
   if (saved) document.documentElement.setAttribute('data-accent', saved);
   var btn = document.getElementById('accent-btn'), menu = document.getElementById('accent-menu');
-  btn.addEventListener('click', function (e) { e.stopPropagation(); menu.hidden = !menu.hidden; });
+  var swatches = [].slice.call(menu.querySelectorAll('[data-accent-set]'));
+  function setOpen(open) {
+    menu.hidden = !open;
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  function markSelected(name) {
+    swatches.forEach(function (sw) {
+      sw.setAttribute('aria-checked', sw.getAttribute('data-accent-set') === name ? 'true' : 'false');
+    });
+  }
+  markSelected(document.documentElement.getAttribute('data-accent') || 'teal');
+  btn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    setOpen(menu.hidden);
+  });
   menu.addEventListener('click', function (e) {
     var sw = e.target.closest('[data-accent-set]');
     if (!sw) return;
-    document.documentElement.setAttribute('data-accent', sw.getAttribute('data-accent-set'));
-    localStorage.setItem('accent', sw.getAttribute('data-accent-set'));
-    menu.hidden = true;
+    var name = sw.getAttribute('data-accent-set');
+    document.documentElement.setAttribute('data-accent', name);
+    localStorage.setItem('accent', name);
+    markSelected(name);
+    setOpen(false);
+    btn.focus();
   });
-  document.addEventListener('click', function () { if (!menu.hidden) menu.hidden = true; });
+  document.addEventListener('click', function () { if (!menu.hidden) setOpen(false); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !menu.hidden) {
+      setOpen(false);
+      btn.focus();
+    }
+  });
 })();
 </script>
 {% endblock %}

@@ -11,6 +11,9 @@
       var t = localStorage.getItem('theme') || 'auto';
       if (t === 'auto') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       document.documentElement.setAttribute('data-theme', t);
+      // the accent picked on the dashboard follows the user to sign-in too
+      var a = localStorage.getItem('accent');
+      if (a) document.documentElement.setAttribute('data-accent', a);
     })();
   </script>
   <title>{% t "login.signin" %} — {% if branding %}{{ branding.company_name }}{% else %}{% t "app.name" %}{% endif %}</title>
@@ -29,6 +32,20 @@
       --surface: #141d2b; --border: #263244; --field: #0f1825;
       --shadow: 0 18px 50px rgba(0, 0, 0, .6);
     }
+    /* Same six palettes as base.html: the accent chosen on the dashboard is
+       restored in the head script above, so the sign-in page matches it. */
+    :root[data-accent="blue"]   { --primary: #1d4ed8; --primary-dark: #1e3a8a; --primary-light: #e6eefc; --accent: #3b82f6; }
+    :root[data-accent="green"]  { --primary: #047857; --primary-dark: #064e3b; --primary-light: #e7f7f0; --accent: #10b981; }
+    :root[data-accent="purple"] { --primary: #7c3aed; --primary-dark: #4c1d95; --primary-light: #f1eafe; --accent: #8b5cf6; }
+    :root[data-accent="orange"] { --primary: #b45309; --primary-dark: #78350f; --primary-light: #fdf3e7; --accent: #f59e0b; }
+    :root[data-accent="pink"]   { --primary: #be185d; --primary-dark: #831843; --primary-light: #fdeaf2; --accent: #ec4899; }
+    :root[data-accent="teal"]   { --primary: #0f766e; --primary-dark: #134e4a; --primary-light: #e6f7f5; --accent: #14b8a6; }
+    [data-theme="dark"][data-accent="blue"]   { --primary: #3b82f6; --primary-dark: #172554; --primary-light: #172a4d; --accent: #60a5fa; }
+    [data-theme="dark"][data-accent="green"]  { --primary: #059669; --primary-dark: #052e24; --primary-light: #12352b; --accent: #34d399; }
+    [data-theme="dark"][data-accent="purple"] { --primary: #8b5cf6; --primary-dark: #2e1065; --primary-light: #2a1d48; --accent: #a78bfa; }
+    [data-theme="dark"][data-accent="orange"] { --primary: #d97706; --primary-dark: #451a03; --primary-light: #3a2a16; --accent: #fbbf24; }
+    [data-theme="dark"][data-accent="pink"]   { --primary: #db2777; --primary-dark: #4c0519; --primary-light: #3a1c2c; --accent: #f472b6; }
+    [data-theme="dark"][data-accent="teal"]   { --primary: #0d9488; --primary-dark: #042f2e; --primary-light: #13312f; --accent: #2dd4bf; }
     * { box-sizing: border-box; }
     body {
       margin: 0; min-height: 100vh; padding: 24px;
@@ -54,8 +71,8 @@
       background:
         linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
         linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px),
-        radial-gradient(600px 300px at 90% -10%, rgba(20,184,166,.5), transparent 60%),
-        linear-gradient(150deg, #071322 0%, #103568 62%, #0f5f63 100%);
+        radial-gradient(600px 300px at 90% -10%, color-mix(in srgb, var(--accent) 50%, transparent), transparent 60%),
+        linear-gradient(150deg, #071322 0%, #103568 62%, color-mix(in srgb, var(--accent) 30%, #0b2a33) 100%);
       background-size: 32px 32px, 32px 32px, auto, auto;
     }
     .pane::after {

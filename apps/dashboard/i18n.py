@@ -105,6 +105,12 @@ STRINGS = {
     "dash.view_all": {"en": "View all", "my": "အားလုံး ကြည့်မည်"},
     "dash.overview": {"en": "Workspace overview", "my": "အလုပ်စားပွဲ ခြုံငုံသုံးသပ်ချက်"},
     "dash.accent": {"en": "Accent colour", "my": "အရောင် ရွေးချယ်ရန်"},
+    "dash.accent.blue": {"en": "Blue", "my": "အပြာ"},
+    "dash.accent.green": {"en": "Green", "my": "အစိမ်း"},
+    "dash.accent.purple": {"en": "Purple", "my": "ခရမ်းရောင်"},
+    "dash.accent.orange": {"en": "Orange", "my": "လိမ္မော်ရောင်"},
+    "dash.accent.pink": {"en": "Pink", "my": "ပန်းရောင်"},
+    "dash.accent.teal": {"en": "Teal", "my": "စိမ်းပြာရောင်"},
     # dashboard — mockup KPIs / chart / alerts (docs/itasset-docs/index.html)
     "dash.kpi.alerts": {"en": "Critical alerts", "my": "အရေးကြီး နိုးဆွဲချက်များ"},
     "dash.kpi.attention": {"en": "⚠ Needs attention", "my": "⚠ အာရုံစိုက်ရန် လိုအပ်သည်"},

@@ -34,6 +34,13 @@ def post_worker_init(worker):
         get_resolver().url_patterns
         get_template("base.html")
         get_template("dashboard/home.html")
+
+        # One anonymous request through the full stack (middleware, sessions,
+        # CSRF, template rendering) so the first real visitor does not pay for
+        # it. The sign-in page needs no account and its response is discarded.
+        from django.test import Client
+
+        Client().get("/accounts/login/", HTTP_HOST="127.0.0.1")
     except Exception:  # never stop a worker from serving over a warm-up
         pass
 timeout = 60

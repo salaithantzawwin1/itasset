@@ -186,6 +186,30 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-11-12 (session 73 — one scan for both matrices)
+- **Measured the alternatives** on 50,052 assets (7–10 runs each): the two
+  existing matrix `GROUP BY`s took **87.5–96.1 ms**; one combined `GROUP BY`
+  over all four attrs took **68–72 ms**; PostgreSQL `GROUPING SETS` took
+  **69–75 ms** (it also lost the parallel plan).
+- **Expression indexes were tested and rejected**: indexes on the RAM
+  expressions, the CPU expressions, and all four were created (`INCLUDE
+  (id)`), the table was analyzed, and the planner still chose the parallel
+  seq scan — timings were unchanged (e.g. 51.1 → 51.9 ms). Dropped again, so
+  no write-maintenance cost was added.
+- **Fix**: the cards now share one grouped read over `ram_kind`, `ram_clock`,
+  `cpu_name`, `cpu_count`; Python splits the ~700 rows into the two
+  cross-tabs. Counts unchanged — the full `ram_matrix`/`cpu_matrix` context
+  at 50k was diffed before/after and was byte-identical, including the
+  “not recorded” edges and coverage totals.
+- **Dashboard A/B at 50k** (7 runs, two trials each): **255.4 / 258.9 ms**
+  with the two queries → **229.4 / 244.1 ms** with the combined scan. The
+  matrix scan is now the largest single item at ~70 ms; the rest of the
+  page's queries are 6–26 ms.
+- Checks: ruff clean; dashboard + labels **38 passed** locally; server suite
+  **622 passed + 108 subtests** (184.4 s, exit 0); gunicorn active,
+  `/healthz` ok; probe 29 ok / 0 failed; production warm requests
+  0.046–0.119 s. Temporary 50k seed rows and profiling scripts removed.
+
 ### 2026-11-12 (session 72 — 50k dashboard profile + production warm-up cleanup)
 - **Profiled instead of guessing**: at 50,052 assets the dashboard was
   **531 ms total, 479 ms of it SQL, 42 queries**. The matrix group-bys were

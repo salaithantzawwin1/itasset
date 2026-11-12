@@ -224,6 +224,16 @@ STRINGS = {
     "asset.all_warranties": {"en": "Any warranty", "my": "အာမခံ မရွေး"},
     "asset.warranty_le": {"en": "Warranty ≤ {n} days", "my": "အာမခံ {n} ရက်အတွင်း"},
     "asset.missing_serial": {"en": "Missing serial", "my": "Serial ကွက်နေသည်"},
+    # `?active=1` (the dashboard's Active tile) hides two statuses; the list
+    # says so, because a hidden row must never look like a missing row.
+    "asset.active_chip": {
+        "en": "Active only — retired/disposed hidden",
+        "my": "Active သာ — retired/disposed ဖျောက်ထားသည်",
+    },
+    "asset.active_hint": {
+        "en": "This list leaves out retired and disposed assets",
+        "my": "ဤစာရင်းတွင် retired နှင့် disposed ပစ္စည်းများ မပါဝင်ပါ",
+    },
     "asset.clear": {"en": "✕ Clear", "my": "✕ ရှင်းမည်"},
     "asset.tag": {"en": "Tag", "my": "Tag"},
     "asset.category": {"en": "Category", "my": "Category"},

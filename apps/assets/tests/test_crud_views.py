@@ -317,6 +317,10 @@ def test_asset_list_active_filter_matches_the_dashboard_kpi(
     assert live.asset_tag in body
     assert retired.asset_tag not in body
     assert disposed.asset_tag not in body
+    # the exclusion is visible, survives a filter submit, and is absent otherwise
+    assert "Active only — retired/disposed hidden" in body
+    assert 'name="active" value="1"' in body
+    assert "Active only" not in client.get("/assets/").content.decode()
 
 
 def test_admin_can_manage_site(client, django_user_model, group_setup):

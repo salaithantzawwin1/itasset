@@ -186,6 +186,31 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-11-11 (session 67 — dashboard deep-link audit)
+- **Audited** every KPI and alert href against the list it opens, with the
+  same scoped caller: alerts → `#alerts`, warranty 30 → `?warranty_days=30`,
+  active → `?active=1`, total → register, pending → admin request changelist,
+  overdue → `/loans/overdue/`, transfers → admin transfer changelist. These
+  all matched except the two below.
+- **Fixed — transfers**: the tile counts an exception from *either* site, but
+  `TransferAdmin` scoped by `from_site` alone, so a receiving site's count
+  opened a list that hid its inbound rows. New `scope_any_list` (OR union of
+  `from_site` / `to_site`) now backs the changelist, with the same shadow-mode
+  logging as `scope_list`.
+- **Fixed — pending for non-staff approvers**: a technician without admin
+  access got a Pending tile linking to the whole asset register. The tile now
+  renders without a link when no matching list exists (template supports a
+  non-link KPI).
+- **Pinned**: `apps/dashboard/test_deep_links.py` opens each tile link with a
+  site-scoped caller and compares its row count to the tile, including a
+  destination-only transfer and a scoped pending request.
+- Checks: ruff clean, `makemigrations --check` clean; **138 passed + 72
+  subtests** locally across dashboard/CRUD/admin/scopes/lifecycle; server
+  suite **620 passed + 108 subtests** (193.8 s, exit 0) with restart gated on
+  the result; gunicorn active, `/healthz` ok; live home keeps 6 KPI links with
+  the expected hrefs, transfer changelist 200; probe **29 ok / 0 failed**.
+  Commit `b2862be` — pushed `989b02b..b2862be`, deployed.
+
 ### 2026-11-11 (session 66 — full review of today's work)
 - **Reviewed**: dashboard polish (session 64), PC RAM slots (65), per-slot RAM
   layouts, admin redesign v4 — diffs, i18n, links, tests.

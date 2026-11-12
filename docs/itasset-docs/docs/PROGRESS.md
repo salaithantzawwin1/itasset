@@ -186,6 +186,42 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-11-12 (session 72 — 50k dashboard profile + production warm-up cleanup)
+- **Profiled instead of guessing**: at 50,052 assets the dashboard was
+  **531 ms total, 479 ms of it SQL, 42 queries**. The matrix group-bys were
+  only 57 ms (RAM) + 55 ms (CPU); the dominant costs were elsewhere: the
+  “recent” list sorted the whole register by `created_at` (**100 ms**, no
+  index), the per-site annotation `Count("assets", distinct=True)` joined
+  the register (**90 ms**), and the status/condition cards ran one `COUNT`
+  per choice (**~96 ms across 14 scans**).
+- **Fixes** (`apps/dashboard/views.py`, `apps/assets/models.py`,
+  `apps/assets/migrations/0022_alter_asset_created_at.py`):
+  - status and condition counts come from one grouped read each, and
+    `active`/`assigned` are derived from those counts instead of two more
+    scans;
+  - site counts are one `GROUP BY site_id` assigned to the site objects,
+    instead of a `LEFT JOIN` + `COUNT(DISTINCT asset.id)`;
+  - `Asset.created_at` is indexed, so “recent” is an index scan and the
+    month count filters on the month's first instant (no per-row date cast).
+  No template, filter or number changes.
+- **50k after**: 7-run median **253 ms** (242–276 ms across runs) with **33
+  queries / 238 ms SQL** — down from 461–543 ms. The two matrices are now
+  the largest single item at ~92 ms combined; everything else is 10–37 ms.
+- **Warm-up cleanup**: `deploy/gunicorn.conf.py` no longer imports
+  `django.test.Client`; it calls the WSGI application directly with a
+  hand-built environ for the anonymous sign-in page. Note: production still
+  ends up with `rest_framework.test`/`django.test` loaded, because
+  drf-spectacular's plumbing imports `rest_framework.test` at module import
+  and DRF resolves `DEFAULT_SCHEMA_CLASS` while the API URLconf loads — that
+  is independent of the gunicorn hook. Deferring it with a proxy schema
+  class was tried and reverted: DRF asserts the class is a `ViewInspector`
+  subclass at import.
+- Checks: ruff clean; dashboard + labels **38 passed** locally; server suite
+  **622 passed + 108 subtests** (185.6 s, exit 0) after `migrate`; gunicorn
+  active, `/healthz` ok; probe 29 ok / 0 failed; production dashboard warm
+  requests 0.041–0.074 s. Temporary 50k seed rows and the benchmark script
+  were removed again.
+
 ### 2026-11-12 (session 71 — dashboard latency variance + 50k benchmark)
 - **Reproduced the variance**: 20 warm production samples sat at 0.047–0.075 s,
   but restarting gunicorn and sampling at once gave five slow requests

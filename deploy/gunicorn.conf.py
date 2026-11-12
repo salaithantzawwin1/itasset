@@ -27,7 +27,11 @@ def post_worker_init(worker):
         from django.template.loader import get_template
         from django.urls import get_resolver
 
-        get_resolver()
+        # `get_resolver()` alone builds the resolver without importing the
+        # URLconf: Django imports `config.urls` lazily on the first resolution,
+        # which costs ~200 ms of CPU (drf-spectacular and friends) on the
+        # worker's first request. Touching `url_patterns` forces that import.
+        get_resolver().url_patterns
         get_template("base.html")
         get_template("dashboard/home.html")
     except Exception:  # never stop a worker from serving over a warm-up

@@ -186,6 +186,30 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-11-11 (session 70 — dashboard matrix aggregation)
+- **Measured first**: a temporary local benchmark seeded 3,000/10,000 assets
+  with RAM+CPU attrs and timed `GET /` (5 runs, median). The Python scan of
+  every `attrs` document was **136.2 ms** at 3,052 assets and **274.9 ms** at
+  10,052 (dashboard total, not just the cards).
+- **Fix**: each card now asks the database for a grouped count
+  (`GROUP BY` over `attrs->>'ram_type'/'memory_type'` and
+  `ram_speed_mhz'/'speed_mhz'`, and `cpu_model'/'cpu_cores'`, with blank
+  strings read as missing via `NullIf`) and receives only the distinct
+  combinations. Python just shapes the matrix; no per-asset JSON transfer or
+  full-register loop. Semantics unchanged: both spellings, “not recorded”
+  edges, ordering, heat and coverage line.
+- **After**: **89.7 ms** at 3,052 (−34%) and **139.2 ms** at 10,052 (−49%).
+  The remaining time is the rest of the dashboard (scoped counts, chart,
+  recent rows), not the matrices.
+- Checks: ruff clean, `makemigrations --check` clean; **69 passed** locally
+  (dashboard + scopes + deep-link audit, including the 1,005-asset cap test);
+  server suite **622 passed + 108 subtests** (191.1 s, exit 0) with restart
+  gated on the result; gunicorn active, `/healthz` ok; probe **29 ok / 0
+  failed**. Production (19 assets) times `GET /` at **0.08–0.37 s** across
+  five warm requests — the matrices are no longer a data-volume risk there.
+  Commit `d937fd8` — pushed `2030bf7..d937fd8`, deployed. Temporary benchmark
+  rows/user removed; the probe script itself was not committed.
+
 ### 2026-11-11 (session 69 — clear-one-filter chip + matrix link audit)
 - **Chip ×**: the “Active only — retired/disposed hidden” pill now carries a
   × that removes only `active=1` (and the page number), keeping every other

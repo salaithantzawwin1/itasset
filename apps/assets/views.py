@@ -185,6 +185,12 @@ class AssetList(RoleRequiredMixin, ListView):
         # the search term — the rows partial wraps its hits in <mark>
         # through {% highlight %} with this (same value the q filter used)
         ctx["q"] = (self.request.GET.get("q") or "").strip()
+        # the Active chip's × drops only that one filter (and the page number);
+        # every other filter the reader picked stays in the URL
+        params = self.request.GET.copy()
+        params.pop("active", None)
+        params.pop("page", None)
+        ctx["active_clear_qs"] = params.urlencode()
         # a readable “RAM: DDR4 · 2400 MHz” chip so a narrow list from the
         # dashboard matrix says why it is narrow (and Clear resets it)
         ram_type = (self.request.GET.get("ram_type") or "").strip()

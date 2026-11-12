@@ -321,6 +321,9 @@ def test_asset_list_active_filter_matches_the_dashboard_kpi(
     assert "Active only — retired/disposed hidden" in body
     assert 'name="active" value="1"' in body
     assert "Active only" not in client.get("/assets/").content.decode()
+    # × drops only `active`; the other filters stay in the URL
+    mixed = client.get("/assets/?active=1&q=IT-HW&status=IN_STOCK").content.decode()
+    assert 'href="/assets/?q=IT-HW&amp;status=IN_STOCK"' in mixed
 
 
 def test_admin_can_manage_site(client, django_user_model, group_setup):

@@ -139,7 +139,10 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         speed_counts: Counter = Counter()
         cells: Counter = Counter()  # (type|None, speed label|None) → assets
         ram_recorded = 0
-        for attrs in assets.values_list("attrs", flat=True)[:1000]:
+        # No cap here: a truncated read would shade cells and print totals
+        # that the drill-down link cannot reproduce, which is exactly the
+        # count/list drift this card is supposed to avoid.
+        for attrs in assets.values_list("attrs", flat=True):
             data = attrs if isinstance(attrs, dict) else {}
             kind = next((data.get(k) for k in ("ram_type", "memory_type") if data.get(k)), None)
             speed = next((data.get(k) for k in ("ram_speed_mhz", "speed_mhz") if data.get(k)), None)
@@ -240,7 +243,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 return str(value).strip() or None
 
         cpu_recorded = 0
-        for attrs in assets.values_list("attrs", flat=True)[:1000]:
+        for attrs in assets.values_list("attrs", flat=True):
             data = attrs if isinstance(attrs, dict) else {}
             model = data.get("cpu_model")
             cores = data.get("cpu_cores")

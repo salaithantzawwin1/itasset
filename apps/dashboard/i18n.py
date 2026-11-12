@@ -234,6 +234,10 @@ STRINGS = {
         "en": "This list leaves out retired and disposed assets",
         "my": "ဤစာရင်းတွင် retired နှင့် disposed ပစ္စည်းများ မပါဝင်ပါ",
     },
+    "asset.active_clear": {
+        "en": "Remove the active-only filter",
+        "my": "Active-only filter ကို ဖယ်ရှားမည်",
+    },
     "asset.clear": {"en": "✕ Clear", "my": "✕ ရှင်းမည်"},
     "asset.tag": {"en": "Tag", "my": "Tag"},
     "asset.category": {"en": "Category", "my": "Category"},

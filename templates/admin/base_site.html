@@ -4,7 +4,7 @@
 {# One topbar for every surface: the shared partial (templates/partials/topbar.html) is the exact markup base.html renders — brand target, nav items (including "My assets"), active states and controls all come from one place, so the nav no longer changes style when you cross into the admin. #}
 {% block header %}{% include "partials/topbar.html" %}{% endblock %}
 
-{# Same theme contract as the main app AND Django's own admin theme.js: localStorage "theme" = light|dark|auto, missing → auto(system); resolved before first paint so a fresh visit never flips between app and admin. #}
+{# Same theme contract as the main app AND Django's own admin theme.js: localStorage "theme" = light|dark|auto, missing → auto(system); resolved before first paint so a fresh visit never flips between app and admin. The dashboard's "accent" choice is restored here as data-accent too, so the admin chrome follows the same palette. #}
 
 {# Django chrome replaced: the shared topbar is the global nav; the aside below is the model tree #}
 {% block nav-breadcrumbs %}{% endblock %}
@@ -16,6 +16,9 @@
   var t = localStorage.getItem("theme") || "auto";
   if (t === "auto") t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   document.documentElement.setAttribute("data-theme", t);
+  // the accent picked on the dashboard follows into the admin chrome too
+  var a = localStorage.getItem("accent");
+  if (a) document.documentElement.setAttribute("data-accent", a);
 })();
 </script>
 {% include "admin/_theme.css.html" %}

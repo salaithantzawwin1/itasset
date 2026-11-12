@@ -186,6 +186,26 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-11-11 (session 69 — clear-one-filter chip + matrix link audit)
+- **Chip ×**: the “Active only — retired/disposed hidden” pill now carries a
+  × that removes only `active=1` (and the page number), keeping every other
+  filter — `?active=1&q=IT-HW&status=IN_STOCK` becomes
+  `?q=IT-HW&status=IN_STOCK` instead of a full reset. New key
+  `asset.active_clear` (EN/MM).
+- **Matrix audit**: every RAM/CPU matrix cell, row and column link was opened
+  with the same scoped caller and compared with the printed number, covering
+  both RAM spellings and the “not recorded” edges. They matched — except that
+  both matrices read only the **first 1,000 assets**, so a bigger register
+  shaded cells and printed totals the link could not reproduce. The truncated
+  read is removed; a 1,005-asset test pins it.
+- Checks: ruff clean, `makemigrations --check` clean; **71 passed** locally
+  (CRUD + dashboard + audit, incl. 6 deep-link tests), server suite **622
+  passed + 108 subtests** (193.9 s, exit 0) with restart gated on the result;
+  gunicorn active, `/healthz` ok. Live mixed-filter list carries the chip and
+  the × href that preserves `q`/`status`; home still renders both matrices;
+  probe **29 ok / 0 failed**. Commit `6b5c022` — pushed `4ca2022..6b5c022`,
+  deployed.
+
 ### 2026-11-11 (session 68 — visible active filter on the asset list)
 - **Problem**: `?active=1` (the dashboard's Active tile) silently hid retired
   and disposed rows, so the list looked complete when it was not; and the

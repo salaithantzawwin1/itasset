@@ -186,6 +186,23 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-11-11 (session 68 — visible active filter on the asset list)
+- **Problem**: `?active=1` (the dashboard's Active tile) silently hid retired
+  and disposed rows, so the list looked complete when it was not; and the
+  filter was not carried in the filter form, so a search or select submit
+  dropped it without telling anyone.
+- **UI**: the list now shows an **“Active only — retired/disposed hidden”**
+  chip (EN/MM keys `asset.active_chip` / `asset.active_hint`, reason on hover)
+  whenever the filter is on; a hidden `active=1` input keeps it through search
+  submits and the live-search fetch, and the Clear link appears when it is the
+  only filter.
+- Checks: ruff clean, `makemigrations --check` clean; **70 passed** locally
+  (CRUD + dashboard), server suite **620 passed + 108 subtests** (190.8 s,
+  exit 0) with restart gated on the result; gunicorn active, `/healthz` ok.
+  Live `/assets/?active=1` carries the chip, hint and hidden input; the plain
+  register does not; probe **29 ok / 0 failed**. Commit `f9d4675` — pushed
+  `c5008b1..f9d4675`, deployed.
+
 ### 2026-11-11 (session 67 — dashboard deep-link audit)
 - **Audited** every KPI and alert href against the list it opens, with the
   same scoped caller: alerts → `#alerts`, warranty 30 → `?warranty_days=30`,

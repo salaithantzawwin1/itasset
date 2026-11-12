@@ -23,6 +23,10 @@ def post_worker_init(worker):
     responses from freshly restarted workers, then ~0.05 s once warm. Doing
     it here pays that cost at startup, before any user request.
     """
+    import sys
+    import time
+
+    started = time.perf_counter()
     try:
         from django.template.loader import get_template
         from django.urls import get_resolver
@@ -30,8 +34,13 @@ def post_worker_init(worker):
         get_resolver()
         get_template("base.html")
         get_template("dashboard/home.html")
-    except Exception:  # never stop a worker from serving over a warm-up
-        pass
+        print(
+            f"warm worker {worker.pid}: {round((time.perf_counter() - started) * 1000)} ms",
+            file=sys.stderr,
+            flush=True,
+        )
+    except Exception as exc:  # never stop a worker from serving over a warm-up
+        print(f"warm worker {worker.pid} failed: {exc!r}", file=sys.stderr, flush=True)
 timeout = 60
 graceful_timeout = 30
 loglevel = "info"

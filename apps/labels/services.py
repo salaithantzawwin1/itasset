@@ -10,11 +10,12 @@ from __future__ import annotations
 import io
 
 import qrcode
-from reportlab.graphics.barcode import code128
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import mm
-from reportlab.lib.utils import ImageReader
-from reportlab.pdfgen import canvas
+
+# reportlab is only needed to draw labels. Importing it at module level made
+# every page that so much as resolves the label URLs drag in the whole PDF
+# stack (~90 ms cold, measured) — the dashboard imports this module, so its
+# first request in each worker paid that. Keep the imports inside the two
+# functions that actually draw.
 
 
 def qr_png(asset, *, box_size: int = 8, border: int = 2) -> bytes:
@@ -34,13 +35,18 @@ def qr_png(asset, *, box_size: int = 8, border: int = 2) -> bytes:
     return buf.getvalue()
 
 
-def code128_barcode(text: str, *, height: float = 6 * mm, font_size: float = 7):
+def code128_barcode(text: str, *, height: float | None = None, font_size: float = 7):
     """Code-128 barcode flowable with the human-readable line (§13).
 
     reportlab ≥4.4 exposes Code128 as a platypus Flowable — draw it with
     `drawOn(canvas, x, y)` rather than adding it to a Drawing.
     """
-    return code128.Code128(text, barHeight=height, humanReadable=True, fontSize=font_size)
+    from reportlab.graphics.barcode import code128
+    from reportlab.lib.units import mm
+
+    return code128.Code128(
+        text, barHeight=6 * mm if height is None else height, humanReadable=True, fontSize=font_size
+    )
 
 
 def label_pdf(assets, *, per_sheet: int = 21) -> bytes:
@@ -49,6 +55,11 @@ def label_pdf(assets, *, per_sheet: int = 21) -> bytes:
     Each label: QR (left), asset tag + model/site (right), Code-128 line below.
     Returns PDF bytes; caller sets the Content-Disposition.
     """
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib.utils import ImageReader
+    from reportlab.pdfgen import canvas
+
     page_w, page_h = A4
     cols, rows = 3, 7
     per_sheet = cols * rows

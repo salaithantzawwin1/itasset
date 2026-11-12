@@ -38,7 +38,7 @@ def post_worker_init(worker):
         # One anonymous request through the full stack (middleware, sessions,
         # CSRF, template rendering) so the first real visitor does not pay for
         # it. This calls the WSGI application directly with a hand-built
-        # environ: no django.test import, and the response is discarded.
+        # environ: no test-client import, and the response is discarded.
         from wsgiref.util import setup_testing_defaults
 
         from config.wsgi import application

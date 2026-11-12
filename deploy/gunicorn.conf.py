@@ -31,7 +31,7 @@ def post_worker_init(worker):
         # URLconf: Django imports `config.urls` lazily on the first resolution,
         # which costs ~200 ms of CPU (drf-spectacular and friends) on the
         # worker's first request. Touching `url_patterns` forces that import.
-        get_resolver().url_patterns
+        _ = get_resolver().url_patterns
         get_template("base.html")
         get_template("dashboard/home.html")
 

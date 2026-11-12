@@ -37,10 +37,26 @@ def post_worker_init(worker):
 
         # One anonymous request through the full stack (middleware, sessions,
         # CSRF, template rendering) so the first real visitor does not pay for
-        # it. The sign-in page needs no account and its response is discarded.
-        from django.test import Client
+        # it. This calls the WSGI application directly with a hand-built
+        # environ: no django.test import, and the response is discarded.
+        from wsgiref.util import setup_testing_defaults
 
-        Client().get("/accounts/login/", HTTP_HOST="127.0.0.1")
+        from config.wsgi import application
+
+        environ = {}
+        setup_testing_defaults(environ)
+        environ.update(
+            REQUEST_METHOD="GET",
+            PATH_INFO="/accounts/login/",
+            QUERY_STRING="",
+            SCRIPT_NAME="",
+            SERVER_NAME="127.0.0.1",
+            SERVER_PORT="80",
+            HTTP_HOST="127.0.0.1",
+        )
+        environ["wsgi.url_scheme"] = "http"
+        for _chunk in application(environ, lambda status, headers: None):
+            pass
     except Exception:  # never stop a worker from serving over a warm-up
         pass
 timeout = 60

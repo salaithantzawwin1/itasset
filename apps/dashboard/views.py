@@ -70,7 +70,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "dashboard/home.html"
 
     def get_context_data(self, **kwargs):
-        from datetime import timedelta
+        from datetime import datetime, time, timedelta
 
         from django.db.models import Q
         from django.utils import timezone
@@ -100,19 +100,27 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         ctx["total_people"] = people.count()
         ctx["total_sites"] = sites.count()
 
+        # Two grouped reads instead of one COUNT per choice (14 scans of the
+        # register at 50k). Same rows, same zeroes dropped.
+        status_counts = dict(assets.values_list("status").annotate(n=Count("pk")))
         ctx["by_status"] = [
-            {"status": s, "label": label, "n": n}
+            {"status": s, "label": label, "n": status_counts.get(s, 0)}
             for s, label in Asset.Status.choices
-            for n in [assets.filter(status=s).count()]
-            if n
+            if status_counts.get(s, 0)
         ]
+        condition_counts = dict(assets.values_list("condition").annotate(n=Count("pk")))
         ctx["by_condition"] = [
-            {"condition": c, "label": label, "n": n}
+            {"condition": c, "label": label, "n": condition_counts.get(c, 0)}
             for c, label in Asset.Condition.choices
-            for n in [assets.filter(condition=c).count()]
-            if n
+            if condition_counts.get(c, 0)
         ]
-        ctx["by_site"] = sites.annotate(n=Count("assets", distinct=True)).order_by("-n")
+        # The old form LEFT JOINed the whole register into the sites query and
+        # counted DISTINCT assets per site (~90 ms at 50k); count by site_id
+        # once and hand the number to each site instead.
+        site_counts = dict(assets.values_list("site_id").annotate(n=Count("pk")))
+        for site in sites:
+            site.n = site_counts.get(site.id, 0)
+        ctx["by_site"] = sorted(sites, key=lambda site: -site.n)
         ctx["recent"] = assets.select_related("category", "site").order_by("-created_at")[:6]
 
         # ---- RAM card: what memory is actually in the fleet --------------
@@ -356,7 +364,6 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         in_7 = today + timedelta(days=7)
         month_start = today.replace(day=1)
 
-        excluded = (Asset.Status.RETIRED, Asset.Status.DISPOSED)
         warranty_30 = assets.filter(
             warranty_end__isnull=False,
             warranty_end__gte=today,
@@ -367,9 +374,20 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             warranty_end__gte=today,
             warranty_end__lte=in_7,
         ).count()
-        active = assets.exclude(status__in=excluded).count()
-        assigned = assets.filter(status=Asset.Status.ASSIGNED).count()
-        new_this_month = assets.filter(created_at__date__gte=month_start).count()
+        # Both numbers are already in `status_counts`; a COUNT each would scan
+        # the register twice more.
+        active = (
+            ctx["total_assets"]
+            - status_counts.get(Asset.Status.RETIRED, 0)
+            - status_counts.get(Asset.Status.DISPOSED, 0)
+        )
+        assigned = status_counts.get(Asset.Status.ASSIGNED, 0)
+        # Compare against the month's first instant, not a per-row date cast:
+        # the plain created_at index can serve this, the cast cannot.
+        month_start_at = timezone.make_aware(
+            datetime.combine(month_start, time.min), timezone.get_current_timezone()
+        )
+        new_this_month = assets.filter(created_at__gte=month_start_at).count()
         overdue = (
             scope_list(user, Assignment.objects.all(), site_field="asset__site", **act)
             .filter(in_at__isnull=True, due_at__lt=timezone.now())

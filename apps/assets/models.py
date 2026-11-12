@@ -233,7 +233,9 @@ class Asset(models.Model):
     # overwriting a concurrent change.
     version = models.PositiveIntegerField(default=1)
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    # db_index: the dashboard's "recent" list orders the whole register by it
+    # (100 ms at 50k without an index) and the month count filters on it.
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

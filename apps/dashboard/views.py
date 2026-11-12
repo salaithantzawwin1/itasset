@@ -117,13 +117,24 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         # ---- RAM card: what memory is actually in the fleet --------------
         # attrs is a JSON column, so there is no SQL group-by to lean on —
-        # read the page's own (already scope-filtered) assets, capped, and
-        # count in Python. Two spellings exist and both answer the same
-        # question: installed devices record `ram_type`/`ram_speed_mhz`
-        # (§5 catalogue), the RAM-module category records `memory_type`/
-        # `speed_mhz`; a RAM with neither is simply not counted (the coverage
-        # line below says how much of the register has RAM recorded).
+        # counts come back grouped from the database. Two spellings exist and
+        # both answer the same question: installed devices record
+        # `ram_type`/`ram_speed_mhz` (§5 catalogue), the RAM-module category
+        # records `memory_type`/`speed_mhz`; a RAM with neither is simply not
+        # counted (the coverage line says how much of the register has RAM
+        # recorded). Scanning attrs in Python transferred every document and
+        # was the slowest part of this page on a large register.
         from collections import Counter
+
+        from django.db.models import TextField, Value
+        from django.db.models.fields.json import KeyTextTransform
+        from django.db.models.functions import Coalesce, NullIf
+
+        def _text(key):
+            """One attrs value as text, with blank strings read as missing."""
+            return NullIf(
+                KeyTextTransform(key, "attrs"), Value(""), output_field=TextField()
+            )
 
         def _speed_label(value) -> str:
             try:
@@ -138,24 +149,31 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         type_counts: Counter = Counter()
         speed_counts: Counter = Counter()
         cells: Counter = Counter()  # (type|None, speed label|None) → assets
-        ram_recorded = 0
-        # No cap here: a truncated read would shade cells and print totals
-        # that the drill-down link cannot reproduce, which is exactly the
-        # count/list drift this card is supposed to avoid.
-        for attrs in assets.values_list("attrs", flat=True):
-            data = attrs if isinstance(attrs, dict) else {}
-            kind = next((data.get(k) for k in ("ram_type", "memory_type") if data.get(k)), None)
-            speed = next((data.get(k) for k in ("ram_speed_mhz", "speed_mhz") if data.get(k)), None)
-            if not kind and speed is None:
-                continue
-            ram_recorded += 1
-            kind_key = str(kind) if kind else None
-            speed_key = _speed_label(speed) if speed is not None else None
-            if kind_key:
-                type_counts[kind_key] += 1
-            if speed_key:
-                speed_counts[speed_key] += 1
-            cells[(kind_key, speed_key)] += 1
+        # One GROUP BY over both key spellings returns only the distinct
+        # combinations (a handful), never the whole register's documents.
+        ram_groups = (
+            assets.annotate(
+                ram_kind=Coalesce(
+                    _text("ram_type"), _text("memory_type"), output_field=TextField()
+                ),
+                ram_clock=Coalesce(
+                    _text("ram_speed_mhz"), _text("speed_mhz"), output_field=TextField()
+                ),
+            )
+            .filter(Q(ram_kind__isnull=False) | Q(ram_clock__isnull=False))
+            .values("ram_kind", "ram_clock")
+            .annotate(n=Count("pk"))
+        )
+        ram_recorded = sum(group["n"] for group in ram_groups)
+        for group in ram_groups:
+            kind = group["ram_kind"] or None
+            clock = group["ram_clock"]
+            speed = _speed_label(clock) if clock is not None else None
+            cells[(kind, speed)] += group["n"]
+            if kind:
+                type_counts[kind] += group["n"]
+            if speed:
+                speed_counts[speed] += group["n"]
 
         ctx["ram_recorded"] = ram_recorded
         # ---- RAM matrix: type × speed, totals on both edges --------------
@@ -242,17 +260,20 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             except (TypeError, ValueError):
                 return str(value).strip() or None
 
-        cpu_recorded = 0
-        for attrs in assets.values_list("attrs", flat=True):
-            data = attrs if isinstance(attrs, dict) else {}
-            model = data.get("cpu_model")
-            cores = data.get("cpu_cores")
-            if not model and cores is None:
-                continue
-            cpu_recorded += 1
-            model_key = str(model).strip() if model else None
-            cores_key = _cores_key(cores) if cores is not None else None
-            cpu_cells[(model_key, cores_key)] += 1
+        cpu_groups = (
+            assets.annotate(
+                cpu_name=_text("cpu_model"),
+                cpu_count=_text("cpu_cores"),
+            )
+            .filter(Q(cpu_name__isnull=False) | Q(cpu_count__isnull=False))
+            .values("cpu_name", "cpu_count")
+            .annotate(n=Count("pk"))
+        )
+        cpu_recorded = sum(group["n"] for group in cpu_groups)
+        for group in cpu_groups:
+            model = group["cpu_name"].strip() if group["cpu_name"] else None
+            cores = _cores_key(group["cpu_count"]) if group["cpu_count"] is not None else None
+            cpu_cells[(model, cores)] += group["n"]
 
         model_counts: Counter = Counter()
         core_counts: Counter = Counter()

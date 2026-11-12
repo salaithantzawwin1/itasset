@@ -193,7 +193,8 @@ class DashboardDeepLinkTests(TestCase):
             for cell in row["cells"]:
                 if not cell["n"]:
                     continue
-                url = f"{base}?{urlencode({'ram_type': row['key'], 'ram_speed': cell['speed_key']})}"
+                query = urlencode({"ram_type": row["key"], "ram_speed": cell["speed_key"]})
+                url = f"{base}?{query}"
                 self.assertEqual(count(url), cell["n"], url)
         for col, total in zip(ram["columns"], ram["col_totals"], strict=True):
             url = f"{base}?{urlencode({'ram_speed': col['key']})}"

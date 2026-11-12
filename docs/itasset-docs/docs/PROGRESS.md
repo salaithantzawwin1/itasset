@@ -13,7 +13,7 @@
 |---|---|
 | Current milestone | M8 — Go-live |
 | Status | M1–M7 complete; M8 not started (deployment up, DR/monitoring pending) |
-| Last updated | 2026-11-11 |
+| Last updated | 2026-11-12 |
 | Next milestone | M8 — Go-live (+ spec-alignment track, see below) |
 | Test suite | **609 passed + 108 subtests** (2026-11-11 local run, 401.0 s, exit 0; deployed and re-run on the server, 185.2 s, exit 0) |
 
@@ -185,6 +185,40 @@ authenticated user; no company/branch scoping exists.
 ---
 
 ## Session Log
+
+### 2026-11-12 (session 71 — dashboard latency variance + 50k benchmark)
+- **Reproduced the variance**: 20 warm production samples sat at 0.047–0.075 s,
+  but restarting gunicorn and sampling at once gave five slow requests
+  (0.36–0.40 s, one per worker) followed by ~0.05 s. Gunicorn's own handler
+  timer (`%(L)s`) showed the same, so the time was inside the worker, not
+  nginx or the network. A fresh-process profile put a cold dashboard request
+  at **307 ms total with only 20 ms in SQL**; a stack dump caught the time in
+  **reportlab's import**, and import timing showed two lazy costs per worker:
+  the URLconf (drf-spectacular and friends, ~200 ms CPU) and reportlab
+  (~77 ms, pulled in by `apps.labels.services`).
+- **Fixes**: `deploy/gunicorn.conf.py` now sets `preload_app = True` and a
+  `post_worker_init` warm-up that forces `get_resolver().url_patterns`
+  (`get_resolver()` alone does *not* import `config.urls`), loads the base and
+  dashboard templates, and performs one anonymous sign-in-page request
+  through the full middleware stack. `apps/labels/services.py` imports
+  reportlab inside the two functions that draw labels instead of at module
+  level. No view, query or template output changed.
+- **After**: 30 requests issued immediately after a restart — **min 0.046,
+  median 0.055, p90 0.114, max 0.130 s** (was 0.36–0.40 s), and the steady
+  state is a flat 0.048–0.055 s. Label PDF still returns 200 with `%PDF`;
+  probe 29 ok / 0 failed.
+- **50,000-asset benchmark** (temporary local seed of 50,000 rows, 7 runs,
+  median): the database `GROUP BY` dashboard takes **543 ms** against
+  **1,292 ms** for the previous Python scan of every `attrs` document —
+  **−58%** at 50k, so the matrix aggregation still holds at that size
+  (warm requests on the 19-asset production register are ~0.05 s).
+- Checks: ruff clean; labels tests **8 passed**; server suite **622 passed +
+  108 subtests** (189.3 s, exit 0) after the deploy. Temporary benchmark
+  rows and the untracked benchmark script were removed; diagnostic
+  middleware and the `faulthandler` stack-dump run were removed too (the
+  stack-dump run itself triggered gunicorn `SIGSEGV` worker replacements —
+  they stopped once the instrumentation was gone, and a label PDF rendered
+  normally without it).
 
 ### 2026-11-11 (session 70 — dashboard matrix aggregation)
 - **Measured first**: a temporary local benchmark seeded 3,000/10,000 assets

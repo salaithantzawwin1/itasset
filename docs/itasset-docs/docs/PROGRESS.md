@@ -218,6 +218,11 @@ authenticated user; no company/branch scoping exists.
   same bright accent on white. Both now use the deep accent fill / link
   colour in accent mode; screenshots re-taken for all six combinations and
   the buttons/header read cleanly.
+- Guard: `apps/core/test_accent_palettes.py` asserts the three surfaces each
+  include `partials/accent_palettes.css.html` exactly once, no other template
+  defines accent palette selectors, the shared file defines all six accents
+  for light and dark, and every rendered surface (sign-in, dashboard, admin)
+  serves each definition once. Server suite is now 626 passed + 135 subtests.
 
 ### 2026-11-12 (session 75 — admin follows the accent)
 - **Decision**: admin follows the dashboard accent rather than staying on the

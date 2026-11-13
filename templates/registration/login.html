@@ -32,20 +32,13 @@
       --surface: #141d2b; --border: #263244; --field: #0f1825;
       --shadow: 0 18px 50px rgba(0, 0, 0, .6);
     }
-    /* Same six palettes as base.html: the accent chosen on the dashboard is
-       restored in the head script above, so the sign-in page matches it. */
-    :root[data-accent="blue"]   { --primary: #1d4ed8; --primary-dark: #1e3a8a; --primary-light: #e6eefc; --accent: #3b82f6; }
-    :root[data-accent="green"]  { --primary: #047857; --primary-dark: #064e3b; --primary-light: #e7f7f0; --accent: #10b981; }
-    :root[data-accent="purple"] { --primary: #7c3aed; --primary-dark: #4c1d95; --primary-light: #f1eafe; --accent: #8b5cf6; }
-    :root[data-accent="orange"] { --primary: #b45309; --primary-dark: #78350f; --primary-light: #fdf3e7; --accent: #f59e0b; }
-    :root[data-accent="pink"]   { --primary: #be185d; --primary-dark: #831843; --primary-light: #fdeaf2; --accent: #ec4899; }
-    :root[data-accent="teal"]   { --primary: #0f766e; --primary-dark: #134e4a; --primary-light: #e6f7f5; --accent: #14b8a6; }
-    [data-theme="dark"][data-accent="blue"]   { --primary: #3b82f6; --primary-dark: #172554; --primary-light: #172a4d; --accent: #60a5fa; }
-    [data-theme="dark"][data-accent="green"]  { --primary: #059669; --primary-dark: #052e24; --primary-light: #12352b; --accent: #34d399; }
-    [data-theme="dark"][data-accent="purple"] { --primary: #8b5cf6; --primary-dark: #2e1065; --primary-light: #2a1d48; --accent: #a78bfa; }
-    [data-theme="dark"][data-accent="orange"] { --primary: #d97706; --primary-dark: #451a03; --primary-light: #3a2a16; --accent: #fbbf24; }
-    [data-theme="dark"][data-accent="pink"]   { --primary: #db2777; --primary-dark: #4c0519; --primary-light: #3a1c2c; --accent: #f472b6; }
-    [data-theme="dark"][data-accent="teal"]   { --primary: #0d9488; --primary-dark: #042f2e; --primary-light: #13312f; --accent: #2dd4bf; }
+    /* Same shared palettes as base.html: the accent chosen on the dashboard
+       is restored in the head script above, so the sign-in page matches it. */
+    {% include "partials/accent_palettes.css.html" %}
+    /* dark sign-in: white label text needs a deeper fill than the bright
+       dark-mode primary for orange/pink/teal */
+    [data-theme="dark"] .btn-submit { background: color-mix(in srgb, var(--primary) 62%, #000); }
+    [data-theme="dark"] .btn-submit:hover { background: color-mix(in srgb, var(--primary) 72%, #000); }
     * { box-sizing: border-box; }
     body {
       margin: 0; min-height: 100vh; padding: 24px;

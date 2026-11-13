@@ -188,91 +188,6 @@ html[data-theme="light"] {
   color-scheme: light;
 }
 
-/* ---------- dashboard accent palettes -------------------------------- */
-/* base_site restores localStorage.accent as <html data-accent>. These rules
-   only fire when an accent is set, so the stock admin palette is unchanged
-   for anyone who never picked one. Brand surfaces that were hard-coded to
-   the blue/teal defaults (header, buttons, links, selected rows, focus ring)
-   derive from the palette's primary/accent. */
-html[data-theme][data-accent] {
-  --header-bg: linear-gradient(90deg, var(--primary-dark), var(--primary));
-  --button-bg: var(--primary);
-  --button-hover-bg: var(--primary-dark);
-  --default-button-bg: var(--primary);
-  --default-button-hover-bg: var(--primary-dark);
-  --object-tools-bg: var(--accent-strong);
-  --object-tools-hover-bg: var(--accent-strong-hover);
-  --link-fg: var(--primary);
-  --link-hover-color: color-mix(in srgb, var(--primary) 72%, #000);
-  --link-selected-fg: var(--primary-dark);
-  --selected-bg: color-mix(in srgb, var(--primary) 10%, var(--body-bg));
-  --selected-row: color-mix(in srgb, var(--primary) 16%, var(--body-bg));
-  --ring: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent);
-}
-
-html[data-theme="light"][data-accent="blue"] {
-  --primary: #1d4ed8; --primary-dark: #1e3a8a; --secondary: #1d4ed8;
-  --accent: #1d4ed8; --accent-strong: #1e3a8a; --accent-strong-hover: #1d4ed8;
-}
-html[data-theme="light"][data-accent="green"] {
-  --primary: #047857; --primary-dark: #064e3b; --secondary: #047857;
-  --accent: #047857; --accent-strong: #064e3b; --accent-strong-hover: #047857;
-}
-html[data-theme="light"][data-accent="purple"] {
-  --primary: #7c3aed; --primary-dark: #4c1d95; --secondary: #7c3aed;
-  --accent: #7c3aed; --accent-strong: #4c1d95; --accent-strong-hover: #7c3aed;
-}
-html[data-theme="light"][data-accent="orange"] {
-  --primary: #b45309; --primary-dark: #78350f; --secondary: #b45309;
-  --accent: #b45309; --accent-strong: #78350f; --accent-strong-hover: #b45309;
-}
-html[data-theme="light"][data-accent="pink"] {
-  --primary: #be185d; --primary-dark: #831843; --secondary: #be185d;
-  --accent: #be185d; --accent-strong: #831843; --accent-strong-hover: #be185d;
-}
-html[data-theme="light"][data-accent="teal"] {
-  --primary: #0f766e; --primary-dark: #134e4a; --secondary: #0f766e;
-  --accent: #0f766e; --accent-strong: #134e4a; --accent-strong-hover: #0f766e;
-}
-
-/* dark palettes: bright primary for text/icons, deep shade for filled
-   surfaces that carry white text (object tools, header gradient). */
-html[data-theme="dark"][data-accent] {
-  /* white text needs the deeper shade for filled surfaces */
-  --header-bg: linear-gradient(90deg, var(--primary-dark), var(--accent-strong));
-  --button-bg: var(--accent-strong);
-  --button-hover-bg: var(--primary);
-  --default-button-bg: var(--accent-strong);
-  --default-button-hover-bg: var(--primary);
-  --link-fg: color-mix(in srgb, var(--primary) 68%, #fff);
-  --link-hover-color: color-mix(in srgb, var(--primary) 45%, #fff);
-  --link-selected-fg: color-mix(in srgb, var(--primary) 55%, #fff);
-}
-html[data-theme="dark"][data-accent="blue"] {
-  --primary: #3b82f6; --primary-dark: #172554; --secondary: #172554;
-  --accent: #60a5fa; --accent-strong: #1d4ed8; --accent-strong-hover: #2563eb;
-}
-html[data-theme="dark"][data-accent="green"] {
-  --primary: #059669; --primary-dark: #052e24; --secondary: #052e24;
-  --accent: #34d399; --accent-strong: #047857; --accent-strong-hover: #059669;
-}
-html[data-theme="dark"][data-accent="purple"] {
-  --primary: #8b5cf6; --primary-dark: #2e1065; --secondary: #2e1065;
-  --accent: #a78bfa; --accent-strong: #7c3aed; --accent-strong-hover: #8b5cf6;
-}
-html[data-theme="dark"][data-accent="orange"] {
-  --primary: #d97706; --primary-dark: #451a03; --secondary: #451a03;
-  --accent: #fbbf24; --accent-strong: #b45309; --accent-strong-hover: #d97706;
-}
-html[data-theme="dark"][data-accent="pink"] {
-  --primary: #db2777; --primary-dark: #4c0519; --secondary: #4c0519;
-  --accent: #f472b6; --accent-strong: #be185d; --accent-strong-hover: #db2777;
-}
-html[data-theme="dark"][data-accent="teal"] {
-  --primary: #0d9488; --primary-dark: #042f2e; --secondary: #042f2e;
-  --accent: #2dd4bf; --accent-strong: #0f766e; --accent-strong-hover: #0d9488;
-}
-
 /* ---------- base ------------------------------------------------------- */
 body {
   font-family: system-ui, "Myanmar Text", "Padauk", sans-serif;
@@ -1588,15 +1503,48 @@ html[data-theme="dark"] .page-head {
 html[data-theme="dark"] .anav-brand strong { color: #f4f8fd; }
 
 /* ---------- accent-aware chrome ----------------------------------------- */
-/* These components paint the blue/teal pair directly instead of reading the
-   tokens above; with an accent set they follow the palette too. Selectors
-   match html[data-theme][data-accent] so they win over the v3/v4 rules. */
-html[data-theme][data-accent] .topbar {
-  background: linear-gradient(90deg, var(--primary-dark), var(--primary));
+/* The palette VALUES live in partials/accent_palettes.css.html, shared with
+   base.html and the sign-in page. Included last so its selectors win over the
+   v3/v4 blocks above; the admin then only maps its own tokens. */
+{% include "partials/accent_palettes.css.html" %}
+html[data-theme][data-accent] {
+  --secondary: var(--primary);
+  /* filled accent surfaces carry white text, so derive a deep-enough shade */
+  --accent-strong: color-mix(in srgb, var(--primary) 80%, #000);
+  --accent-strong-hover: color-mix(in srgb, var(--primary) 66%, #000);
+  --header-bg: linear-gradient(90deg, var(--primary-dark), var(--primary));
+  --button-bg: var(--primary);
+  --button-hover-bg: var(--primary-dark);
+  --default-button-bg: var(--primary);
+  --default-button-hover-bg: var(--primary-dark);
+  --object-tools-bg: var(--accent-strong);
+  --object-tools-hover-bg: var(--accent-strong-hover);
+  --link-fg: var(--primary);
+  --link-hover-color: color-mix(in srgb, var(--primary) 72%, #000);
+  --link-selected-fg: var(--primary-dark);
+  --selected-bg: color-mix(in srgb, var(--primary) 10%, var(--body-bg));
+  --selected-row: color-mix(in srgb, var(--primary) 16%, var(--body-bg));
+  --ring: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent);
 }
-html[data-theme="dark"][data-accent] .topbar {
-  background: linear-gradient(90deg, var(--primary-dark), var(--accent-strong));
+
+/* dark: the bright dark-mode primary is fine as text/icon colour but not as
+   a white-text fill (orange/pink/teal fail AA), so filled surfaces mix it
+   toward black while links mix it toward white. */
+html[data-theme="dark"][data-accent] {
+  --header-bg: linear-gradient(90deg, var(--primary-dark),
+    color-mix(in srgb, var(--primary) 72%, var(--primary-dark)));
+  --button-bg: color-mix(in srgb, var(--primary) 58%, #000);
+  --button-hover-bg: color-mix(in srgb, var(--primary) 46%, #000);
+  --default-button-bg: color-mix(in srgb, var(--primary) 58%, #000);
+  --default-button-hover-bg: color-mix(in srgb, var(--primary) 46%, #000);
+  --object-tools-bg: color-mix(in srgb, var(--primary) 58%, #000);
+  --object-tools-hover-bg: color-mix(in srgb, var(--primary) 46%, #000);
+  --link-fg: color-mix(in srgb, var(--primary) 68%, #fff);
+  --link-hover-color: color-mix(in srgb, var(--primary) 45%, #fff);
+  --link-selected-fg: color-mix(in srgb, var(--primary) 55%, #fff);
 }
+
+html[data-theme][data-accent] .topbar { background: var(--header-bg); }
 html[data-theme][data-accent] .brand .logo,
 html[data-theme][data-accent] .anav-mark,
 html[data-theme][data-accent] .login-card-head .brand-chip-lg {
@@ -1609,7 +1557,23 @@ html[data-theme][data-accent] .anav-group.on ul li a.on {
   box-shadow: inset 3px 0 0 var(--accent);
 }
 html[data-theme="dark"][data-accent] .object-tools a:not(.addlink) {
-  background: var(--accent-strong) !important;
-  border-color: var(--accent-strong-hover) !important;
+  background: var(--object-tools-bg) !important;
+  border-color: var(--button-hover-bg) !important;
+}
+html[data-theme="dark"][data-accent] .object-tools a.addlink {
+  color: #fff !important;
+}
+/* dark-mode admin had these filled controls hard-coded to the old blue; they
+   must follow the accent fill too, or the theme looks half-applied. */
+html[data-theme="dark"][data-accent] #changelist .actions .button,
+html[data-theme="dark"][data-accent] .paginator .this-page,
+html[data-theme="dark"][data-accent] .historylink,
+html[data-theme="dark"][data-accent] #changelist-filter details ul li.selected a,
+html[data-theme="dark"][data-accent] #toolbar #changelist-search input[type="submit"],
+html[data-theme="dark"][data-accent] .submit-row input.default,
+html[data-theme="dark"][data-accent] .login .submit-row input[type="submit"] {
+  background: var(--button-bg);
+  border-color: var(--button-hover-bg);
+  color: #fff;
 }
 </style>

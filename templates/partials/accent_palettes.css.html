@@ -1,0 +1,26 @@
+/* =========================================================================
+   Accent palettes — ONE source for base.html, registration/login.html and
+   the admin theme (templates/admin/_theme.css.html).
+
+   The dashboard stores the chosen accent as localStorage.accent; every page
+   restores it as <html data-accent> in the head before first paint. Each
+   palette provides:
+     --primary       white-text-safe brand colour (buttons, topbar end)
+     --primary-dark  deepest shade (topbar start, hover)
+     --primary-light tinted surface
+     --accent        bright highlight (logo, gradients, focus ring)
+   ========================================================================= */
+
+:root[data-accent="blue"]   { --primary: #1d4ed8; --primary-dark: #1e3a8a; --primary-light: #e6eefc; --accent: #3b82f6; }
+:root[data-accent="green"]  { --primary: #047857; --primary-dark: #064e3b; --primary-light: #e7f7f0; --accent: #10b981; }
+:root[data-accent="purple"] { --primary: #7c3aed; --primary-dark: #4c1d95; --primary-light: #f1eafe; --accent: #8b5cf6; }
+:root[data-accent="orange"] { --primary: #b45309; --primary-dark: #78350f; --primary-light: #fdf3e7; --accent: #f59e0b; }
+:root[data-accent="pink"]   { --primary: #be185d; --primary-dark: #831843; --primary-light: #fdeaf2; --accent: #ec4899; }
+:root[data-accent="teal"]   { --primary: #0f766e; --primary-dark: #134e4a; --primary-light: #e6f7f5; --accent: #14b8a6; }
+
+[data-theme="dark"][data-accent="blue"]   { --primary: #3b82f6; --primary-dark: #172554; --primary-light: #172a4d; --accent: #60a5fa; }
+[data-theme="dark"][data-accent="green"]  { --primary: #059669; --primary-dark: #052e24; --primary-light: #12352b; --accent: #34d399; }
+[data-theme="dark"][data-accent="purple"] { --primary: #8b5cf6; --primary-dark: #2e1065; --primary-light: #2a1d48; --accent: #a78bfa; }
+[data-theme="dark"][data-accent="orange"] { --primary: #d97706; --primary-dark: #451a03; --primary-light: #3a2a16; --accent: #fbbf24; }
+[data-theme="dark"][data-accent="pink"]   { --primary: #db2777; --primary-dark: #4c0519; --primary-light: #3a1c2c; --accent: #f472b6; }
+[data-theme="dark"][data-accent="teal"]   { --primary: #0d9488; --primary-dark: #042f2e; --primary-light: #13312f; --accent: #2dd4bf; }

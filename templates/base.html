@@ -34,22 +34,10 @@
       --text: #e2e8f0; --muted: #8fa0b3; --thead-bg: #202b36;
     }
     /* ---------- accent palettes (site-wide) ---------- */
-    /* Picked from the dashboard hero; the <html> attribute is restored in the
-       head before first paint, so every page — not just the dashboard — follows
-       the choice. Each palette keeps a dark-enough primary for white button
-       text and its own light tint, plus a bright accent for highlights. */
-    :root[data-accent="blue"]   { --primary: #1d4ed8; --primary-dark: #1e3a8a; --primary-light: #e6eefc; --accent: #3b82f6; }
-    :root[data-accent="green"]  { --primary: #047857; --primary-dark: #064e3b; --primary-light: #e7f7f0; --accent: #10b981; }
-    :root[data-accent="purple"] { --primary: #7c3aed; --primary-dark: #4c1d95; --primary-light: #f1eafe; --accent: #8b5cf6; }
-    :root[data-accent="orange"] { --primary: #b45309; --primary-dark: #78350f; --primary-light: #fdf3e7; --accent: #f59e0b; }
-    :root[data-accent="pink"]   { --primary: #be185d; --primary-dark: #831843; --primary-light: #fdeaf2; --accent: #ec4899; }
-    :root[data-accent="teal"]   { --primary: #0f766e; --primary-dark: #134e4a; --primary-light: #e6f7f5; --accent: #14b8a6; }
-    [data-theme="dark"][data-accent="blue"]   { --primary: #3b82f6; --primary-dark: #172554; --primary-light: #172a4d; --accent: #60a5fa; }
-    [data-theme="dark"][data-accent="green"]  { --primary: #059669; --primary-dark: #052e24; --primary-light: #12352b; --accent: #34d399; }
-    [data-theme="dark"][data-accent="purple"] { --primary: #8b5cf6; --primary-dark: #2e1065; --primary-light: #2a1d48; --accent: #a78bfa; }
-    [data-theme="dark"][data-accent="orange"] { --primary: #d97706; --primary-dark: #451a03; --primary-light: #3a2a16; --accent: #fbbf24; }
-    [data-theme="dark"][data-accent="pink"]   { --primary: #db2777; --primary-dark: #4c0519; --primary-light: #3a1c2c; --accent: #f472b6; }
-    [data-theme="dark"][data-accent="teal"]   { --primary: #0d9488; --primary-dark: #042f2e; --primary-light: #13312f; --accent: #2dd4bf; }
+    /* Single source shared with registration/login.html and the admin theme;
+       the <html data-accent> attribute is restored before first paint, so
+       every page follows the dashboard choice. */
+    {% include "partials/accent_palettes.css.html" %}
     /* white button text needs a deeper fill than the bright dark-mode accent;
        secondary buttons use a lighter ink so they stay readable on the tint */
     [data-theme="dark"] .btn { background: color-mix(in srgb, var(--primary) 78%, #000); }

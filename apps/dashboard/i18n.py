@@ -191,21 +191,32 @@ STRINGS = {
     },
     "dash.kpi.overdue": {"en": "Overdue loans", "my": "ပြန်ရန် ကျန်ချိန် ကျော်လွန်"},
     "dash.kpi.overdue_meta": {"en": "Past the due date", "my": "သတ်မှတ်ရက် ကျော်လွန်ပြီ"},
-    "alert.overdue_loans": {"en": "{n} loans overdue", "my": "ပြန်ရန် ကျန်ချိန်ကျော်လွန်နေသော {n} ခု"},
+    # Counted alerts carry "one"/"other" forms; Burmese has no plural
+    # inflection, so it stays a single string.
+    "alert.overdue_loans": {
+        "en": {"one": "{n} loan overdue", "other": "{n} loans overdue"},
+        "my": "ပြန်ရန် ကျန်ချိန်ကျော်လွန်နေသော {n} ခု",
+    },
     "alert.transfer_exceptions": {
-        "en": "{n} transfers in exception",
+        "en": {"one": "{n} transfer in exception", "other": "{n} transfers in exception"},
         "my": "Exception ဖြစ်နေသော ပြောင်းရွှေ့မှု {n} ခု",
     },
     "alert.warranty_soon": {
-        "en": "{n} warranties expiring within 7 days",
+        "en": {
+            "one": "{n} warranty expiring within 7 days",
+            "other": "{n} warranties expiring within 7 days",
+        },
         "my": "ရက် ၇ အတွင်း အာမခံကုန်မည့် {n} ခု",
     },
     "alert.missing_serial": {
-        "en": "{n} assets missing a serial number",
+        "en": {
+            "one": "{n} asset missing a serial number",
+            "other": "{n} assets missing a serial number",
+        },
         "my": "Serial နံပါတ် ကွက်နေသော ပစ္စည်း {n} ခု",
     },
     "alert.pending_approvals": {
-        "en": "{n} requests awaiting approval",
+        "en": {"one": "{n} request awaiting approval", "other": "{n} requests awaiting approval"},
         "my": "အတည်ပြုရန် စောင့်ဆိုင်းနေသော တောင်းဆိုမှု {n} ခု",
     },
     # assets

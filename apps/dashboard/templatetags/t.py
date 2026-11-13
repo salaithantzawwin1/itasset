@@ -23,6 +23,12 @@ def t(context, key, **params):
         lang = getattr(request, "session", {}).get("lang", "en") or "en"
     entry = STRINGS.get(key) or {}
     text = entry.get(lang) or entry.get("en") or key
+    if isinstance(text, dict):
+        # counted string: {"one": ..., "other": ...}
+        text = text.get("one") if params.get("n") == 1 else text.get("other")
+        text = text or entry.get("en") or key
+        if isinstance(text, dict):
+            text = text.get("other") or text.get("one") or key
     if params:
         try:
             text = text.format(**params)

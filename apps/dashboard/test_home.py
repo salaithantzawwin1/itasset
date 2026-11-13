@@ -342,7 +342,7 @@ class DashboardKpiAlertTests(TestCase):
         self.assertEqual(alerts[0]["n"], 1)
         self.assertEqual(alerts[0]["tone"], "warn")
         self.assertContains(resp, "Alerts")
-        self.assertContains(resp, "1 warranties expiring within 7 days")
+        self.assertContains(resp, "1 warranty expiring within 7 days")
 
     def test_retired_assets_leave_the_active_kpi(self):
         self._make("A-4")

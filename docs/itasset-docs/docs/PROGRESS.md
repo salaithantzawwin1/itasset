@@ -211,6 +211,13 @@ authenticated user; no company/branch scoping exists.
   calls the dark primary white-text-safe. Re-measured browser contrast after
   the refactor: admin dark header 4.77-6.46 / buttons 7.67-9.96, light
   5.02-6.04; sign-in submit 7.05-9.96 — no regression.
+- Visual pass (session 76, screenshots of admin changelist for orange/pink/
+  teal × light/dark): header, Search/Go, sidebar active row and filter chips
+  looked right, but the "Add user" object-tool painted the bright `--accent`
+  behind white text (~2:1) in all six, and the small ADMIN eyebrow used the
+  same bright accent on white. Both now use the deep accent fill / link
+  colour in accent mode; screenshots re-taken for all six combinations and
+  the buttons/header read cleanly.
 
 ### 2026-11-12 (session 75 — admin follows the accent)
 - **Decision**: admin follows the dashboard accent rather than staying on the

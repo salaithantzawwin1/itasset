@@ -186,6 +186,17 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-11-13 (session 77 — dashboard accent menu clipped)
+- Reported dashboard screenshot showed only the top row of accent swatches.
+  Cause: `.dash-hero { overflow: hidden }` clipped the absolutely-positioned
+  `.accent-menu` at the hero's bottom edge. The decorative grid is `inset: 0`,
+  so nothing needed clipping; hero overflow is now `visible`.
+- Browser check: menu rect 1141–1271 × 199–291 with hero bottom 242 — all six
+  swatches visible over the KPI row, fully inside the viewport, no console
+  errors; repeated at 390 px width. Production `/` serves `overflow: visible`.
+- Checks: ruff clean; dashboard + palette guard **34 passed + 27 subtests**;
+  server suite **626 passed + 135 subtests** (186.7 s); health ok; probe 29/0.
+
 ### 2026-11-12 (session 76 — accent palettes in one place + contrast gate)
 - Palette definitions had been copied into `base.html`, `registration/login.html`
   and `admin/_theme.css.html` and had drifted (admin used `--accent` as its

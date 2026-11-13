@@ -186,6 +186,25 @@ authenticated user; no company/branch scoping exists.
 
 ## Session Log
 
+### 2026-11-12 (session 76 — accent palettes in one place + contrast gate)
+- Palette definitions had been copied into `base.html`, `registration/login.html`
+  and `admin/_theme.css.html` and had drifted (admin used `--accent` as its
+  primary). They now live in `templates/partials/accent_palettes.css.html`
+  (six light + six dark), included by all three surfaces; only the admin's
+  token mapping and component colours stay admin-specific.
+- Admin dark fills now derive from the palette: header end/white-text buttons
+  mix the bright dark primary toward black, so orange/pink/teal pass AA. The
+  last hard-coded blue login/changelist buttons and dark object-tools text
+  were overridden; the sign-in submit button got the same dark-mode mix.
+- Browser contrast check (canvas-resolved computed colours, white text):
+  admin orange 5.02 light / 4.77 dark header / 7.67 button; pink 6.04 / 6.46 /
+  9.96; teal 5.47 / 5.36 / 8.58. Sign-in submit: orange 5.02/7.01, pink
+  6.04/9.24, teal 5.47/7.89 (light/dark). No-accent admin still resolves to
+  the stock `#6fa8ff`/`#2dd4bf` palette.
+- Checks: ruff clean; core + dashboard **63 passed**; server suite **622
+  passed + 108 subtests** (187.9 s); health ok; probe 29 ok / 0 failed;
+  production login/admin HTML serve the shared palette block and dark mixes.
+
 ### 2026-11-12 (session 75 — admin follows the accent)
 - **Decision**: admin follows the dashboard accent rather than staying on the
   fixed blue/teal brand, so the topbar does not change identity when crossing

@@ -6,7 +6,10 @@
   /* The accent palette lives in base.html now: choosing a colour here sets
      <html data-accent>, so the topbar, buttons and cards of every page
      follow it, not just this hero. */
-  .dash-hero { position: relative; overflow: hidden; display: flex; justify-content: space-between; align-items: center; gap: 18px;
+  /* no overflow:hidden here — it clipped the accent menu that opens from the
+     🎨 button below the hero's edge; the decorative grid ::after is inset:0
+     so nothing actually needs clipping. */
+  .dash-hero { position: relative; overflow: visible; display: flex; justify-content: space-between; align-items: center; gap: 18px;
     background: radial-gradient(700px 300px at 88% -20%, rgba(20,184,166,.38), transparent 60%),
                 linear-gradient(125deg, #0a1a33 0%, #123a70 58%, #155e75 100%); color: #fff;
     padding: 28px 30px; border-radius: 20px; margin-bottom: 22px;

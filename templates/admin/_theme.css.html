@@ -1515,8 +1515,9 @@ html[data-theme][data-accent] {
   --header-bg: linear-gradient(90deg, var(--primary-dark), var(--primary));
   --button-bg: var(--primary);
   --button-hover-bg: var(--primary-dark);
-  --default-button-bg: var(--primary);
-  --default-button-hover-bg: var(--primary-dark);
+  /* one filled-accent pair drives buttons and object tools in both themes */
+  --default-button-bg: var(--button-bg);
+  --default-button-hover-bg: var(--button-hover-bg);
   --object-tools-bg: var(--accent-strong);
   --object-tools-hover-bg: var(--accent-strong-hover);
   --link-fg: var(--primary);
@@ -1533,12 +1534,11 @@ html[data-theme][data-accent] {
 html[data-theme="dark"][data-accent] {
   --header-bg: linear-gradient(90deg, var(--primary-dark),
     color-mix(in srgb, var(--primary) 72%, var(--primary-dark)));
-  --button-bg: color-mix(in srgb, var(--primary) 58%, #000);
-  --button-hover-bg: color-mix(in srgb, var(--primary) 46%, #000);
-  --default-button-bg: color-mix(in srgb, var(--primary) 58%, #000);
-  --default-button-hover-bg: color-mix(in srgb, var(--primary) 46%, #000);
-  --object-tools-bg: color-mix(in srgb, var(--primary) 58%, #000);
-  --object-tools-hover-bg: color-mix(in srgb, var(--primary) 46%, #000);
+  /* the same deep pair is inherited by buttons, defaults and object tools */
+  --accent-strong: color-mix(in srgb, var(--primary) 58%, #000);
+  --accent-strong-hover: color-mix(in srgb, var(--primary) 46%, #000);
+  --button-bg: var(--accent-strong);
+  --button-hover-bg: var(--accent-strong-hover);
   --link-fg: color-mix(in srgb, var(--primary) 68%, #fff);
   --link-hover-color: color-mix(in srgb, var(--primary) 45%, #fff);
   --link-selected-fg: color-mix(in srgb, var(--primary) 55%, #fff);
@@ -1558,7 +1558,7 @@ html[data-theme][data-accent] .anav-group.on ul li a.on {
 }
 html[data-theme="dark"][data-accent] .object-tools a:not(.addlink) {
   background: var(--object-tools-bg) !important;
-  border-color: var(--button-hover-bg) !important;
+  border-color: var(--accent-strong-hover) !important;
 }
 html[data-theme="dark"][data-accent] .object-tools a.addlink {
   color: #fff !important;

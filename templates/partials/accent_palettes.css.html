@@ -5,7 +5,8 @@
    The dashboard stores the chosen accent as localStorage.accent; every page
    restores it as <html data-accent> in the head before first paint. Each
    palette provides:
-     --primary       white-text-safe brand colour (buttons, topbar end)
+     --primary       brand colour; white-text-safe in light, while dark
+                     surfaces mix it toward black before using white text
      --primary-dark  deepest shade (topbar start, hover)
      --primary-light tinted surface
      --accent        bright highlight (logo, gradients, focus ring)

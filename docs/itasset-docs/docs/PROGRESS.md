@@ -196,6 +196,12 @@ authenticated user; no company/branch scoping exists.
   errors; repeated at 390 px width. Production `/` serves `overflow: visible`.
 - Checks: ruff clean; dashboard + palette guard **34 passed + 27 subtests**;
   server suite **626 passed + 135 subtests** (186.7 s); health ok; probe 29/0.
+- Dashboard audit also found plural copy bugs in the alert cards: "1
+  warranties expiring…" / "1 assets missing a serial number". The `{% t %}`
+  tag now accepts per-language `{"one", "other"}` forms keyed on `n`; the five
+  counted alerts use them (Burmese keeps one string). `test_plural_alerts.py`
+  covers singular, plural and the Myanmar form; production now renders "1
+  asset missing a serial number". Server suite: 630 passed + 138 subtests.
 
 ### 2026-11-12 (session 76 — accent palettes in one place + contrast gate)
 - Palette definitions had been copied into `base.html`, `registration/login.html`

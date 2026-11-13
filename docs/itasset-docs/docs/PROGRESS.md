@@ -204,6 +204,13 @@ authenticated user; no company/branch scoping exists.
 - Checks: ruff clean; core + dashboard **63 passed**; server suite **622
   passed + 108 subtests** (187.9 s); health ok; probe 29 ok / 0 failed;
   production login/admin HTML serve the shared palette block and dark mixes.
+- Review pass: admin dark button/default-button/object-tools had repeated the
+  same color-mix six times; one `--accent-strong`/`--accent-strong-hover`
+  pair now feeds all of them, default buttons alias the button pair, object
+  tools use the accent-strong hover border, and the shared comment no longer
+  calls the dark primary white-text-safe. Re-measured browser contrast after
+  the refactor: admin dark header 4.77-6.46 / buttons 7.67-9.96, light
+  5.02-6.04; sign-in submit 7.05-9.96 — no regression.
 
 ### 2026-11-12 (session 75 — admin follows the accent)
 - **Decision**: admin follows the dashboard accent rather than staying on the

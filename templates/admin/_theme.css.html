@@ -1556,6 +1556,14 @@ html[data-theme][data-accent] .anav-group.on ul li a.on {
     color-mix(in srgb, var(--accent) 8%, transparent));
   box-shadow: inset 3px 0 0 var(--accent);
 }
+/* .object-tools a.addlink paints the bright --accent, which leaves white
+   label text at ~2:1 on orange/pink/teal; use the same deep fill as the
+   other object tools. */
+html[data-theme][data-accent] .object-tools a.addlink {
+  background: var(--accent-strong) !important;
+}
+/* the small "ADMIN" eyebrow had the same bright-accent problem on white */
+html[data-theme][data-accent] .page-eyebrow { color: var(--link-fg); }
 html[data-theme="dark"][data-accent] .object-tools a:not(.addlink) {
   background: var(--object-tools-bg) !important;
   border-color: var(--accent-strong-hover) !important;
